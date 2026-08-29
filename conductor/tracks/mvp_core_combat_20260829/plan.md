@@ -51,12 +51,12 @@
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [e13f94e]
 
 ## Phase 6: Performance Scoring, Upgrade Armory & 3-Round Escalation Loop
-- [ ] Task: Scoring & Progression Unit Tests (TDD Red)
-  - [ ] Write unit tests for XP and Elemental Essence calculations based on turns taken, combo reactions, and damage dealt
-  - [ ] Write unit tests for upgrade purchases, spell unlocking, and relic stat modifications
-- [ ] Task: Scoring, Upgrade Armory & Escalation Loop Implementation (TDD Green)
-  - [ ] Implement `PerformanceScorer` to evaluate round efficiency and award Essence
-  - [ ] Implement `UpgradeArmory` UI modal with skill trees, spell upgrades, and passive relics
-  - [ ] Implement `EscalationManager` with 3 rounds of increasing difficulty (including Round 3 Boss encounter)
-  - [ ] Implement Victory and Defeat summary screens with full run statistics and instant restart
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Scoring & Progression Unit Tests (TDD Red) [968a936]
+  - [x] Write unit tests for XP and Elemental Essence calculations based on turns taken, combo reactions, and damage dealt
+  - [x] Write unit tests for upgrade purchases, spell unlocking, and relic stat modifications
+- [x] Task: Scoring, Upgrade Armory & Escalation Loop Implementation (TDD Green) [968a936]
+  - [x] Implement `PerformanceScorer` to evaluate round efficiency and award Essence
+  - [x] Implement `UpgradeArmory` UI modal with skill trees, spell upgrades, and passive relics
+  - [x] Implement `EscalationManager` with 3 rounds of increasing difficulty (including Round 3 Boss encounter)
+  - [x] Implement Victory and Defeat summary screens with full run statistics and instant restart
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [968a936]
