@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Elemental Mayhem - Tactical Turn-Based Arena</title>
+  <meta name="description" content="A turn-based tactical arena game where players wield, combine, and master 42 elemental forces in an escalating combat gauntlet." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600;700&family=Outfit:wght@400;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <div id="app" class="game-container">
+    <!-- Top Header Bar -->
+    <header class="top-header glass-card">
+      <div class="header-left">
+        <h1 class="game-title">ELEMENTAL <span class="accent-text">MAYHEM</span></h1>
+        <div class="round-badge" id="round-indicator">ROUND 1 / 3</div>
+      </div>
+      <div class="turn-phase-banner" id="turn-banner">
+        <span class="phase-label" id="phase-text">PLAYER TURN</span>
+      </div>
+      <div class="header-right">
+        <div class="currency-pill">
+          <span class="pill-icon">✨</span>
+          <span class="pill-label">Essence:</span>
+          <span class="pill-value" id="essence-counter">0</span>
+        </div>
+        <div class="currency-pill">
+          <span class="pill-icon">⚡</span>
+          <span class="pill-label">XP:</span>
+          <span class="pill-value" id="xp-counter">0</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Battlefield & Side Panel -->
+    <main class="battlefield-layout">
+      <!-- Battlefield Area -->
+      <section class="canvas-wrapper glass-card">
+        <canvas id="battlefield-canvas" width="800" height="800"></canvas>
+        <div id="combat-floating-text" class="floating-text-container"></div>
+      </section>
+
+      <!-- Tactical Sidebar -->
+      <aside class="sidebar-panel">
+        <!-- Target Inspector Card -->
+        <div class="inspector-card glass-card" id="target-inspector">
+          <div class="card-header">
+            <h3 id="target-name">No Target Selected</h3>
+            <span class="element-badge" id="target-element-badge">Neutral</span>
+          </div>
+          <div class="inspector-body" id="target-details">
+            <p class="placeholder-text">Hover or click any tile or unit on the grid to inspect details and previews.</p>
+          </div>
+        </div>
+
+        <!-- Combat Action Log -->
+        <div class="combat-log-card glass-card">
+          <div class="card-header">
+            <h3>Combat Log</h3>
+            <button id="clear-log-btn" class="btn-text">Clear</button>
+          </div>
+          <div class="log-entries" id="combat-log-list">
+            <div class="log-entry log-system">Welcome to the Arena. Prepare your elements!</div>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <!-- Bottom Action Dock -->
+    <footer class="action-dock glass-card">
+      <!-- Hero Status Bar -->
+      <div class="hero-status">
+        <div class="hero-avatar">🧙‍♂️</div>
+        <div class="hero-meters">
+          <div class="meter-group">
+            <div class="meter-header">
+              <span class="meter-label">HP</span>
+              <span class="meter-value" id="hero-hp-text">100 / 100</span>
+            </div>
+            <div class="progress-bar hp-bar">
+              <div class="progress-fill" id="hero-hp-fill" style="width: 100%"></div>
+            </div>
+          </div>
+          <div class="meter-group">
+            <div class="meter-header">
+              <span class="meter-label">ACTION POINTS</span>
+              <span class="meter-value" id="hero-ap-text">6 / 6 AP</span>
+            </div>
+            <div class="ap-pips" id="hero-ap-pips">
+              <span class="ap-pip filled"></span>
+              <span class="ap-pip filled"></span>
+              <span class="ap-pip filled"></span>
+              <span class="ap-pip filled"></span>
+              <span class="ap-pip filled"></span>
+              <span class="ap-pip filled"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Bar (Abilities) -->
+      <div class="action-bar" id="ability-action-bar">
+        <!-- Dynamic ability slots injected by JavaScript -->
+      </div>
+
+      <!-- End Turn Controls -->
+      <div class="dock-actions">
+        <button id="end-turn-btn" class="btn-primary end-turn-button">
+          <span class="btn-hotkey">[Space]</span>
+          <span class="btn-title">END TURN</span>
+        </button>
+      </div>
+    </footer>
+
+    <!-- Upgrade Armory Modal -->
+    <div id="upgrade-modal" class="modal-overlay hidden">
+      <div class="modal-content glass-card">
+        <div class="modal-header">
+          <h2>ARENA ARMORY: UPGRADE YOUR FORCES</h2>
+          <div class="modal-currencies">
+            <span>✨ Essence: <strong id="modal-essence">0</strong></span>
+            <span>⚡ XP: <strong id="modal-xp">0</strong></span>
+          </div>
+        </div>
+        <div class="modal-body" id="upgrade-choices-container">
+          <!-- Injected dynamically -->
+        </div>
+        <div class="modal-footer">
+          <button id="proceed-next-round-btn" class="btn-primary">Proceed to Next Round</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Victory / Defeat Modal -->
+    <div id="game-over-modal" class="modal-overlay hidden">
+      <div class="modal-content glass-card outcome-card">
+        <h2 id="outcome-title">VICTORY ACHIEVED</h2>
+        <p id="outcome-subtitle">You have conquered the elemental gauntlet!</p>
+        <div class="outcome-stats" id="outcome-stats-list"></div>
+        <button id="restart-game-btn" class="btn-primary">Enter New Gauntlet</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
