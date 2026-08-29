@@ -31,13 +31,13 @@
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [4cea8d0]
 
 ## Phase 4: Turn-Based State Machine, Units & Tactical AI
-- [ ] Task: Combat Engine & AI Unit Tests (TDD Red)
-  - [ ] Write unit tests for AP consumption, turn order transitions (`PLAYER_TURN` -> `ENEMY_TURN` -> `ENVIRONMENT_TICK`)
-  - [ ] Write unit tests for ability execution, cooldown tracking, and unit death handling
-  - [ ] Write unit tests for Enemy AI behavior (evaluation of targets, distance, AP, spell choice)
-- [ ] Task: Combat Engine & AI Implementation (TDD Green)
-  - [ ] Implement `TurnManager` and `CombatEngine` with AP validation and ability execution
-  - [ ] Implement `EnemyAI` controller for tactical movement and reactive ability casting
+- [x] Task: Combat Engine & AI Unit Tests (TDD Red) [248e6f4]
+  - [x] Write unit tests for AP consumption, turn order transitions (`PLAYER_TURN` -> `ENEMY_TURN` -> `ENVIRONMENT_TICK`)
+  - [x] Write unit tests for ability execution, cooldown tracking, and unit death handling
+  - [x] Write unit tests for Enemy AI behavior (evaluation of targets, distance, AP, spell choice)
+- [x] Task: Combat Engine & AI Implementation (TDD Green) [248e6f4]
+  - [x] Implement `TurnManager` and `CombatEngine` with AP validation and ability execution
+  - [x] Implement `EnemyAI` controller for tactical movement and reactive ability casting
 - [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
 
 ## Phase 5: Canvas Battlefield Renderer & Tactical Glassmorphism HUD
