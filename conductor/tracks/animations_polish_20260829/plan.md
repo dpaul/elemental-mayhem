@@ -18,10 +18,10 @@
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [6a05e5f]
 
 ## Phase 3: Sequential AI Turn Orchestration & Input Lock
-- [ ] Task: Async Turn Queue Unit Tests (TDD Red)
-  - [ ] Write unit tests for sequential action execution order and delay pacing
-- [ ] Task: Async Turn Orchestration Implementation (TDD Green)
-  - [ ] Refactor `GameController.endPlayerTurn` into an async sequential loop (highlight active enemy -> animate move -> pause -> animate spell -> pause -> next enemy)
-  - [ ] Implement input locking during animation and AI phases
-  - [ ] Update header banner with active unit name during enemy turns
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Async Turn Queue Unit Tests (TDD Red) [9e476d7]
+  - [x] Write unit tests for sequential action execution order and delay pacing
+- [x] Task: Async Turn Orchestration Implementation (TDD Green) [9e476d7]
+  - [x] Refactor `GameController.endPlayerTurn` into an async sequential loop (highlight active enemy -> animate move -> pause -> animate spell -> pause -> next enemy)
+  - [x] Implement input locking during animation and AI phases
+  - [x] Update header banner with active unit name during enemy turns
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [9e476d7]
