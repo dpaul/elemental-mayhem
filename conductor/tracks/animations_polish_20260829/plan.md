@@ -10,12 +10,12 @@
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [6569316]
 
 ## Phase 2: Projectile System & Deferred Combat Impact
-- [ ] Task: Projectile Engine Unit Tests (TDD Red)
-  - [ ] Write unit tests for `ProjectileManager` flight trajectory math, speed/duration, and arrival callbacks
-- [ ] Task: Projectile Engine Implementation (TDD Green)
-  - [ ] Implement `ProjectileManager` in `ParticleEngine` with signature elemental trails (Fire, Water, Lightning, Poison, Earth, Void)
-  - [ ] Update ability casting flow to launch projectile and defer damage, floating text, and reactions until projectile arrives
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Projectile Engine Unit Tests (TDD Red) [6a05e5f]
+  - [x] Write unit tests for `ProjectileManager` flight trajectory math, speed/duration, and arrival callbacks
+- [x] Task: Projectile Engine Implementation (TDD Green) [6a05e5f]
+  - [x] Implement `ProjectileManager` in `ParticleEngine` with signature elemental trails (Fire, Water, Lightning, Poison, Earth, Void)
+  - [x] Update ability casting flow to launch projectile and defer damage, floating text, and reactions until projectile arrives
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [6a05e5f]
 
 ## Phase 3: Sequential AI Turn Orchestration & Input Lock
 - [ ] Task: Async Turn Queue Unit Tests (TDD Red)
