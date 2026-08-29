@@ -1,6 +1,6 @@
 // Elemental Mayhem - Enemy AI Decision Tree & Tactical Behavior
 import { CombatEngine } from './CombatEngine';
-import { Unit, GridCoord, Ability } from '../types';
+import { Unit } from '../types';
 
 export class EnemyAI {
   private combatEngine: CombatEngine;
