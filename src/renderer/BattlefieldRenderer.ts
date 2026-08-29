@@ -1,5 +1,7 @@
+// Elemental Mayhem - 10x10 Tactical Canvas 2D Battlefield Renderer
 import { CombatEngine } from '../engine/CombatEngine';
 import { ParticleEngine } from './ParticleEngine';
+import { AnimationManager } from './AnimationManager';
 import { GridCoord, TileHazardType } from '../types';
 import { CORE_ELEMENTS } from '../constants/elements';
 
@@ -8,6 +10,7 @@ export class BattlefieldRenderer {
   private ctx: CanvasRenderingContext2D;
   private combatEngine: CombatEngine;
   public particleEngine: ParticleEngine;
+  public animManager: AnimationManager;
   public tileSize: number = 72;
   public gridOffsetX: number = 40;
   public gridOffsetY: number = 40;
@@ -17,6 +20,7 @@ export class BattlefieldRenderer {
     this.ctx = canvas.getContext('2d')!;
     this.combatEngine = combatEngine;
     this.particleEngine = new ParticleEngine();
+    this.animManager = new AnimationManager();
     this.calculateDimensions();
   }
 
@@ -51,10 +55,23 @@ export class BattlefieldRenderer {
     };
   }
 
+  public renderCoordToScreen(coord: { x: number; y: number }): { x: number; y: number } {
+    return {
+      x: this.gridOffsetX + coord.x * this.tileSize + this.tileSize / 2,
+      y: this.gridOffsetY + coord.y * this.tileSize + this.tileSize / 2,
+    };
+  }
+
+  public update(deltaTimeMs: number): void {
+    this.animManager.update(deltaTimeMs);
+    this.particleEngine.update();
+  }
+
   public render(
     hoveredCoord: GridCoord | null,
     reachableTiles: GridCoord[],
-    targetableTiles: GridCoord[]
+    targetableTiles: GridCoord[],
+    focusedUnitId: string | null = null
   ): void {
     const { ctx, canvas, combatEngine, tileSize, gridOffsetX, gridOffsetY } = this;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -123,10 +140,9 @@ export class BattlefieldRenderer {
     ctx.restore();
 
     // 5. Draw Units (Hero and Enemies)
-    this.renderUnits(ctx);
+    this.renderUnits(ctx, focusedUnitId);
 
     // 6. Draw Particle Layer
-    this.particleEngine.update();
     this.particleEngine.render(ctx);
   }
 
@@ -160,6 +176,12 @@ export class BattlefieldRenderer {
         ctx.font = '18px sans-serif';
         ctx.fillText('🧪', x + size / 2 - 8, y + size / 2 + 6);
         break;
+      case 'VoidRift':
+        ctx.fillStyle = 'rgba(217, 70, 239, 0.35)';
+        ctx.fillRect(x, y, size, size);
+        ctx.font = '18px sans-serif';
+        ctx.fillText('🌌', x + size / 2 - 8, y + size / 2 + 6);
+        break;
       default:
         break;
     }
@@ -180,20 +202,38 @@ export class BattlefieldRenderer {
     ctx.restore();
   }
 
-  private renderUnits(ctx: CanvasRenderingContext2D): void {
+  private renderUnits(ctx: CanvasRenderingContext2D, focusedUnitId: string | null): void {
     const allUnits = [this.combatEngine.hero, ...this.combatEngine.enemies];
     for (const unit of allUnits) {
       if (unit.isDead) continue;
-      const screenPos = this.gridToScreen(unit.coord);
+
+      // Use interpolated render coordinate if unit is animating
+      const animCoord = this.animManager.getUnitRenderCoord(unit.id);
+      const screenPos = animCoord
+        ? this.renderCoordToScreen(animCoord)
+        : this.gridToScreen(unit.coord);
+
       const isPlayer = unit.faction === 'Player';
+      const isFocused = unit.id === focusedUnitId;
       const radius = this.tileSize * 0.38;
 
       ctx.save();
 
-      // Glowing Elemental Aura
+      // Emit glide particles if unit is moving
+      if (animCoord) {
+        this.particleEngine.emit(
+          screenPos.x,
+          screenPos.y + radius * 0.8,
+          isPlayer ? 'rgba(56, 189, 248, 0.4)' : 'rgba(239, 68, 68, 0.4)',
+          1,
+          0.8
+        );
+      }
+
+      // Glowing Elemental Aura or Focused Ring
       const elemData = CORE_ELEMENTS[unit.stats.elementalAffinity];
-      ctx.shadowColor = elemData ? elemData.glowColor : 'rgba(255,255,255,0.3)';
-      ctx.shadowBlur = 12;
+      ctx.shadowColor = isFocused ? '#fef08a' : (elemData ? elemData.glowColor : 'rgba(255,255,255,0.3)');
+      ctx.shadowBlur = isFocused ? 20 : 12;
 
       // Unit Background Ring
       ctx.fillStyle = isPlayer ? '#0f172a' : '#1e1b4b';
@@ -202,8 +242,8 @@ export class BattlefieldRenderer {
       ctx.fill();
 
       // Unit Border Ring
-      ctx.strokeStyle = isPlayer ? '#38bdf8' : (elemData ? elemData.color : '#ef4444');
-      ctx.lineWidth = 3;
+      ctx.strokeStyle = isFocused ? '#fef08a' : (isPlayer ? '#38bdf8' : (elemData ? elemData.color : '#ef4444'));
+      ctx.lineWidth = isFocused ? 4 : 3;
       ctx.stroke();
 
       // Avatar Icon
@@ -225,7 +265,7 @@ export class BattlefieldRenderer {
       ctx.fillStyle = isPlayer ? '#22c55e' : '#ef4444';
       ctx.fillRect(hpX, hpY, hpWidth * hpPct, hpHeight);
 
-      // Unit Name / Status Indicator
+      // Unit Status Indicator
       if (unit.statusEffects.length > 0) {
         ctx.font = '10px "Fira Code", monospace';
         ctx.fillStyle = '#fef08a';
