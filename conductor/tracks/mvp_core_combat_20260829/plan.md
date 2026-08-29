@@ -41,14 +41,14 @@
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [248e6f4]
 
 ## Phase 5: Canvas Battlefield Renderer & Tactical Glassmorphism HUD
-- [ ] Task: Battlefield Canvas 2D Renderer
-  - [ ] Implement grid tile renderer with terrain texture, obstacle rendering, and hover reach highlights
-  - [ ] Implement unit sprite rendering with health bars, AP pips, and element badges
-  - [ ] Implement dynamic particle FX engine (projectiles, explosions, lightning arcs, vapor clouds)
-- [ ] Task: Tactical HUD & Input Controller
-  - [ ] Implement glassmorphism action bar with ability slots, AP cost preview, cooldown badges, and hotkeys
-  - [ ] Implement target selection overlays, damage preview tooltip, and scrollable combat log
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Battlefield Canvas 2D Renderer [e13f94e]
+  - [x] Implement grid tile renderer with terrain texture, obstacle rendering, and hover reach highlights
+  - [x] Implement unit sprite rendering with health bars, AP pips, and element badges
+  - [x] Implement dynamic particle FX engine (projectiles, explosions, lightning arcs, vapor clouds)
+- [x] Task: Tactical HUD & Input Controller [e13f94e]
+  - [x] Implement glassmorphism action bar with ability slots, AP cost preview, cooldown badges, and hotkeys
+  - [x] Implement target selection overlays, damage preview tooltip, and scrollable combat log
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [e13f94e]
 
 ## Phase 6: Performance Scoring, Upgrade Armory & 3-Round Escalation Loop
 - [ ] Task: Scoring & Progression Unit Tests (TDD Red)
