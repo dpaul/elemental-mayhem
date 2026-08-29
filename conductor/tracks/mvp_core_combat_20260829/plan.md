@@ -20,14 +20,14 @@
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [99a8e73]
 
 ## Phase 3: Elemental Affinity Matrix & Reaction Engine
-- [ ] Task: Elemental Reactions & Affinity Unit Tests (TDD Red)
-  - [ ] Write unit tests for attacker vs defender elemental damage multiplier formulas
-  - [ ] Write unit tests for 2-element emergent reactions (Vaporize, Superconduct, Toxic Explosion, Petrify, Void Collapse)
-  - [ ] Write unit tests for status effect applications (Burning, Wet, Shocked, Poisoned, Rooted)
-- [ ] Task: Elemental System Implementation (TDD Green)
-  - [ ] Implement `ElementalMatrix` with damage calculations and resistance curves
-  - [ ] Implement `ReactionEngine` to process character & tile element collisions
-  - [ ] Implement `StatusEffectManager` with tick/expire lifecycle
+- [x] Task: Elemental Reactions & Affinity Unit Tests (TDD Red) [4cea8d0]
+  - [x] Write unit tests for attacker vs defender elemental damage multiplier formulas
+  - [x] Write unit tests for 2-element emergent reactions (Vaporize, Superconduct, Toxic Explosion, Petrify, Void Collapse)
+  - [x] Write unit tests for status effect applications (Burning, Wet, Shocked, Poisoned, Rooted)
+- [x] Task: Elemental System Implementation (TDD Green) [4cea8d0]
+  - [x] Implement `ElementalMatrix` with damage calculations and resistance curves
+  - [x] Implement `ReactionEngine` to process character & tile element collisions
+  - [x] Implement `StatusEffectManager` with tick/expire lifecycle
 - [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
 
 ## Phase 4: Turn-Based State Machine, Units & Tactical AI
