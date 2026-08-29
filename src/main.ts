@@ -1,4 +1,4 @@
-// Elemental Mayhem - Main Application Controller
+// Elemental Mayhem - Main Application Controller (Smooth Animated Execution)
 import './style.css';
 import { Grid } from './engine/Grid';
 import { TileHazardManager } from './engine/TileHazardManager';
@@ -11,6 +11,9 @@ import { EscalationManager } from './engine/EscalationManager';
 import { BattlefieldRenderer } from './renderer/BattlefieldRenderer';
 import { HUDManager } from './ui/HUDManager';
 import { Unit, Ability, GridCoord, PassiveRelic } from './types';
+import { CORE_ELEMENTS } from './constants/elements';
+
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 class GameController {
   private grid: Grid;
@@ -34,6 +37,10 @@ class GameController {
   private hoveredCoord: GridCoord | null = null;
   private reachableTiles: GridCoord[] = [];
   private targetableTiles: GridCoord[] = [];
+
+  private isBusy: boolean = false;
+  private focusedUnitId: string | null = null;
+  private lastFrameTime: number = performance.now();
 
   // Modals
   private upgradeModal: HTMLElement;
@@ -81,6 +88,7 @@ class GameController {
     this.updateHUD();
 
     // Start Game Loop
+    this.lastFrameTime = performance.now();
     this.gameLoop();
   }
 
@@ -193,6 +201,7 @@ class GameController {
 
   private setupEventListeners(canvas: HTMLCanvasElement): void {
     canvas.addEventListener('mousemove', (e) => {
+      if (this.isBusy) return;
       const gridCoord = this.renderer.screenToGrid(e.clientX, e.clientY);
       this.hoveredCoord = gridCoord;
       if (gridCoord) {
@@ -201,32 +210,22 @@ class GameController {
       }
     });
 
-    canvas.addEventListener('click', (e) => {
+    canvas.addEventListener('click', async (e) => {
+      if (this.isBusy || this.turnManager.getCurrentPhase() !== 'PLAYER_TURN') return;
       const gridCoord = this.renderer.screenToGrid(e.clientX, e.clientY);
-      if (!gridCoord || this.turnManager.getCurrentPhase() !== 'PLAYER_TURN') return;
+      if (!gridCoord) return;
 
       if (this.selectedAbility) {
-        const res = this.combatEngine.executeAbility(this.hero, this.selectedAbility, gridCoord);
-        if (res.success) {
-          const screenPos = this.renderer.gridToScreen(gridCoord);
-          this.renderer.particleEngine.emit(screenPos.x, screenPos.y, '#ffd000', 25, 4);
-          this.selectedAbility = null;
-          this.targetableTiles = [];
-        }
+        await this.handlePlayerCast(this.selectedAbility, gridCoord);
       } else {
-        if (this.combatEngine.moveUnit(this.hero, gridCoord)) {
-          const screenPos = this.renderer.gridToScreen(gridCoord);
-          this.renderer.particleEngine.emit(screenPos.x, screenPos.y, '#38bdf8', 12, 2);
-        }
+        await this.handlePlayerMove(gridCoord);
       }
-
-      this.updateReachableTiles();
-      this.updateHUD();
-      this.checkCombatState();
     });
 
     document.getElementById('end-turn-btn')?.addEventListener('click', () => {
-      this.endPlayerTurn();
+      if (!this.isBusy) {
+        this.endPlayerTurn();
+      }
     });
 
     this.proceedNextRoundBtn.addEventListener('click', () => {
@@ -238,6 +237,8 @@ class GameController {
     });
 
     window.addEventListener('keydown', (e) => {
+      if (this.isBusy) return;
+
       if (e.key >= '1' && e.key <= '5') {
         const idx = parseInt(e.key) - 1;
         if (this.hero.abilities[idx]) {
@@ -255,7 +256,7 @@ class GameController {
   }
 
   private selectAbility(ability: Ability): void {
-    if (ability.apCost > this.hero.stats.currentAp || ability.currentCooldown > 0) return;
+    if (this.isBusy || ability.apCost > this.hero.stats.currentAp || ability.currentCooldown > 0) return;
 
     if (this.selectedAbility?.id === ability.id) {
       this.selectedAbility = null;
@@ -268,7 +269,7 @@ class GameController {
   }
 
   private updateReachableTiles(): void {
-    if (this.turnManager.getCurrentPhase() === 'PLAYER_TURN') {
+    if (this.turnManager.getCurrentPhase() === 'PLAYER_TURN' && !this.isBusy) {
       const maxDist = Math.floor(this.hero.stats.currentAp / this.hero.stats.moveCostPerTile);
       this.reachableTiles = this.grid.getReachableTiles(this.hero.coord, maxDist);
     } else {
@@ -276,34 +277,150 @@ class GameController {
     }
   }
 
-  private endPlayerTurn(): void {
-    if (this.turnManager.getCurrentPhase() !== 'PLAYER_TURN') return;
+  private async handlePlayerMove(destination: GridCoord): Promise<void> {
+    const path = this.grid.findPath(this.hero.coord, destination);
+    if (!path || path.length === 0) return;
 
-    this.turnManager.endPlayerTurn();
+    const apCost = path.length * this.hero.stats.moveCostPerTile;
+    if (this.hero.stats.currentAp < apCost) return;
+
+    this.isBusy = true;
+    this.reachableTiles = [];
+    this.targetableTiles = [];
+    this.updateHUD();
+
+    // Animate smooth movement
+    const fullPath = [this.hero.coord, ...path];
+    await new Promise<void>((resolve) => {
+      this.renderer.animManager.animateMovement(this.hero.id, fullPath, 160, () => {
+        this.combatEngine.moveUnit(this.hero, destination);
+        resolve();
+      });
+    });
+
+    this.isBusy = false;
+    this.updateReachableTiles();
+    this.updateHUD();
+    this.checkCombatState();
+  }
+
+  private async handlePlayerCast(ability: Ability, targetCoord: GridCoord): Promise<void> {
+    const dist = this.grid.manhattanDistance(this.hero.coord, targetCoord);
+    if (dist > ability.range || !this.grid.hasLineOfSight(this.hero.coord, targetCoord)) return;
+    if (this.hero.stats.currentAp < ability.apCost || ability.currentCooldown > 0) return;
+
+    this.isBusy = true;
     this.selectedAbility = null;
     this.targetableTiles = [];
     this.reachableTiles = [];
     this.updateHUD();
 
-    setTimeout(() => {
-      this.turnManager.startEnemyTurn(this.enemies);
-      for (const enemy of this.enemies) {
-        if (!enemy.isDead) {
-          this.enemyAI.takeTurn(enemy, this.hero);
+    const startPos = this.renderer.gridToScreen(this.hero.coord);
+    const targetPos = this.renderer.gridToScreen(targetCoord);
+    const elemData = CORE_ELEMENTS[ability.element];
+    const color = elemData ? elemData.color : '#ffd000';
+
+    // Launch Projectile and await arrival
+    await new Promise<void>((resolve) => {
+      this.renderer.projManager.spawnProjectile(startPos, targetPos, ability.element, color, 260, () => {
+        // Execute ability upon arrival
+        this.combatEngine.executeAbility(this.hero, ability, targetCoord);
+
+        // Impact effects
+        this.renderer.particleEngine.emit(targetPos.x, targetPos.y, color, 30, 4.5);
+        this.renderer.particleEngine.addFloatingText(`${ability.baseDamage}`, targetPos.x, targetPos.y - 15, color, 20);
+
+        resolve();
+      });
+    });
+
+    await delay(250);
+
+    this.isBusy = false;
+    this.updateReachableTiles();
+    this.updateHUD();
+    this.checkCombatState();
+  }
+
+  private async endPlayerTurn(): Promise<void> {
+    if (this.turnManager.getCurrentPhase() !== 'PLAYER_TURN' || this.isBusy) return;
+
+    this.isBusy = true;
+    this.turnManager.endPlayerTurn();
+    this.selectedAbility = null;
+    this.targetableTiles = [];
+    this.reachableTiles = [];
+    this.hud.updatePhaseBanner('ENEMY TURN');
+    this.updateHUD();
+
+    await delay(350);
+
+    // Sequential Enemy AI Turns
+    this.turnManager.startEnemyTurn(this.enemies);
+
+    for (const enemy of this.enemies) {
+      if (enemy.isDead) continue;
+
+      this.focusedUnitId = enemy.id;
+      this.hud.updatePhaseBanner(`ENEMY: ${enemy.name.toUpperCase()}`);
+      await delay(350);
+
+      const steps = this.enemyAI.planTurnSteps(enemy, this.hero);
+
+      for (const step of steps) {
+        if (enemy.isDead || this.hero.isDead) break;
+
+        if (step.type === 'move') {
+          await new Promise<void>((resolve) => {
+            this.renderer.animManager.animateMovement(enemy.id, step.path, 160, () => {
+              this.combatEngine.moveUnit(enemy, step.destination);
+              resolve();
+            });
+          });
+          this.updateHUD();
+          await delay(250);
+        } else if (step.type === 'cast') {
+          const startPos = this.renderer.gridToScreen(enemy.coord);
+          const targetPos = this.renderer.gridToScreen(step.targetCoord);
+          const elemData = CORE_ELEMENTS[step.ability.element];
+          const color = elemData ? elemData.color : '#ef4444';
+
+          await new Promise<void>((resolve) => {
+            this.renderer.projManager.spawnProjectile(startPos, targetPos, step.ability.element, color, 260, () => {
+              this.combatEngine.executeAbility(enemy, step.ability, step.targetCoord);
+              this.renderer.particleEngine.emit(targetPos.x, targetPos.y, color, 25, 4);
+              this.renderer.particleEngine.addFloatingText(`${step.ability.baseDamage}`, targetPos.x, targetPos.y - 15, color, 20);
+              resolve();
+            });
+          });
+
+          this.updateHUD();
+          await delay(350);
         }
       }
 
-      this.hazardManager.tickHazards();
-      this.combatEngine.statusManager.tickStatusEffects(this.hero);
-      for (const enemy of this.enemies) {
-        this.combatEngine.statusManager.tickStatusEffects(enemy);
-      }
+      this.focusedUnitId = null;
+      await delay(250);
+    }
 
+    // Environment & Status Ticks
+    this.hud.updatePhaseBanner('ENVIRONMENT TICK');
+    this.hazardManager.tickHazards();
+    this.combatEngine.statusManager.tickStatusEffects(this.hero);
+    for (const enemy of this.enemies) {
+      this.combatEngine.statusManager.tickStatusEffects(enemy);
+    }
+    await delay(300);
+
+    // Return to Player Turn
+    if (!this.hero.isDead && !this.combatEngine.areAllEnemiesDead()) {
       this.turnManager.startPlayerTurn([this.hero]);
+      this.isBusy = false;
       this.updateReachableTiles();
       this.updateHUD();
-      this.checkCombatState();
-    }, 500);
+    }
+
+    this.checkCombatState();
   }
 
   private checkCombatState(): void {
@@ -438,6 +555,7 @@ class GameController {
     );
 
     this.turnManager.startPlayerTurn([this.hero]);
+    this.isBusy = false;
     this.updateReachableTiles();
     this.updateHUD();
   }
@@ -473,6 +591,7 @@ class GameController {
     this.currentRound = 1;
     this.totalEssence = 0;
     this.totalXp = 0;
+    this.isBusy = false;
     this.hero = this.createHero();
     this.enemies = this.escalationManager.generateRoundEnemies(1);
     this.combatEngine = new CombatEngine(this.grid, this.hazardManager, this.hero, this.enemies);
@@ -500,10 +619,16 @@ class GameController {
   }
 
   private gameLoop = (): void => {
+    const now = performance.now();
+    const dt = Math.min(100, now - this.lastFrameTime);
+    this.lastFrameTime = now;
+
+    this.renderer.update(dt);
     this.renderer.render(
       this.hoveredCoord,
       this.selectedAbility ? [] : this.reachableTiles,
-      this.targetableTiles
+      this.targetableTiles,
+      this.focusedUnitId
     );
     requestAnimationFrame(this.gameLoop);
   };
