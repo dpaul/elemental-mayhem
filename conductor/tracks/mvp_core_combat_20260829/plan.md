@@ -1,6 +1,6 @@
 # Implementation Plan: MVP Core Tactical Grid Combat & Elemental Prototype
 
-## Phase 1: Project Foundation & Test Harness
+## Phase 1: Project Foundation & Test Harness [checkpoint: cd637c2]
 - [x] Task: Project Scaffolding & Configuration [cd637c2]
   - [x] Initialize Vite + TypeScript project structure with strict config
   - [x] Configure Vitest test runner and npm scripts (`npm run dev`, `npm test`, `npm run build`)
@@ -8,7 +8,7 @@
 - [x] Task: Core Types & Data Models [cd637c2]
   - [x] Define TypeScript interfaces for Elements, Units, Grid, Tiles, Abilities, Status Effects, and GameState
   - [x] Define 6 core element constants, registry data, and base stat configurations
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [cd637c2]
 
 ## Phase 2: Grid Arena, Pathfinding & Tile Hazard State Engine
 - [ ] Task: Grid & Pathfinding Unit Tests (TDD Red)
