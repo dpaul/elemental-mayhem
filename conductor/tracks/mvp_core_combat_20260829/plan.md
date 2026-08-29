@@ -30,7 +30,7 @@
   - [x] Implement `StatusEffectManager` with tick/expire lifecycle
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [4cea8d0]
 
-## Phase 4: Turn-Based State Machine, Units & Tactical AI
+## Phase 4: Turn-Based State Machine, Units & Tactical AI [checkpoint: 248e6f4]
 - [x] Task: Combat Engine & AI Unit Tests (TDD Red) [248e6f4]
   - [x] Write unit tests for AP consumption, turn order transitions (`PLAYER_TURN` -> `ENEMY_TURN` -> `ENVIRONMENT_TICK`)
   - [x] Write unit tests for ability execution, cooldown tracking, and unit death handling
@@ -38,7 +38,7 @@
 - [x] Task: Combat Engine & AI Implementation (TDD Green) [248e6f4]
   - [x] Implement `TurnManager` and `CombatEngine` with AP validation and ability execution
   - [x] Implement `EnemyAI` controller for tactical movement and reactive ability casting
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [248e6f4]
 
 ## Phase 5: Canvas Battlefield Renderer & Tactical Glassmorphism HUD
 - [ ] Task: Battlefield Canvas 2D Renderer
