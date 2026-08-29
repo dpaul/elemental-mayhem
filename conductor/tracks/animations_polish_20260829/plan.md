@@ -1,13 +1,13 @@
 # Implementation Plan: Smooth Movement & Spellcasting Animations with Sequential AI Turns
 
 ## Phase 1: Unit Movement Interpolation Engine
-- [ ] Task: Unit Movement Interpolation Unit Tests (TDD Red)
-  - [ ] Write unit tests for `AnimationManager` path queueing, waypoint interpolation calculations, and completion callbacks
-- [ ] Task: Unit Movement Interpolation Implementation (TDD Green)
-  - [ ] Implement `AnimationManager` handling smooth delta-time interpolation (160ms per tile)
-  - [ ] Update `BattlefieldRenderer` to draw units using active render positions
-  - [ ] Add movement glide dust particles during travel
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Unit Movement Interpolation Unit Tests (TDD Red) [6569316]
+  - [x] Write unit tests for `AnimationManager` path queueing, waypoint interpolation calculations, and completion callbacks
+- [x] Task: Unit Movement Interpolation Implementation (TDD Green) [6569316]
+  - [x] Implement `AnimationManager` handling smooth delta-time interpolation (160ms per tile)
+  - [x] Update `BattlefieldRenderer` to draw units using active render positions
+  - [x] Add movement glide dust particles during travel
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [6569316]
 
 ## Phase 2: Projectile System & Deferred Combat Impact
 - [ ] Task: Projectile Engine Unit Tests (TDD Red)
