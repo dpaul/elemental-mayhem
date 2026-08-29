@@ -156,6 +156,7 @@ that also concludes a phase in `plan.md`.
     -   **CRITICAL:** To generate the plan, first analyze `product.md`,
         `product-guidelines.md`, and `plan.md` to determine the user-facing
         goals of the completed phase.
+    -   **CRITICAL:** Do NOT ask the user to run automated test commands (e.g., `npm test`, `pytest`) that the agent executes directly in Step 3. Manual verification steps must focus strictly on user-facing browser UI interactions, gameplay features, visual inspection, or interactive endpoints.
     -   You **must** generate a step-by-step plan that walks the user through
         the verification process, including any necessary commands and specific,
         expected outcomes.
