@@ -1,7 +1,7 @@
-// Elemental Mayhem - 10x10 Tactical Canvas 2D Battlefield Renderer
 import { CombatEngine } from '../engine/CombatEngine';
 import { ParticleEngine } from './ParticleEngine';
 import { AnimationManager } from './AnimationManager';
+import { ProjectileManager } from './ProjectileManager';
 import { GridCoord, TileHazardType } from '../types';
 import { CORE_ELEMENTS } from '../constants/elements';
 
@@ -11,6 +11,7 @@ export class BattlefieldRenderer {
   private combatEngine: CombatEngine;
   public particleEngine: ParticleEngine;
   public animManager: AnimationManager;
+  public projManager: ProjectileManager;
   public tileSize: number = 72;
   public gridOffsetX: number = 40;
   public gridOffsetY: number = 40;
@@ -21,6 +22,7 @@ export class BattlefieldRenderer {
     this.combatEngine = combatEngine;
     this.particleEngine = new ParticleEngine();
     this.animManager = new AnimationManager();
+    this.projManager = new ProjectileManager();
     this.calculateDimensions();
   }
 
@@ -64,6 +66,13 @@ export class BattlefieldRenderer {
 
   public update(deltaTimeMs: number): void {
     this.animManager.update(deltaTimeMs);
+    this.projManager.update(deltaTimeMs);
+
+    // Emit elemental tail particles for active projectiles
+    for (const proj of this.projManager.getActiveProjectiles()) {
+      this.particleEngine.emit(proj.currentX, proj.currentY, proj.color, 2, 1.2);
+    }
+
     this.particleEngine.update();
   }
 
@@ -142,7 +151,10 @@ export class BattlefieldRenderer {
     // 5. Draw Units (Hero and Enemies)
     this.renderUnits(ctx, focusedUnitId);
 
-    // 6. Draw Particle Layer
+    // 6. Draw Traveling Projectiles
+    this.projManager.render(ctx);
+
+    // 7. Draw Particle Layer
     this.particleEngine.render(ctx);
   }
 
