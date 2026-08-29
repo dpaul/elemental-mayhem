@@ -19,7 +19,7 @@
   - [x] Implement `TileHazardManager` handling persistent ground effects and duration ticks
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [99a8e73]
 
-## Phase 3: Elemental Affinity Matrix & Reaction Engine
+## Phase 3: Elemental Affinity Matrix & Reaction Engine [checkpoint: 4cea8d0]
 - [x] Task: Elemental Reactions & Affinity Unit Tests (TDD Red) [4cea8d0]
   - [x] Write unit tests for attacker vs defender elemental damage multiplier formulas
   - [x] Write unit tests for 2-element emergent reactions (Vaporize, Superconduct, Toxic Explosion, Petrify, Void Collapse)
@@ -28,7 +28,7 @@
   - [x] Implement `ElementalMatrix` with damage calculations and resistance curves
   - [x] Implement `ReactionEngine` to process character & tile element collisions
   - [x] Implement `StatusEffectManager` with tick/expire lifecycle
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [4cea8d0]
 
 ## Phase 4: Turn-Based State Machine, Units & Tactical AI
 - [ ] Task: Combat Engine & AI Unit Tests (TDD Red)
