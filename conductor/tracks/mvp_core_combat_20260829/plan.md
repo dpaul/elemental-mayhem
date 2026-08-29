@@ -11,12 +11,12 @@
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [cd637c2]
 
 ## Phase 2: Grid Arena, Pathfinding & Tile Hazard State Engine
-- [ ] Task: Grid & Pathfinding Unit Tests (TDD Red)
-  - [ ] Write unit tests for 10x10 coordinate maths, adjacency, obstacles, line-of-sight, and A* pathfinding
-  - [ ] Write unit tests for tile state transitions (Normal -> Burning -> Puddle -> Toxic)
-- [ ] Task: Grid & Pathfinding Implementation (TDD Green)
-  - [ ] Implement `Grid` class, obstacle generator, distance calculators, and A* pathfinder
-  - [ ] Implement `TileHazardManager` handling persistent ground effects and duration ticks
+- [x] Task: Grid & Pathfinding Unit Tests (TDD Red) [99a8e73]
+  - [x] Write unit tests for 10x10 coordinate maths, adjacency, obstacles, line-of-sight, and A* pathfinding
+  - [x] Write unit tests for tile state transitions (Normal -> Burning -> Puddle -> Toxic)
+- [x] Task: Grid & Pathfinding Implementation (TDD Green) [99a8e73]
+  - [x] Implement `Grid` class, obstacle generator, distance calculators, and A* pathfinder
+  - [x] Implement `TileHazardManager` handling persistent ground effects and duration ticks
 - [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
 
 ## Phase 3: Elemental Affinity Matrix & Reaction Engine
