@@ -107,4 +107,20 @@ export class TileHazardManager {
 
     return activeDamagingHazards;
   }
+
+  public clearAllHazards(): void {
+    for (let x = 0; x < this.grid.size; x++) {
+      for (let y = 0; y < this.grid.size; y++) {
+        const tile = this.grid.getTile({ x, y });
+        if (tile) {
+          tile.hazard = {
+            type: 'None',
+            duration: 0,
+            damagePerTurn: 0,
+            element: 'Neutral',
+          };
+        }
+      }
+    }
+  }
 }

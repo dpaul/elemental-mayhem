@@ -3,6 +3,7 @@ import { Unit, Ability, GridCoord } from '../types';
 import { CORE_ELEMENTS } from '../constants/elements';
 
 export class HUDManager {
+  private heroAvatar: HTMLElement | null;
   private heroHpFill: HTMLElement;
   private heroHpText: HTMLElement;
   private heroApPips: HTMLElement;
@@ -19,6 +20,7 @@ export class HUDManager {
   private roundIndicator: HTMLElement;
 
   constructor() {
+    this.heroAvatar = document.getElementById('hero-avatar-icon');
     this.heroHpFill = document.getElementById('hero-hp-fill')!;
     this.heroHpText = document.getElementById('hero-hp-text')!;
     this.heroApPips = document.getElementById('hero-ap-pips')!;
@@ -36,6 +38,9 @@ export class HUDManager {
   }
 
   public updateHeroStatus(hero: Unit): void {
+    if (this.heroAvatar) {
+      this.heroAvatar.textContent = hero.avatar;
+    }
     const hpPct = Math.max(0, (hero.stats.currentHp / hero.stats.maxHp) * 100);
     this.heroHpFill.style.width = `${hpPct}%`;
     this.heroHpText.textContent = `${hero.stats.currentHp} / ${hero.stats.maxHp} HP`;
@@ -94,10 +99,17 @@ export class HUDManager {
     }
   }
 
-  public updateCurrencies(essence: number, xp: number, round: number): void {
+  public updateCurrencies(essence: number, xp: number, round: number, maxRounds: number = 15): void {
     this.essenceCounter.textContent = `${essence}`;
     this.xpCounter.textContent = `${xp}`;
-    this.roundIndicator.textContent = `ROUND ${round} / 3`;
+    const isBoss = round % 5 === 0;
+    if (isBoss) {
+      this.roundIndicator.textContent = `ROUND ${round} / ${maxRounds} 👑 BOSS`;
+      this.roundIndicator.classList.add('boss-round');
+    } else {
+      this.roundIndicator.textContent = `ROUND ${round} / ${maxRounds}`;
+      this.roundIndicator.classList.remove('boss-round');
+    }
   }
 
   public inspectUnit(unit: Unit | null, coord: GridCoord | null): void {

@@ -16,7 +16,7 @@
     <header class="top-header glass-card">
       <div class="header-left">
         <h1 class="game-title">ELEMENTAL <span class="accent-text">MAYHEM</span></h1>
-        <div class="round-badge" id="round-indicator">ROUND 1 / 3</div>
+        <div class="round-badge" id="round-indicator">ROUND 1 / 15</div>
       </div>
       <div class="turn-phase-banner" id="turn-banner">
         <span class="phase-label" id="phase-text">PLAYER TURN</span>
@@ -73,7 +73,7 @@
     <footer class="action-dock glass-card">
       <!-- Hero Status Bar -->
       <div class="hero-status">
-        <div class="hero-avatar">🧙‍♂️</div>
+        <div class="hero-avatar" id="hero-avatar-icon">🔥</div>
         <div class="hero-meters">
           <div class="meter-group">
             <div class="meter-header">
@@ -115,6 +115,26 @@
       </div>
     </footer>
 
+    <!-- Character Element Selection Modal -->
+    <div id="character-select-modal" class="modal-overlay">
+      <div class="modal-content glass-card class-select-modal-content">
+        <div class="modal-header text-center" style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+          <h2>CHOOSE YOUR ELEMENTAL MASTER</h2>
+          <p class="modal-subtitle">Each class wields dedicated elemental spells, reactions, and combat playstyles.</p>
+          <div class="class-category-tabs" id="class-category-tabs">
+            <button class="category-tab active" data-category="All">🌟 All Elements</button>
+            <button class="category-tab" data-category="Primal">🔥 Primal</button>
+            <button class="category-tab" data-category="Forces">⚡ Forces & Energy</button>
+            <button class="category-tab" data-category="Life">🌿 Life & Nature</button>
+            <button class="category-tab" data-category="Cosmic">🌌 Cosmic & Occult</button>
+          </div>
+        </div>
+        <div class="modal-body class-select-grid" id="class-select-container">
+          <!-- Injected dynamically via TS -->
+        </div>
+      </div>
+    </div>
+
     <!-- Upgrade Armory Modal -->
     <div id="upgrade-modal" class="modal-overlay hidden">
       <div class="modal-content glass-card">
@@ -140,7 +160,10 @@
         <h2 id="outcome-title">VICTORY ACHIEVED</h2>
         <p id="outcome-subtitle">You have conquered the elemental gauntlet!</p>
         <div class="outcome-stats" id="outcome-stats-list"></div>
-        <button id="restart-game-btn" class="btn-primary">Enter New Gauntlet</button>
+        <div style="display: flex; gap: 12px; justify-content: center; margin-top: 16px;">
+          <button id="restart-game-btn" class="btn-primary">Play Again</button>
+          <button id="change-element-btn" class="btn-primary" style="background: linear-gradient(135deg, #8b5cf6, #3b82f6); border-color: #60a5fa;">Change Element</button>
+        </div>
       </div>
     </div>
   </div>

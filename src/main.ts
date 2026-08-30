@@ -8,10 +8,12 @@ import { EnemyAI } from './engine/EnemyAI';
 import { PerformanceScorer } from './engine/PerformanceScorer';
 import { UpgradeManager } from './engine/UpgradeManager';
 import { EscalationManager } from './engine/EscalationManager';
+import { UnlockManager } from './engine/UnlockManager';
 import { BattlefieldRenderer } from './renderer/BattlefieldRenderer';
 import { HUDManager } from './ui/HUDManager';
-import { Unit, Ability, GridCoord, PassiveRelic } from './types';
+import { Unit, Ability, GridCoord, PassiveRelic, ElementType } from './types';
 import { CORE_ELEMENTS } from './constants/elements';
+import { HERO_CLASSES, createHeroForElement } from './constants/classes';
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -24,12 +26,16 @@ class GameController {
   private scorer: PerformanceScorer;
   private upgradeManager: UpgradeManager;
   private escalationManager: EscalationManager;
+  private unlockManager: UnlockManager;
   private renderer: BattlefieldRenderer;
   private hud: HUDManager;
 
+  private selectedElement: ElementType = 'Fire';
+  private selectedClassCategory: string = 'All';
   private hero: Unit;
   private enemies: Unit[];
   private currentRound: number = 1;
+  private maxRounds: number = 15;
   private totalEssence: number = 0;
   private totalXp: number = 0;
 
@@ -43,6 +49,9 @@ class GameController {
   private lastFrameTime: number = performance.now();
 
   // Modals
+  private characterSelectModal: HTMLElement;
+  private classSelectContainer: HTMLElement;
+  private changeElementBtn: HTMLElement;
   private upgradeModal: HTMLElement;
   private upgradeChoicesContainer: HTMLElement;
   private proceedNextRoundBtn: HTMLElement;
@@ -62,15 +71,11 @@ class GameController {
     this.scorer = new PerformanceScorer();
     this.upgradeManager = new UpgradeManager();
     this.escalationManager = new EscalationManager();
+    this.unlockManager = new UnlockManager();
 
-    this.hero = this.createHero();
-    this.enemies = this.escalationManager.generateRoundEnemies(1);
-
-    this.combatEngine = new CombatEngine(this.grid, this.hazardManager, this.hero, this.enemies);
-    this.enemyAI = new EnemyAI(this.combatEngine);
-    this.renderer = new BattlefieldRenderer(canvas, this.combatEngine);
-    this.hud = new HUDManager();
-
+    this.characterSelectModal = document.getElementById('character-select-modal')!;
+    this.classSelectContainer = document.getElementById('class-select-container')!;
+    this.changeElementBtn = document.getElementById('change-element-btn')!;
     this.upgradeModal = document.getElementById('upgrade-modal')!;
     this.upgradeChoicesContainer = document.getElementById('upgrade-choices-container')!;
     this.proceedNextRoundBtn = document.getElementById('proceed-next-round-btn')!;
@@ -82,6 +87,16 @@ class GameController {
     this.outcomeStatsList = document.getElementById('outcome-stats-list')!;
     this.restartGameBtn = document.getElementById('restart-game-btn')!;
 
+    this.hero = this.createHero(this.selectedElement);
+    this.enemies = this.escalationManager.generateRoundEnemies(1);
+
+    this.combatEngine = new CombatEngine(this.grid, this.hazardManager, this.hero, this.enemies);
+    this.enemyAI = new EnemyAI(this.combatEngine);
+    this.renderer = new BattlefieldRenderer(canvas, this.combatEngine);
+    this.hud = new HUDManager();
+
+    this.setupCategoryTabs();
+    this.renderCharacterSelectModal();
     this.setupObstacles();
     this.setupEventListeners(canvas);
     this.updateReachableTiles();
@@ -92,99 +107,93 @@ class GameController {
     this.gameLoop();
   }
 
-  private createHero(): Unit {
-    const basicStrike: Ability = {
-      id: 'strike',
-      name: 'Elemental Strike',
-      element: 'Neutral',
-      icon: '⚔️',
-      apCost: 1,
-      cooldown: 0,
-      currentCooldown: 0,
-      range: 1,
-      aoeRadius: 0,
-      targeting: 'SingleUnit',
-      baseDamage: 15,
-      description: 'Quick physical blow.',
-      level: 1,
-    };
+  private setupCategoryTabs(): void {
+    const tabs = document.querySelectorAll('.category-tab');
+    tabs.forEach((tab) => {
+      tab.addEventListener('click', (e) => {
+        tabs.forEach((t) => t.classList.remove('active'));
+        const target = e.currentTarget as HTMLElement;
+        target.classList.add('active');
+        this.selectedClassCategory = target.getAttribute('data-category') || 'All';
+        this.renderCharacterSelectModal();
+      });
+    });
+  }
 
-    const fireball: Ability = {
-      id: 'fireball',
-      name: 'Fireball',
-      element: 'Fire',
-      icon: '🔥',
-      apCost: 2,
-      cooldown: 0,
-      currentCooldown: 0,
-      range: 4,
-      aoeRadius: 0,
-      targeting: 'SingleUnit',
-      baseDamage: 25,
-      description: 'Hurls a fiery orb that scorches targets and ignites tiles.',
-      appliesStatus: 'Burning',
-      statusDuration: 3,
-      createsHazard: 'Burning',
-      hazardDuration: 2,
-      level: 1,
-    };
+  private createHero(element: ElementType = this.selectedElement): Unit {
+    return createHeroForElement(element);
+  }
 
-    const waterTorrent: Ability = {
-      id: 'water_torrent',
-      name: 'Water Torrent',
-      element: 'Water',
-      icon: '💧',
-      apCost: 2,
-      cooldown: 0,
-      currentCooldown: 0,
-      range: 4,
-      aoeRadius: 0,
-      targeting: 'SingleUnit',
-      baseDamage: 20,
-      description: 'Blasts pressurized water, soaking targets and creating puddles.',
-      appliesStatus: 'Wet',
-      statusDuration: 3,
-      createsHazard: 'Puddle',
-      hazardDuration: 3,
-      level: 1,
-    };
+  private renderCharacterSelectModal(): void {
+    const allElements = Object.keys(HERO_CLASSES) as ElementType[];
+    const filteredElements = allElements.filter((elem) => {
+      if (elem === 'Neutral') return false;
+      if (this.selectedClassCategory === 'All') return true;
+      const config = HERO_CLASSES[elem];
+      return config && config.category === this.selectedClassCategory;
+    });
 
-    const lightningBolt: Ability = {
-      id: 'lightning_bolt',
-      name: 'Lightning Bolt',
-      element: 'Lightning',
-      icon: '⚡',
-      apCost: 3,
-      cooldown: 1,
-      currentCooldown: 0,
-      range: 5,
-      aoeRadius: 0,
-      targeting: 'SingleUnit',
-      baseDamage: 35,
-      description: 'Strikes ionized lightning, shocking targets and electrifying water.',
-      appliesStatus: 'Shocked',
-      statusDuration: 2,
-      level: 1,
-    };
+    this.classSelectContainer.innerHTML = '';
 
-    return {
-      id: 'hero',
-      name: 'Arch-Elementalist',
-      faction: 'Player',
-      avatar: '🧙‍♂️',
-      coord: { x: 1, y: 1 },
-      stats: {
-        maxHp: 100,
-        currentHp: 100,
-        maxAp: 6,
-        currentAp: 6,
-        moveCostPerTile: 1,
-        elementalAffinity: 'Fire',
-      },
-      abilities: [basicStrike, fireball, waterTorrent, lightningBolt],
-      statusEffects: [],
-      isDead: false,
-    };
+    filteredElements.forEach((elem) => {
+      const config = HERO_CLASSES[elem];
+      if (!config) return;
+      const elemData = CORE_ELEMENTS[elem] || CORE_ELEMENTS.Fire;
+      const isUnlocked = this.unlockManager.isElementUnlocked(elem);
+      const card = document.createElement('div');
+      card.className = `class-card ${isUnlocked ? '' : 'locked'}`;
+      card.style.setProperty('--card-color', elemData.color);
+      card.style.setProperty('--card-glow', elemData.glowColor);
+
+      const abilityRows = config.abilities.map((ab) => `
+        <div class="class-ability-row">
+          <span class="class-ability-name">${ab.icon} ${ab.name}</span>
+          <span class="class-ability-meta">${ab.apCost} AP | ${ab.baseDamage} DMG</span>
+        </div>
+      `).join('');
+
+      const badgeHtml = isUnlocked
+        ? `<span class="element-badge" style="background:${elemData.glowColor}; color:${elemData.color}; width:fit-content;">${elem}</span>`
+        : `<span class="lock-badge">🔒 Locked</span>`;
+
+      const actionHtml = isUnlocked
+        ? `<button class="class-select-btn">Choose ${config.className}</button>`
+        : `<div class="unlock-requirement-box">🔒 ${config.unlockRequirement || 'Defeat Boss to Unlock'}</div>`;
+
+      card.innerHTML = `
+        <div class="class-card-header">
+          <span class="class-avatar">${config.avatar}</span>
+          <div class="class-info">
+            <div class="class-name">${config.className}</div>
+            ${badgeHtml}
+          </div>
+        </div>
+        <div class="class-tagline">${config.tagline}</div>
+        <div class="class-abilities-title">Dedicated Spells:</div>
+        <div class="class-ability-list">
+          ${abilityRows}
+        </div>
+        ${actionHtml}
+      `;
+
+      if (isUnlocked) {
+        card.onclick = () => {
+          this.startGauntletWithElement(elem);
+        };
+      }
+
+      this.classSelectContainer.appendChild(card);
+    });
+  }
+
+  private startGauntletWithElement(element: ElementType): void {
+    this.selectedElement = element;
+    this.characterSelectModal.classList.add('hidden');
+    this.restartGame(element);
+    this.combatEngine.addLog(
+      'system',
+      `✨ Chosen Path: You enter the arena as the ${HERO_CLASSES[element].className} (${element})!`
+    );
   }
 
   private setupObstacles(): void {
@@ -233,7 +242,13 @@ class GameController {
     });
 
     this.restartGameBtn.addEventListener('click', () => {
-      this.restartGame();
+      this.restartGame(this.selectedElement);
+    });
+
+    this.changeElementBtn?.addEventListener('click', () => {
+      this.gameOverModal.classList.add('hidden');
+      this.renderCharacterSelectModal();
+      this.characterSelectModal.classList.remove('hidden');
     });
 
     window.addEventListener('keydown', (e) => {
@@ -432,7 +447,7 @@ class GameController {
     }
 
     if (this.combatEngine.areAllEnemiesDead()) {
-      if (this.currentRound >= 3) {
+      if (this.currentRound >= this.maxRounds) {
         this.showVictoryModal();
       } else {
         this.openUpgradeModal();
@@ -441,9 +456,23 @@ class GameController {
   }
 
   private openUpgradeModal(): void {
+    this.combatEngine.resetRoundState();
     const rewards = this.scorer.calculateRoundRewards(this.combatEngine.performance);
     this.totalEssence += rewards.essence;
     this.totalXp += rewards.xp;
+
+    // Check if this was a Boss round and unlock elements
+    if (this.currentRound % 5 === 0) {
+      const newlyUnlocked = this.unlockManager.checkBossDefeatUnlocks(this.currentRound);
+      if (newlyUnlocked.length > 0) {
+        const names = newlyUnlocked.map((e) => `${e} (${HERO_CLASSES[e].className})`).join(' and ');
+        this.combatEngine.addLog(
+          'system',
+          `👑 🔓 BOSS VANQUISHED! You absorbed the elemental core and unlocked ${names} for future gauntlets!`
+        );
+      }
+    }
+
     this.updateHUD();
 
     this.modalEssence.textContent = `${this.totalEssence}`;
@@ -480,33 +509,40 @@ class GameController {
       gridDiv.appendChild(card);
     });
 
-    // Unlock new abilities
-    upgrades.abilities.forEach((newAb) => {
-      const alreadyOwned = this.hero.abilities.some((a) => a.id === newAb.id);
-      if (alreadyOwned) return;
+    // Unlock new abilities (only for unlocked elements or hero's active element)
+    upgrades.abilities
+      .filter(
+        (newAb) =>
+          this.unlockManager.isElementUnlocked(newAb.element) ||
+          newAb.element === 'Neutral' ||
+          newAb.element === this.hero.stats.elementalAffinity
+      )
+      .forEach((newAb) => {
+        const alreadyOwned = this.hero.abilities.some((a) => a.id === newAb.id);
+        if (alreadyOwned) return;
 
-      const card = document.createElement('div');
-      card.className = 'upgrade-item';
-      card.innerHTML = `
-        <div style="font-weight:700; font-size:1rem;">Unlock ${newAb.icon} ${newAb.name}</div>
-        <div style="font-size:0.85rem; color:#94a3b8;">${newAb.description} (${newAb.element})</div>
-        <button class="btn-primary" style="margin-top:auto; padding:6px 12px; font-size:0.8rem;">
-          Unlock (45 Essence, 50 XP)
-        </button>
-      `;
-      card.querySelector('button')!.onclick = () => {
-        if (this.totalEssence >= 45 && this.totalXp >= 50) {
-          this.totalEssence -= 45;
-          this.totalXp -= 50;
-          this.upgradeManager.unlockAbility(this.hero, newAb);
-          this.modalEssence.textContent = `${this.totalEssence}`;
-          this.modalXp.textContent = `${this.totalXp}`;
-          this.updateHUD();
-          card.remove();
-        }
-      };
-      gridDiv.appendChild(card);
-    });
+        const card = document.createElement('div');
+        card.className = 'upgrade-item';
+        card.innerHTML = `
+          <div style="font-weight:700; font-size:1rem;">Unlock ${newAb.icon} ${newAb.name}</div>
+          <div style="font-size:0.85rem; color:#94a3b8;">${newAb.description} (${newAb.element})</div>
+          <button class="btn-primary" style="margin-top:auto; padding:6px 12px; font-size:0.8rem;">
+            Unlock (45 Essence, 50 XP)
+          </button>
+        `;
+        card.querySelector('button')!.onclick = () => {
+          if (this.totalEssence >= 45 && this.totalXp >= 50) {
+            this.totalEssence -= 45;
+            this.totalXp -= 50;
+            this.upgradeManager.unlockAbility(this.hero, newAb);
+            this.modalEssence.textContent = `${this.totalEssence}`;
+            this.modalXp.textContent = `${this.totalXp}`;
+            this.updateHUD();
+            card.remove();
+          }
+        };
+        gridDiv.appendChild(card);
+      });
 
     // Relics
     upgrades.relics.forEach((relic: PassiveRelic) => {
@@ -543,16 +579,26 @@ class GameController {
 
     // Reset Hero position and stats
     this.hero.coord = { x: 1, y: 1 };
-    this.hero.stats.currentAp = this.hero.stats.maxAp;
+    this.combatEngine.resetRoundState();
 
     // Generate new round enemies
     this.enemies = this.escalationManager.generateRoundEnemies(this.currentRound);
     this.combatEngine.enemies = this.enemies;
 
-    this.combatEngine.addLog(
-      'system',
-      `⚔️ Round ${this.currentRound} Begins! Enemies incoming.`
-    );
+    const isBoss = this.currentRound % 5 === 0;
+    if (isBoss) {
+      const bossUnit = this.enemies.find((e) => e.isBoss);
+      const bossName = bossUnit ? bossUnit.name : 'A Boss';
+      this.combatEngine.addLog(
+        'system',
+        `👑 ⚠️ BOSS ENCOUNTER! Round ${this.currentRound}: ${bossName} enters the arena!`
+      );
+    } else {
+      this.combatEngine.addLog(
+        'system',
+        `⚔️ Round ${this.currentRound} / ${this.maxRounds} Begins! Enemies incoming.`
+      );
+    }
 
     this.turnManager.startPlayerTurn([this.hero]);
     this.isBusy = false;
@@ -561,10 +607,24 @@ class GameController {
   }
 
   private showVictoryModal(): void {
+    this.combatEngine.resetRoundState();
+
+    if (this.currentRound % 5 === 0) {
+      const newlyUnlocked = this.unlockManager.checkBossDefeatUnlocks(this.currentRound);
+      if (newlyUnlocked.length > 0) {
+        const names = newlyUnlocked.map((e) => `${e} (${HERO_CLASSES[e].className})`).join(' and ');
+        this.combatEngine.addLog(
+          'system',
+          `👑 🔓 SUPREME BOSS VANQUISHED! You unlocked ${names}!`
+        );
+      }
+    }
+
     this.outcomeTitle.textContent = '👑 GAUNTLET CONQUERED!';
-    this.outcomeSubtitle.textContent = 'You have mastered the elements and vanquished the Void Archon.';
+    this.outcomeSubtitle.textContent = `You have mastered the elements and vanquished all ${this.maxRounds} rounds including all Primordial Bosses!`;
     this.outcomeStatsList.innerHTML = `
       <div style="margin: 16px 0; font-family: var(--font-mono); font-size: 0.9rem; line-height: 1.8;">
+        <div>Rounds Conquered: <strong>${this.currentRound} / ${this.maxRounds}</strong></div>
         <div>Total Damage Dealt: <strong>${this.combatEngine.performance.damageDealt}</strong></div>
         <div>Reactions Triggered: <strong>${this.combatEngine.performance.reactionsTriggered}</strong></div>
         <div>Total Essence Earned: <strong>${this.totalEssence}</strong></div>
@@ -579,20 +639,22 @@ class GameController {
     this.outcomeSubtitle.textContent = 'Your elemental essence has collapsed in the arena.';
     this.outcomeStatsList.innerHTML = `
       <div style="margin: 16px 0; font-family: var(--font-mono); font-size: 0.9rem;">
-        <div>Fallen in Round: <strong>${this.currentRound}</strong></div>
+        <div>Fallen in Round: <strong>${this.currentRound} / ${this.maxRounds}</strong></div>
         <div>Reactions Triggered: <strong>${this.combatEngine.performance.reactionsTriggered}</strong></div>
       </div>
     `;
     this.gameOverModal.classList.remove('hidden');
   }
 
-  private restartGame(): void {
+  private restartGame(element: ElementType = this.selectedElement): void {
+    this.selectedElement = element;
     this.gameOverModal.classList.add('hidden');
     this.currentRound = 1;
     this.totalEssence = 0;
     this.totalXp = 0;
     this.isBusy = false;
-    this.hero = this.createHero();
+    this.hazardManager.clearAllHazards();
+    this.hero = this.createHero(this.selectedElement);
     this.enemies = this.escalationManager.generateRoundEnemies(1);
     this.combatEngine = new CombatEngine(this.grid, this.hazardManager, this.hero, this.enemies);
     this.enemyAI = new EnemyAI(this.combatEngine);
@@ -614,7 +676,7 @@ class GameController {
       (ab) => this.selectAbility(ab)
     );
     this.hud.updatePhaseBanner(this.turnManager.getCurrentPhase());
-    this.hud.updateCurrencies(this.totalEssence, this.totalXp, this.currentRound);
+    this.hud.updateCurrencies(this.totalEssence, this.totalXp, this.currentRound, this.maxRounds);
     this.hud.updateCombatLog(this.combatEngine.logs);
   }
 

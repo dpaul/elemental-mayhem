@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { ElementalMatrix } from '../engine/ElementalMatrix';
 import { ReactionEngine } from '../engine/ReactionEngine';
 import { StatusEffectManager } from '../engine/StatusEffectManager';
+import { HERO_CLASSES, createHeroForElement } from '../constants/classes';
 import { Unit } from '../types';
 
 describe('ElementalMatrix & Affinities (TDD Red -> Green)', () => {
@@ -57,10 +58,26 @@ describe('ReactionEngine (TDD Red -> Green)', () => {
     expect(reaction?.aoeRadius).toBeGreaterThan(0);
   });
 
-  it('should trigger Void Collapse when Void hits any affected target', () => {
-    const reaction = reactionEngine.evaluateUnitReaction('Void', 'Burning');
-    expect(reaction).not.toBeNull();
-    expect(reaction?.reactionName).toBe('Void Collapse');
+  it('should trigger new elemental reactions (Melt, Shatter, Firestorm, Annihilation)', () => {
+    // 4. Melt
+    const melt = reactionEngine.evaluateUnitReaction('Fire', 'Frozen');
+    expect(melt).not.toBeNull();
+    expect(melt?.reactionName).toBe('Melt');
+
+    // 5. Shatter
+    const shatter = reactionEngine.evaluateUnitReaction('Metal', 'Frozen');
+    expect(shatter).not.toBeNull();
+    expect(shatter?.reactionName).toBe('Shatter');
+
+    // 6. Firestorm
+    const firestorm = reactionEngine.evaluateUnitReaction('Wind', 'Burning');
+    expect(firestorm).not.toBeNull();
+    expect(firestorm?.reactionName).toBe('Firestorm');
+
+    // 7. Annihilation
+    const annihilation = reactionEngine.evaluateUnitReaction('Light', 'VoidMarked');
+    expect(annihilation).not.toBeNull();
+    expect(annihilation?.reactionName).toBe('Annihilation');
   });
 });
 
@@ -134,5 +151,69 @@ describe('StatusEffectManager (TDD Red -> Green)', () => {
     statusManager.tickStatusEffects(testUnit);
     expect(testUnit.stats.currentHp).toBe(70);
     expect(testUnit.statusEffects.length).toBe(0);
+  });
+});
+
+describe('Hero Elemental Classes & Dedicated Move Kits (TDD Red -> Green)', () => {
+  const requestedElements = [
+    'Love', 'Sky', 'Nature', 'Ice', 'Metal', 'Darkness', 'Light',
+    'Sound', 'Time', 'Death', 'Life', 'Chaos', 'Acid', 'Blood',
+    'Soul', 'Spirit', 'Energy', 'Force', 'Space', 'Magnetism',
+    'Wind', 'Storm', 'Thunder', 'Magma', 'Crystal',
+    'Fire', 'Water', 'Lightning', 'Earth', 'Poison', 'Void'
+  ] as const;
+
+  it('should have dedicated classes for all requested elements with 4 abilities each', () => {
+    requestedElements.forEach((elem) => {
+      const config = HERO_CLASSES[elem];
+      expect(config).toBeDefined();
+      expect(config.element).toBe(elem);
+      expect(config.abilities.length).toBe(4);
+      config.abilities.forEach((ab) => {
+        expect(ab.element).toBe(elem);
+      });
+    });
+  });
+
+  it('should create hero with dedicated moves and attributes matching chosen element', () => {
+    // 1. Amorist (Love)
+    const amorist = createHeroForElement('Love');
+    expect(amorist.name).toBe('Amorist');
+    expect(amorist.avatar).toBe('💖');
+    expect(amorist.stats.elementalAffinity).toBe('Love');
+    expect(amorist.abilities.every((a) => a.element === 'Love')).toBe(true);
+
+    // 2. Cryomancer (Ice)
+    const cryomancer = createHeroForElement('Ice');
+    expect(cryomancer.name).toBe('Cryomancer');
+    expect(cryomancer.avatar).toBe('❄️');
+    expect(cryomancer.stats.elementalAffinity).toBe('Ice');
+    expect(cryomancer.abilities.every((a) => a.element === 'Ice')).toBe(true);
+
+    // 3. Magmamancer (Magma)
+    const magmamancer = createHeroForElement('Magma');
+    expect(magmamancer.name).toBe('Magmamancer');
+    expect(magmamancer.avatar).toBe('🌋');
+    expect(magmamancer.stats.elementalAffinity).toBe('Magma');
+
+    // 4. Chronomancer (Time)
+    const chronomancer = createHeroForElement('Time');
+    expect(chronomancer.name).toBe('Chronomancer');
+    expect(chronomancer.avatar).toBe('⏳');
+
+    // 5. Reaper (Death)
+    const reaper = createHeroForElement('Death');
+    expect(reaper.name).toBe('Reaper');
+    expect(reaper.avatar).toBe('💀');
+
+    // 6. Crystallomancer (Crystal)
+    const crystallomancer = createHeroForElement('Crystal');
+    expect(crystallomancer.name).toBe('Crystallomancer');
+    expect(crystallomancer.avatar).toBe('💎');
+
+    // 7. Thundercaller (Thunder)
+    const thundercaller = createHeroForElement('Thunder');
+    expect(thundercaller.name).toBe('Thundercaller');
+    expect(thundercaller.stats.elementalAffinity).toBe('Thunder');
   });
 });

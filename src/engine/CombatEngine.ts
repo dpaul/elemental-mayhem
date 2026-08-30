@@ -232,4 +232,26 @@ export class CombatEngine {
   public areAllEnemiesDead(): boolean {
     return this.enemies.every((e) => e.isDead);
   }
+
+  public resetRoundState(): void {
+    // 1. Restore hero health and AP (mana) to full
+    this.hero.stats.currentHp = this.hero.stats.maxHp;
+    this.hero.stats.currentAp = this.hero.stats.maxAp;
+
+    // 2. Clear all status effects on hero
+    this.statusManager.clearStatusEffects(this.hero);
+
+    // 3. Reset all ability cooldowns
+    this.hero.abilities.forEach((ability) => {
+      ability.currentCooldown = 0;
+    });
+
+    // 4. Clear all hazards from the battlefield
+    this.hazardManager.clearAllHazards();
+
+    this.addLog(
+      'system',
+      '✨ Round completed! Hero restored to full Health & AP, cooldowns reset, and hazards cleared.'
+    );
+  }
 }

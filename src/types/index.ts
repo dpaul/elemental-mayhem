@@ -7,6 +7,42 @@ export type ElementType =
   | 'Earth'
   | 'Poison'
   | 'Void'
+  | 'Love'
+  | 'Sky'
+  | 'Nature'
+  | 'Ice'
+  | 'Metal'
+  | 'Darkness'
+  | 'Light'
+  | 'Electricity'
+  | 'Sound'
+  | 'Time'
+  | 'Death'
+  | 'Life'
+  | 'Chaos'
+  | 'Order'
+  | 'Acid'
+  | 'Blood'
+  | 'Soul'
+  | 'Spirit'
+  | 'Energy'
+  | 'Force'
+  | 'Matter'
+  | 'Space'
+  | 'Gravity'
+  | 'Momentum'
+  | 'Vibration'
+  | 'Radiation'
+  | 'Magnetism'
+  | 'Pressure'
+  | 'Heat'
+  | 'Cold'
+  | 'Wind'
+  | 'Storm'
+  | 'Thunder'
+  | 'Magma'
+  | 'Glass'
+  | 'Crystal'
   | 'Neutral';
 
 export interface ElementData {
@@ -16,6 +52,7 @@ export interface ElementData {
   glowColor: string;
   icon: string;
   description: string;
+  category?: 'Primal' | 'Forces' | 'Life' | 'Cosmic';
   strongAgainst: ElementType[];
   weakAgainst: ElementType[];
 }
@@ -27,7 +64,11 @@ export type TileHazardType =
   | 'ElectrifiedPuddle'
   | 'ToxicMire'
   | 'VoidRift'
-  | 'MudWall';
+  | 'MudWall'
+  | 'IceSurface'
+  | 'LavaPool'
+  | 'AcidPool'
+  | 'CrystalSpikes';
 
 export interface TileHazard {
   type: TileHazardType;
@@ -54,7 +95,15 @@ export type StatusEffectType =
   | 'Poisoned'
   | 'Rooted'
   | 'Shielded'
-  | 'VoidMarked';
+  | 'VoidMarked'
+  | 'Frozen'
+  | 'Bleeding'
+  | 'Corroded'
+  | 'Charmed'
+  | 'Stunned'
+  | 'Blinded'
+  | 'Regenerating'
+  | 'TimeDilation';
 
 export interface StatusEffect {
   type: StatusEffectType;

@@ -23,6 +23,10 @@ export class StatusEffectManager {
     return unit.statusEffects.some((s) => s.type === type);
   }
 
+  public clearStatusEffects(unit: Unit): void {
+    unit.statusEffects = [];
+  }
+
   public tickStatusEffects(unit: Unit): string[] {
     const logs: string[] = [];
     if (unit.isDead) return logs;

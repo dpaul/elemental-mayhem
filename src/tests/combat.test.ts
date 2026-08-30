@@ -113,6 +113,35 @@ describe('CombatEngine & TurnManager (TDD Red -> Green)', () => {
     expect(turnManager.getCurrentPhase()).toBe('PLAYER_TURN');
     expect(hero.stats.currentAp).toBe(hero.stats.maxAp);
   });
+
+  it('should clear all battlefield hazards when clearAllHazards is called', () => {
+    hazardManager.applyHazard({ x: 2, y: 2 }, 'Burning', 3, 10, 'Fire');
+    hazardManager.applyHazard({ x: 5, y: 5 }, 'Puddle', 2, 0, 'Water');
+    expect(grid.getTile({ x: 2, y: 2 })?.hazard.type).toBe('Burning');
+    expect(grid.getTile({ x: 5, y: 5 })?.hazard.type).toBe('Puddle');
+
+    hazardManager.clearAllHazards();
+    expect(grid.getTile({ x: 2, y: 2 })?.hazard.type).toBe('None');
+    expect(grid.getTile({ x: 5, y: 5 })?.hazard.type).toBe('None');
+  });
+
+  it('should fully restore hero health and AP, clear status effects, reset cooldowns, and clear hazards on resetRoundState', () => {
+    // Damage hero, use AP, apply cooldown, apply status effect, and apply tile hazard
+    hero.stats.currentHp = 35;
+    hero.stats.currentAp = 1;
+    hero.statusEffects = [{ type: 'Burning', stacks: 2, duration: 3 }];
+    fireball.currentCooldown = 2;
+    hazardManager.applyHazard({ x: 1, y: 1 }, 'ToxicMire', 3, 10, 'Poison');
+
+    combatEngine.resetRoundState();
+
+    expect(hero.stats.currentHp).toBe(hero.stats.maxHp);
+    expect(hero.stats.currentAp).toBe(hero.stats.maxAp);
+    expect(hero.statusEffects.length).toBe(0);
+    expect(fireball.currentCooldown).toBe(0);
+    expect(grid.getTile({ x: 1, y: 1 })?.hazard.type).toBe('None');
+    expect(combatEngine.logs[0].message).toContain('Round completed! Hero restored');
+  });
 });
 
 describe('EnemyAI (TDD Red -> Green)', () => {

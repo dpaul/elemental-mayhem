@@ -227,7 +227,8 @@ export class BattlefieldRenderer {
 
       const isPlayer = unit.faction === 'Player';
       const isFocused = unit.id === focusedUnitId;
-      const radius = this.tileSize * 0.38;
+      const isBoss = !!unit.isBoss;
+      const radius = this.tileSize * (isBoss ? 0.44 : 0.38);
 
       ctx.save();
 
@@ -236,52 +237,76 @@ export class BattlefieldRenderer {
         this.particleEngine.emit(
           screenPos.x,
           screenPos.y + radius * 0.8,
-          isPlayer ? 'rgba(56, 189, 248, 0.4)' : 'rgba(239, 68, 68, 0.4)',
+          isPlayer ? 'rgba(56, 189, 248, 0.4)' : isBoss ? 'rgba(245, 158, 11, 0.6)' : 'rgba(239, 68, 68, 0.4)',
           1,
           0.8
         );
       }
 
-      // Glowing Elemental Aura or Focused Ring
+      // Glowing Elemental Aura or Boss Aura or Focused Ring
       const elemData = CORE_ELEMENTS[unit.stats.elementalAffinity];
-      ctx.shadowColor = isFocused ? '#fef08a' : (elemData ? elemData.glowColor : 'rgba(255,255,255,0.3)');
-      ctx.shadowBlur = isFocused ? 20 : 12;
+      ctx.shadowColor = isBoss
+        ? '#f59e0b'
+        : isFocused
+        ? '#fef08a'
+        : elemData
+        ? elemData.glowColor
+        : 'rgba(255,255,255,0.3)';
+      ctx.shadowBlur = isBoss ? 24 : isFocused ? 20 : 12;
 
       // Unit Background Ring
-      ctx.fillStyle = isPlayer ? '#0f172a' : '#1e1b4b';
+      ctx.fillStyle = isPlayer ? '#0f172a' : isBoss ? '#31102f' : '#1e1b4b';
       ctx.beginPath();
       ctx.arc(screenPos.x, screenPos.y, radius, 0, Math.PI * 2);
       ctx.fill();
 
       // Unit Border Ring
-      ctx.strokeStyle = isFocused ? '#fef08a' : (isPlayer ? '#38bdf8' : (elemData ? elemData.color : '#ef4444'));
-      ctx.lineWidth = isFocused ? 4 : 3;
+      ctx.strokeStyle = isBoss
+        ? '#fbbf24'
+        : isFocused
+        ? '#fef08a'
+        : isPlayer
+        ? '#38bdf8'
+        : elemData
+        ? elemData.color
+        : '#ef4444';
+      ctx.lineWidth = isBoss ? 5 : isFocused ? 4 : 3;
       ctx.stroke();
 
       // Avatar Icon
       ctx.shadowBlur = 0;
-      ctx.font = `${Math.floor(radius * 1.1)}px sans-serif`;
+      ctx.font = `${Math.floor(radius * (isBoss ? 1.2 : 1.1))}px sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(unit.avatar, screenPos.x, screenPos.y + 2);
 
-      // Mini Health Bar above Unit
-      const hpWidth = this.tileSize * 0.75;
-      const hpHeight = 5;
+      // Health Bar above Unit
+      const hpWidth = this.tileSize * (isBoss ? 0.9 : 0.75);
+      const hpHeight = isBoss ? 7 : 5;
       const hpX = screenPos.x - hpWidth / 2;
-      const hpY = screenPos.y - radius - 10;
+      const hpY = screenPos.y - radius - (isBoss ? 16 : 10);
       const hpPct = Math.max(0, unit.stats.currentHp / unit.stats.maxHp);
 
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
       ctx.fillRect(hpX, hpY, hpWidth, hpHeight);
-      ctx.fillStyle = isPlayer ? '#22c55e' : '#ef4444';
+      ctx.fillStyle = isPlayer ? '#22c55e' : isBoss ? '#f59e0b' : '#ef4444';
       ctx.fillRect(hpX, hpY, hpWidth * hpPct, hpHeight);
+
+      if (isBoss) {
+        ctx.strokeStyle = '#fbbf24';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(hpX, hpY, hpWidth, hpHeight);
+
+        // Boss Crown indicator
+        ctx.font = '12px sans-serif';
+        ctx.fillText('👑', screenPos.x, hpY - 8);
+      }
 
       // Unit Status Indicator
       if (unit.statusEffects.length > 0) {
         ctx.font = '10px "Fira Code", monospace';
         ctx.fillStyle = '#fef08a';
-        ctx.fillText(`[${unit.statusEffects[0].type}]`, screenPos.x, hpY - 4);
+        ctx.fillText(`[${unit.statusEffects[0].type}]`, screenPos.x, hpY - (isBoss ? 18 : 4));
       }
 
       ctx.restore();
