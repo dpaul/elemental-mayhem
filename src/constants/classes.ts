@@ -282,7 +282,7 @@ export const HERO_CLASSES: Record<ElementType, HeroClassConfig> = {
     tagline: 'Slice with aerodynamic velocity and blow away battlefield hazards.',
     description: 'High AP efficiency, ranged gale slices, and ability to fan flames into raging firestorms.',
     category: 'Primal',
-    isStarter: true,
+    unlockRequirement: 'Defeat Round 15 Final Boss (The Void Archon)',
     abilities: [
       {
         id: 'wind_cutter',

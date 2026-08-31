@@ -203,13 +203,13 @@ describe('UnlockManager & Boss Elemental Progression (TDD Red -> Green)', () => 
     unlockManager.resetUnlocks();
   });
 
-  it('should start with default starter elements (Fire, Water, Earth, Wind, Nature, Light) and other elements locked', () => {
+  it('should start with default starter elements (Fire, Water, Earth, Nature, Light) and Wind/other elements locked', () => {
     expect(unlockManager.isElementUnlocked('Fire')).toBe(true);
     expect(unlockManager.isElementUnlocked('Water')).toBe(true);
     expect(unlockManager.isElementUnlocked('Earth')).toBe(true);
-    expect(unlockManager.isElementUnlocked('Wind')).toBe(true);
     expect(unlockManager.isElementUnlocked('Nature')).toBe(true);
     expect(unlockManager.isElementUnlocked('Light')).toBe(true);
+    expect(unlockManager.isElementUnlocked('Wind')).toBe(false); // Wind is the final unlock
     expect(unlockManager.isElementUnlocked('Ice')).toBe(false);
     expect(unlockManager.isElementUnlocked('Poison')).toBe(false);
     expect(unlockManager.isElementUnlocked('Lightning')).toBe(false);
@@ -239,15 +239,17 @@ describe('UnlockManager & Boss Elemental Progression (TDD Red -> Green)', () => 
     expect(unlockManager.isElementUnlocked('Storm')).toBe(true);
   });
 
-  it('should unlock Tier 3 elements (Void, Darkness, Chaos, Time, Space, Death, Life, Love, Blood, Soul, Spirit) when defeating Round 15 Final Boss', () => {
+  it('should unlock Tier 3 elements including Wind when defeating Round 15 Final Boss', () => {
     const unlocked = unlockManager.checkBossDefeatUnlocks(15);
     expect(unlocked).toContain('Void');
     expect(unlocked).toContain('Time');
     expect(unlocked).toContain('Love');
     expect(unlocked).toContain('Death');
     expect(unlocked).toContain('Chaos');
+    expect(unlocked).toContain('Wind');
     expect(unlockManager.isElementUnlocked('Void')).toBe(true);
     expect(unlockManager.isElementUnlocked('Time')).toBe(true);
+    expect(unlockManager.isElementUnlocked('Wind')).toBe(true);
   });
 
   it('should not unlock elements on non-boss rounds or if already unlocked', () => {

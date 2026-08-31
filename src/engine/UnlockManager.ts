@@ -2,7 +2,7 @@
 import { ElementType } from '../types';
 
 const STORAGE_KEY = 'elemental_mayhem_unlocked_elements';
-export const DEFAULT_STARTER_ELEMENTS: ElementType[] = ['Fire', 'Water', 'Earth', 'Wind', 'Nature', 'Light'];
+export const DEFAULT_STARTER_ELEMENTS: ElementType[] = ['Fire', 'Water', 'Earth', 'Nature', 'Light'];
 
 export class UnlockManager {
   private unlockedElements: Set<ElementType>;
@@ -74,7 +74,7 @@ export class UnlockManager {
     } else if (round === 15) {
       const tier3: ElementType[] = [
         'Void', 'Darkness', 'Chaos', 'Time', 'Space', 'Death',
-        'Life', 'Love', 'Blood', 'Soul', 'Spirit', 'Order', 'Gravity'
+        'Life', 'Love', 'Blood', 'Soul', 'Spirit', 'Order', 'Gravity', 'Wind'
       ];
       tier3.forEach((elem) => {
         if (this.unlockElement(elem)) newlyUnlocked.push(elem);
