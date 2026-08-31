@@ -364,7 +364,7 @@ describe('Necromancer Reanimation & Zombie Lifecycles (TDD Red -> Green)', () =>
     combatEngine = new CombatEngine(grid, hazardManager, necromancer, [enemy1, enemy2]);
   });
 
-  it('should reanimate an enemy killed by a Necromancer move as a Zombie with 4x HP and 3x Speed', () => {
+  it('should reanimate an enemy killed by a Necromancer move as a Zombie with 4x HP and Half Speed', () => {
     // Cast Grave Strike to kill enemy1 (40 HP vs 50 base damage)
     const result = combatEngine.executeAbility(necromancer, graveStrike, { x: 2, y: 3 });
     expect(result.success).toBe(true);
@@ -377,7 +377,7 @@ describe('Necromancer Reanimation & Zombie Lifecycles (TDD Red -> Green)', () =>
     expect(zombie.isZombie).toBe(true);
     expect(zombie.stats.maxHp).toBe(40 * 4); // 160 (4x HP)
     expect(zombie.stats.currentHp).toBe(160);
-    expect(zombie.stats.maxAp).toBe(4 * 3); // 12 (3x Speed)
+    expect(zombie.stats.maxAp).toBe(2); // Half Speed (floor(4 * 0.5))
     expect(zombie.zombieLifetime).toBe(4); // 4 turns lifetime
     expect(zombie.abilities[0].range).toBe(1); // Attacks only when adjacent
   });
@@ -440,7 +440,7 @@ describe('Necromancer Reanimation & Zombie Lifecycles (TDD Red -> Green)', () =>
       expect(z.isZombie).toBe(true);
       expect(z.faction).toBe('Player');
       expect(z.stats.maxHp).toBe(50 * 4); // 200 HP
-      expect(z.stats.maxAp).toBe(4 * 3); // 12 AP
+      expect(z.stats.maxAp).toBe(2); // 2 AP (Half Speed)
     });
   });
 

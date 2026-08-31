@@ -84,7 +84,7 @@ export class CombatEngine {
 
   public spawnZombie(coord: GridCoord, baseHp: number, baseAp: number, faction: UnitFaction = 'Player'): Unit {
     const maxHp = baseHp * 4; // Quadruple health
-    const maxAp = Math.max(9, baseAp * 3); // Triple speed (min 9 AP)
+    const maxAp = Math.max(2, Math.floor(baseAp * 0.5)); // Half speed
 
     const zombie: Unit = {
       id: `zombie_${Date.now()}_${Math.random()}`,
@@ -546,7 +546,7 @@ export class CombatEngine {
             );
             this.addLog(
               'system',
-              `🧟 ${targetUnit.name} was slain by a Zombie and immediately rises as an allied Zombie (${newZombie.stats.maxHp} HP, ${newZombie.stats.maxAp} Speed)!`
+              `🧟 ${targetUnit.name} was slain by a Zombie and immediately rises as an allied Zombie (${newZombie.stats.maxHp} HP, ${newZombie.stats.maxAp} Half-Speed)!`
             );
           } else {
             // Direct kill by Necromancer hero or Undead element ability:
@@ -563,7 +563,7 @@ export class CombatEngine {
               );
               this.addLog(
                 'system',
-                `🧟 ${targetUnit.name} was slain by Necromancy and immediately rises as an allied Zombie with ${zombie.stats.maxHp} HP (4x) and ${zombie.stats.maxAp} Speed (3x)!`
+                `🧟 ${targetUnit.name} was slain by Necromancy and immediately rises as an allied Zombie with ${zombie.stats.maxHp} HP (4x) and ${zombie.stats.maxAp} Speed (Half-Speed)!`
               );
             }
           }
