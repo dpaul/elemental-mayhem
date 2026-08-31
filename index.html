@@ -122,6 +122,7 @@
         <div class="modal-header text-center" style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
           <h2>CHOOSE YOUR ELEMENTAL MASTER</h2>
           <p class="modal-subtitle">Each class wields dedicated elemental spells, reactions, and combat playstyles.</p>
+          <button id="modal-pvp-arena-btn" class="btn-primary" style="margin: 4px 0 8px 0; background: linear-gradient(135deg, #ef4444, #f59e0b); border: 1px solid #fbbf24; font-size: 0.95rem; font-weight: 700; padding: 10px 24px; border-radius: 9999px; box-shadow: 0 0 20px rgba(239, 68, 68, 0.4); cursor: pointer;">⚔️ Enter 2-Player Hot Seat PvP Arena</button>
           <div class="class-category-tabs" id="class-category-tabs">
             <button class="category-tab active" data-category="All">🌟 All Elements</button>
             <button class="category-tab" data-category="Primal">🔥 Primal</button>
@@ -174,9 +175,10 @@
         <h2 id="outcome-title">VICTORY ACHIEVED</h2>
         <p id="outcome-subtitle">You have conquered the elemental gauntlet!</p>
         <div class="outcome-stats" id="outcome-stats-list"></div>
-        <div style="display: flex; gap: 12px; justify-content: center; margin-top: 16px;">
+        <div style="display: flex; gap: 12px; justify-content: center; margin-top: 16px; flex-wrap: wrap;">
           <button id="restart-game-btn" class="btn-primary">Play Again</button>
           <button id="change-element-btn" class="btn-primary" style="background: linear-gradient(135deg, #8b5cf6, #3b82f6); border-color: #60a5fa;">Change Element</button>
+          <button id="gameover-pvp-btn" class="btn-primary" style="background: linear-gradient(135deg, #ef4444, #f59e0b); border-color: #fbbf24;">⚔️ Hot Seat PvP</button>
         </div>
       </div>
     </div>

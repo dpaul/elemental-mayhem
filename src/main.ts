@@ -345,6 +345,18 @@ export class GameApp {
     });
 
     this.pvpArenaBtn?.addEventListener('click', () => {
+      this.characterSelectModal.classList.add('hidden');
+      this.gameOverModal.classList.add('hidden');
+      this.openHotseatSelection();
+    });
+
+    document.getElementById('modal-pvp-arena-btn')?.addEventListener('click', () => {
+      this.characterSelectModal.classList.add('hidden');
+      this.openHotseatSelection();
+    });
+
+    document.getElementById('gameover-pvp-btn')?.addEventListener('click', () => {
+      this.gameOverModal.classList.add('hidden');
       this.openHotseatSelection();
     });
 
