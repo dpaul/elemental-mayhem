@@ -335,15 +335,48 @@ class GameController {
     const elemData = CORE_ELEMENTS[ability.element];
     const color = elemData ? elemData.color : '#ffd000';
 
+    // If beam/laser-type spell, also fire laser beam
+    const isBeam = ability.name.toLowerCase().includes('beam') ||
+      ability.name.toLowerCase().includes('ray') ||
+      ability.name.toLowerCase().includes('lance') ||
+      ability.name.toLowerCase().includes('flare');
+
+    if (isBeam) {
+      this.renderer.particleEngine.addBeam(startPos.x, startPos.y, targetPos.x, targetPos.y, color, 8, 320);
+    }
+
     // Launch Projectile and await arrival
     await new Promise<void>((resolve) => {
       this.renderer.projManager.spawnProjectile(startPos, targetPos, ability.element, color, 260, () => {
         // Execute ability upon arrival
+        const logCountBefore = this.combatEngine.logs.length;
         this.combatEngine.executeAbility(this.hero, ability, targetCoord);
 
-        // Impact effects
-        this.renderer.particleEngine.emit(targetPos.x, targetPos.y, color, 30, 4.5);
-        this.renderer.particleEngine.addFloatingText(`${ability.baseDamage}`, targetPos.x, targetPos.y - 15, color, 20);
+        // Trigger spell impact with shockwave, particle burst & screen shake
+        const isAoE = ability.aoeRadius > 0;
+        this.renderer.triggerSpellImpact(targetCoord, ability.element, isAoE);
+
+        // Check if a reaction was triggered
+        const newLogs = this.combatEngine.logs.slice(logCountBefore);
+        const reactionLog = newLogs.find((l) => l.type === 'reaction');
+
+        this.renderer.particleEngine.addFloatingText(
+          `-${ability.baseDamage}`,
+          targetPos.x,
+          targetPos.y - 15,
+          color,
+          22
+        );
+
+        if (reactionLog) {
+          this.renderer.particleEngine.addFloatingText(
+            reactionLog.message.split('!')[0] + '!',
+            targetPos.x,
+            targetPos.y - 38,
+            '#fef08a',
+            24
+          );
+        }
 
         resolve();
       });
@@ -400,11 +433,43 @@ class GameController {
           const elemData = CORE_ELEMENTS[step.ability.element];
           const color = elemData ? elemData.color : '#ef4444';
 
+          const isBeam = step.ability.name.toLowerCase().includes('beam') ||
+            step.ability.name.toLowerCase().includes('ray') ||
+            step.ability.name.toLowerCase().includes('lance');
+
+          if (isBeam) {
+            this.renderer.particleEngine.addBeam(startPos.x, startPos.y, targetPos.x, targetPos.y, color, 8, 300);
+          }
+
           await new Promise<void>((resolve) => {
             this.renderer.projManager.spawnProjectile(startPos, targetPos, step.ability.element, color, 260, () => {
+              const logCountBefore = this.combatEngine.logs.length;
               this.combatEngine.executeAbility(enemy, step.ability, step.targetCoord);
-              this.renderer.particleEngine.emit(targetPos.x, targetPos.y, color, 25, 4);
-              this.renderer.particleEngine.addFloatingText(`${step.ability.baseDamage}`, targetPos.x, targetPos.y - 15, color, 20);
+
+              const isAoE = step.ability.aoeRadius > 0;
+              this.renderer.triggerSpellImpact(step.targetCoord, step.ability.element, isAoE);
+
+              const newLogs = this.combatEngine.logs.slice(logCountBefore);
+              const reactionLog = newLogs.find((l) => l.type === 'reaction');
+
+              this.renderer.particleEngine.addFloatingText(
+                `-${step.ability.baseDamage}`,
+                targetPos.x,
+                targetPos.y - 15,
+                color,
+                22
+              );
+
+              if (reactionLog) {
+                this.renderer.particleEngine.addFloatingText(
+                  reactionLog.message.split('!')[0] + '!',
+                  targetPos.x,
+                  targetPos.y - 38,
+                  '#f87171',
+                  24
+                );
+              }
+
               resolve();
             });
           });

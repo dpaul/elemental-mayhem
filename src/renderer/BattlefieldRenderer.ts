@@ -1,8 +1,9 @@
+// Elemental Mayhem - Canvas Battlefield Renderer & Visual FX Engine
 import { CombatEngine } from '../engine/CombatEngine';
 import { ParticleEngine } from './ParticleEngine';
 import { AnimationManager } from './AnimationManager';
 import { ProjectileManager } from './ProjectileManager';
-import { GridCoord, TileHazardType } from '../types';
+import { GridCoord, TileHazardType, ElementType } from '../types';
 import { CORE_ELEMENTS } from '../constants/elements';
 
 export class BattlefieldRenderer {
@@ -15,6 +16,7 @@ export class BattlefieldRenderer {
   public tileSize: number = 72;
   public gridOffsetX: number = 40;
   public gridOffsetY: number = 40;
+  public elapsedTotalTimeMs: number = 0;
 
   constructor(canvas: HTMLCanvasElement, combatEngine: CombatEngine) {
     this.canvas = canvas;
@@ -64,16 +66,36 @@ export class BattlefieldRenderer {
     };
   }
 
+  public triggerSpellImpact(
+    targetCoord: GridCoord,
+    element: ElementType,
+    isCrit: boolean = false
+  ): void {
+    const pos = this.gridToScreen(targetCoord);
+    const elemData = CORE_ELEMENTS[element] || CORE_ELEMENTS.Neutral;
+
+    // 1. Shockwave
+    this.particleEngine.addShockwave(pos.x, pos.y, elemData.color, isCrit ? 60 : 44, 4.0);
+
+    // 2. High-density burst particles
+    this.particleEngine.emit(pos.x, pos.y, elemData.color, isCrit ? 30 : 20, isCrit ? 4.5 : 3.0, 'spark');
+    this.particleEngine.emit(pos.x, pos.y, '#ffffff', isCrit ? 12 : 6, 2.0, 'circle');
+
+    // 3. Screen shake
+    this.particleEngine.triggerScreenShake(isCrit ? 10 : 5, isCrit ? 300 : 200);
+  }
+
   public update(deltaTimeMs: number): void {
+    this.elapsedTotalTimeMs += deltaTimeMs;
     this.animManager.update(deltaTimeMs);
     this.projManager.update(deltaTimeMs);
 
     // Emit elemental tail particles for active projectiles
     for (const proj of this.projManager.getActiveProjectiles()) {
-      this.particleEngine.emit(proj.currentX, proj.currentY, proj.color, 2, 1.2);
+      this.particleEngine.emit(proj.currentX, proj.currentY, proj.color, 3, 1.2, 'spark');
     }
 
-    this.particleEngine.update();
+    this.particleEngine.update(deltaTimeMs);
   }
 
   public render(
@@ -84,6 +106,11 @@ export class BattlefieldRenderer {
   ): void {
     const { ctx, canvas, combatEngine, tileSize, gridOffsetX, gridOffsetY } = this;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Apply Screen Shake offset
+    const shake = this.particleEngine.getScreenShakeOffset();
+    ctx.save();
+    ctx.translate(shake.x, shake.y);
 
     // 1. Draw Battlefield Background Grid
     ctx.save();
@@ -97,12 +124,12 @@ export class BattlefieldRenderer {
         ctx.fillStyle = (x + y) % 2 === 0 ? '#111722' : '#0c1017';
         ctx.fillRect(px, py, tileSize, tileSize);
 
-        // Tile Grid Lines
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+        // Subtle Ambient Grid Line Glow
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
         ctx.lineWidth = 1;
         ctx.strokeRect(px, py, tileSize, tileSize);
 
-        // Draw Tile Hazards
+        // Draw Animated Tile Hazards
         if (tile.hazard.type !== 'None') {
           this.renderHazard(ctx, px, py, tileSize, tile.hazard.type);
         }
@@ -115,14 +142,15 @@ export class BattlefieldRenderer {
     }
     ctx.restore();
 
-    // 2. Draw Movement Reachable Highlight Overlays
+    // 2. Draw Movement Reachable Highlight Overlays with pulsing alpha
+    const pulse = 0.5 + 0.5 * Math.sin(this.elapsedTotalTimeMs * 0.005);
     ctx.save();
     for (const rCoord of reachableTiles) {
       const rx = gridOffsetX + rCoord.x * tileSize;
       const ry = gridOffsetY + rCoord.y * tileSize;
-      ctx.fillStyle = 'rgba(56, 189, 248, 0.15)';
+      ctx.fillStyle = `rgba(56, 189, 248, ${0.12 + 0.08 * pulse})`;
       ctx.fillRect(rx + 2, ry + 2, tileSize - 4, tileSize - 4);
-      ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+      ctx.strokeStyle = `rgba(56, 189, 248, ${0.35 + 0.25 * pulse})`;
       ctx.lineWidth = 1.5;
       ctx.strokeRect(rx + 2, ry + 2, tileSize - 4, tileSize - 4);
     }
@@ -131,9 +159,9 @@ export class BattlefieldRenderer {
     for (const tCoord of targetableTiles) {
       const tx = gridOffsetX + tCoord.x * tileSize;
       const ty = gridOffsetY + tCoord.y * tileSize;
-      ctx.fillStyle = 'rgba(239, 68, 68, 0.2)';
+      ctx.fillStyle = `rgba(239, 68, 68, ${0.16 + 0.08 * pulse})`;
       ctx.fillRect(tx + 2, ty + 2, tileSize - 4, tileSize - 4);
-      ctx.strokeStyle = 'rgba(239, 68, 68, 0.6)';
+      ctx.strokeStyle = `rgba(239, 68, 68, ${0.5 + 0.3 * pulse})`;
       ctx.lineWidth = 1.5;
       ctx.strokeRect(tx + 2, ty + 2, tileSize - 4, tileSize - 4);
     }
@@ -144,55 +172,109 @@ export class BattlefieldRenderer {
       const hy = gridOffsetY + hoveredCoord.y * tileSize;
       ctx.strokeStyle = '#f8fafc';
       ctx.lineWidth = 2;
+      ctx.shadowColor = '#38bdf8';
+      ctx.shadowBlur = 8;
       ctx.strokeRect(hx + 1, hy + 1, tileSize - 2, tileSize - 2);
     }
     ctx.restore();
 
-    // 5. Draw Units (Hero and Enemies)
+    // 5. Draw Units (Hero and Enemies with Breathing Animation)
     this.renderUnits(ctx, focusedUnitId);
 
     // 6. Draw Traveling Projectiles
     this.projManager.render(ctx);
 
-    // 7. Draw Particle Layer
+    // 7. Draw Particle & Shockwave Layer
     this.particleEngine.render(ctx);
+
+    ctx.restore(); // Restore screen shake translation
   }
 
   private renderHazard(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, type: TileHazardType): void {
     ctx.save();
+    const t = this.elapsedTotalTimeMs * 0.003;
+    const pulse = Math.sin(t);
+
     switch (type) {
       case 'Burning':
-        ctx.fillStyle = 'rgba(255, 107, 53, 0.35)';
+        ctx.fillStyle = `rgba(255, 107, 53, ${0.3 + 0.1 * pulse})`;
         ctx.fillRect(x, y, size, size);
-        ctx.font = '18px sans-serif';
-        ctx.fillText('🔥', x + size / 2 - 8, y + size / 2 + 6);
+        ctx.font = '20px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('🔥', x + size / 2, y + size / 2 + Math.sin(t * 2) * 2);
         break;
       case 'Puddle':
-        ctx.fillStyle = 'rgba(0, 210, 255, 0.3)';
+        ctx.fillStyle = `rgba(0, 210, 255, ${0.25 + 0.05 * pulse})`;
         ctx.fillRect(x, y, size, size);
-        ctx.font = '18px sans-serif';
-        ctx.fillText('💧', x + size / 2 - 8, y + size / 2 + 6);
+        ctx.font = '20px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('💧', x + size / 2, y + size / 2);
         break;
       case 'ElectrifiedPuddle':
-        ctx.fillStyle = 'rgba(255, 208, 0, 0.35)';
+        ctx.fillStyle = `rgba(255, 208, 0, ${0.3 + 0.15 * Math.sin(t * 5)})`;
         ctx.fillRect(x, y, size, size);
         ctx.strokeStyle = '#ffd000';
         ctx.lineWidth = 2;
+        ctx.shadowColor = '#ffd000';
+        ctx.shadowBlur = 10;
         ctx.strokeRect(x + 2, y + 2, size - 4, size - 4);
-        ctx.font = '18px sans-serif';
-        ctx.fillText('⚡', x + size / 2 - 8, y + size / 2 + 6);
+        ctx.font = '20px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('⚡', x + size / 2, y + size / 2);
         break;
       case 'ToxicMire':
-        ctx.fillStyle = 'rgba(34, 197, 94, 0.35)';
+        ctx.fillStyle = `rgba(34, 197, 94, ${0.3 + 0.1 * pulse})`;
         ctx.fillRect(x, y, size, size);
-        ctx.font = '18px sans-serif';
-        ctx.fillText('🧪', x + size / 2 - 8, y + size / 2 + 6);
+        ctx.font = '20px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('🧪', x + size / 2, y + size / 2);
         break;
       case 'VoidRift':
-        ctx.fillStyle = 'rgba(217, 70, 239, 0.35)';
+        ctx.fillStyle = `rgba(217, 70, 239, ${0.35 + 0.15 * Math.sin(t * 3)})`;
         ctx.fillRect(x, y, size, size);
-        ctx.font = '18px sans-serif';
-        ctx.fillText('🌌', x + size / 2 - 8, y + size / 2 + 6);
+        ctx.strokeStyle = '#d946ef';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x + 3, y + 3, size - 6, size - 6);
+        ctx.font = '20px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('🌌', x + size / 2, y + size / 2);
+        break;
+      case 'LavaPool':
+        ctx.fillStyle = `rgba(220, 38, 38, ${0.4 + 0.15 * pulse})`;
+        ctx.fillRect(x, y, size, size);
+        ctx.font = '20px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('🌋', x + size / 2, y + size / 2 + Math.sin(t * 2) * 2);
+        break;
+      case 'IceSurface':
+        ctx.fillStyle = `rgba(103, 232, 249, ${0.35 + 0.1 * pulse})`;
+        ctx.fillRect(x, y, size, size);
+        ctx.font = '20px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('❄️', x + size / 2, y + size / 2);
+        break;
+      case 'AcidPool':
+        ctx.fillStyle = `rgba(132, 204, 22, ${0.35 + 0.1 * pulse})`;
+        ctx.fillRect(x, y, size, size);
+        ctx.font = '20px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('☣️', x + size / 2, y + size / 2);
+        break;
+      case 'CrystalSpikes':
+        ctx.fillStyle = `rgba(168, 85, 247, ${0.35 + 0.1 * pulse})`;
+        ctx.fillRect(x, y, size, size);
+        ctx.font = '20px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('💎', x + size / 2, y + size / 2);
         break;
       default:
         break;
@@ -221,9 +303,16 @@ export class BattlefieldRenderer {
 
       // Use interpolated render coordinate if unit is animating
       const animCoord = this.animManager.getUnitRenderCoord(unit.id);
-      const screenPos = animCoord
+      const rawPos = animCoord
         ? this.renderCoordToScreen(animCoord)
         : this.gridToScreen(unit.coord);
+
+      // Subtle organic breathing float offset
+      const floatOffset = animCoord
+        ? 0
+        : Math.sin(this.elapsedTotalTimeMs * 0.003 + unit.coord.x * 2) * 3;
+
+      const screenPos = { x: rawPos.x, y: rawPos.y + floatOffset };
 
       const isPlayer = unit.faction === 'Player';
       const isFocused = unit.id === focusedUnitId;
@@ -237,14 +326,17 @@ export class BattlefieldRenderer {
         this.particleEngine.emit(
           screenPos.x,
           screenPos.y + radius * 0.8,
-          isPlayer ? 'rgba(56, 189, 248, 0.4)' : isBoss ? 'rgba(245, 158, 11, 0.6)' : 'rgba(239, 68, 68, 0.4)',
-          1,
-          0.8
+          isPlayer ? 'rgba(56, 189, 248, 0.5)' : isBoss ? 'rgba(245, 158, 11, 0.7)' : 'rgba(239, 68, 68, 0.5)',
+          2,
+          1.0,
+          'spark'
         );
       }
 
       // Glowing Elemental Aura or Boss Aura or Focused Ring
       const elemData = CORE_ELEMENTS[unit.stats.elementalAffinity];
+      const auraPulse = Math.sin(this.elapsedTotalTimeMs * 0.004) * 4;
+
       ctx.shadowColor = isBoss
         ? '#f59e0b'
         : isFocused
@@ -252,7 +344,22 @@ export class BattlefieldRenderer {
         : elemData
         ? elemData.glowColor
         : 'rgba(255,255,255,0.3)';
-      ctx.shadowBlur = isBoss ? 24 : isFocused ? 20 : 12;
+      ctx.shadowBlur = (isBoss ? 26 : isFocused ? 22 : 14) + auraPulse;
+
+      // Boss Orbital Runic Particles
+      if (isBoss) {
+        const orbitAngle = this.elapsedTotalTimeMs * 0.002;
+        const orbitRadius = radius + 8;
+        for (let i = 0; i < 3; i++) {
+          const angle = orbitAngle + (i * Math.PI * 2) / 3;
+          const ox = screenPos.x + Math.cos(angle) * orbitRadius;
+          const oy = screenPos.y + Math.sin(angle) * orbitRadius;
+          ctx.fillStyle = '#fbbf24';
+          ctx.beginPath();
+          ctx.arc(ox, oy, 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
 
       // Unit Background Ring
       ctx.fillStyle = isPlayer ? '#0f172a' : isBoss ? '#31102f' : '#1e1b4b';
@@ -287,7 +394,7 @@ export class BattlefieldRenderer {
       const hpY = screenPos.y - radius - (isBoss ? 16 : 10);
       const hpPct = Math.max(0, unit.stats.currentHp / unit.stats.maxHp);
 
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
       ctx.fillRect(hpX, hpY, hpWidth, hpHeight);
       ctx.fillStyle = isPlayer ? '#22c55e' : isBoss ? '#f59e0b' : '#ef4444';
       ctx.fillRect(hpX, hpY, hpWidth * hpPct, hpHeight);

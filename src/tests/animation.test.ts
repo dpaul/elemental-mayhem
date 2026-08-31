@@ -47,3 +47,26 @@ describe('AnimationManager (TDD Red -> Green)', () => {
     expect(animManager.hasActiveAnimations()).toBe(false);
   });
 });
+
+describe('ParticleEngine & Visual FX (TDD Red -> Green)', () => {
+  let particleEngine: import('../renderer/ParticleEngine').ParticleEngine;
+
+  beforeEach(async () => {
+    const { ParticleEngine } = await import('../renderer/ParticleEngine');
+    particleEngine = new ParticleEngine();
+  });
+
+  it('should emit particles, shockwaves, and beams', () => {
+    particleEngine.emit(100, 100, '#ff6b35', 10, 2);
+    particleEngine.addShockwave(100, 100, '#ff6b35', 50);
+    particleEngine.addBeam(0, 0, 100, 100, '#38bdf8', 6, 200);
+    particleEngine.addFloatingText('💥 25 DMG', 100, 80, '#ff6b35');
+
+    // Update particles over time
+    particleEngine.update(16);
+    // Trigger screen shake
+    particleEngine.triggerScreenShake(8, 200);
+    const shake = particleEngine.getScreenShakeOffset();
+    expect(shake).toBeDefined();
+  });
+});

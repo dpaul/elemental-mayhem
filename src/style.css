@@ -808,3 +808,41 @@ body {
   gap: 6px;
 }
 
+/* Dynamic Arcane Micro-Animations */
+@keyframes arcane-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes float-slow {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(56, 189, 248, 0.5);
+  }
+}
+
+.ability-slot.active {
+  animation: glow-pulse 2s infinite ease-in-out;
+  border-color: #38bdf8;
+}
+
+.phase-banner {
+  animation: float-slow 3s infinite ease-in-out;
+}
+
+
