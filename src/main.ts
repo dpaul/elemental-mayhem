@@ -44,7 +44,7 @@ export class GameApp {
   private hero: Unit;
   private enemies: Unit[];
   private currentRound: number = 1;
-  private maxRounds: number = 15;
+  private maxRounds: number = 150_000_000_000_000;
   private selectedElement: ElementType = 'Fire';
   private selectedClassCategory: string = 'All';
 
@@ -788,6 +788,20 @@ export class GameApp {
       this.checkCombatState();
     });
 
+    document.getElementById('admin-btn-jump-1000')?.addEventListener('click', () => {
+      this.closeAdminPanel();
+      this.currentRound += 999;
+      this.advanceToNextRound();
+      this.combatEngine.addLog('system', `👑 ADMIN: Warped 1,000 rounds forward to Round ${this.currentRound.toLocaleString()}!`);
+    });
+
+    document.getElementById('admin-btn-jump-1000000')?.addEventListener('click', () => {
+      this.closeAdminPanel();
+      this.currentRound += 999999;
+      this.advanceToNextRound();
+      this.combatEngine.addLog('system', `👑 ADMIN: Warped 1,000,000 rounds forward to Round ${this.currentRound.toLocaleString()}!`);
+    });
+
     // Canvas Interactions
     canvas.addEventListener('mousemove', (e) => {
       if (this.isBusy) return;
@@ -1388,8 +1402,8 @@ export class GameApp {
     // Update round indicator
     const roundBadge = document.getElementById('round-indicator');
     if (roundBadge) {
-      const isBoss = this.currentRound === 5 || this.currentRound === 10 || this.currentRound === 15;
-      roundBadge.textContent = isBoss ? `👑 BOSS ROUND ${this.currentRound}` : `ROUND ${this.currentRound} / ${this.maxRounds}`;
+      const isBoss = this.currentRound % 5 === 0;
+      roundBadge.textContent = isBoss ? `👑 BOSS ROUND ${this.currentRound.toLocaleString()}` : `ROUND ${this.currentRound.toLocaleString()} / ${this.maxRounds.toLocaleString()}`;
       roundBadge.style.color = isBoss ? '#fbbf24' : '#38bdf8';
     }
 
@@ -1402,7 +1416,7 @@ export class GameApp {
   private showVictoryModal(): void {
     this.turnManager.setPhase('VICTORY');
     this.outcomeTitle.textContent = 'GAUNTLET CONQUERED!';
-    this.outcomeSubtitle.textContent = 'You have mastered all 15 rounds of the Elemental Mayhem!';
+    this.outcomeSubtitle.textContent = `You have mastered all ${this.maxRounds.toLocaleString()} rounds of the Elemental Mayhem!`;
     this.renderOutcomeStats();
     this.gameOverModal.classList.remove('hidden');
   }
@@ -1410,7 +1424,7 @@ export class GameApp {
   private showDefeatModal(): void {
     this.turnManager.setPhase('GAME_OVER');
     this.outcomeTitle.textContent = 'DEFEATED IN BATTLE';
-    this.outcomeSubtitle.textContent = `You fell on Round ${this.currentRound}. Re-arm and try again!`;
+    this.outcomeSubtitle.textContent = `You fell on Round ${this.currentRound.toLocaleString()}. Re-arm and try again!`;
     this.renderOutcomeStats();
     this.gameOverModal.classList.remove('hidden');
   }
@@ -1419,15 +1433,15 @@ export class GameApp {
     this.outcomeStatsList.innerHTML = `
       <div class="stat-row">
         <span>Rounds Completed:</span>
-        <strong>${this.currentRound - 1} / ${this.maxRounds}</strong>
+        <strong>${(this.currentRound - 1).toLocaleString()} / ${this.maxRounds.toLocaleString()}</strong>
       </div>
       <div class="stat-row">
         <span>Total Essence:</span>
-        <strong>${this.totalEssence}</strong>
+        <strong>${this.totalEssence.toLocaleString()}</strong>
       </div>
       <div class="stat-row">
         <span>Total XP:</span>
-        <strong>${this.totalXp}</strong>
+        <strong>${this.totalXp.toLocaleString()}</strong>
       </div>
     `;
   }
@@ -1455,7 +1469,7 @@ export class GameApp {
 
     const roundBadge = document.getElementById('round-indicator');
     if (roundBadge) {
-      roundBadge.textContent = `ROUND 1 / ${this.maxRounds}`;
+      roundBadge.textContent = `ROUND 1 / ${this.maxRounds.toLocaleString()}`;
       roundBadge.style.color = '#38bdf8';
     }
 
