@@ -23,6 +23,7 @@
         <span class="phase-label" id="phase-text">PLAYER TURN</span>
       </div>
       <div class="header-right">
+        <button id="nav-multiplayer-btn" class="btn-text header-nav-btn" style="background: rgba(239, 68, 68, 0.25); border: 1px solid rgba(239, 68, 68, 0.5); color: #fca5a5; font-weight: 700;">⚔️ Multiplayer</button>
         <button id="nav-codex-btn" class="btn-text header-nav-btn" title="Elemental Codex">📖 Codex</button>
         <button id="nav-guide-btn" class="btn-text header-nav-btn" title="How to Play Guide">📜 Guide</button>
         <div class="currency-pill">
@@ -35,7 +36,7 @@
           <span class="pill-label">XP:</span>
           <span class="pill-value" id="xp-counter">0</span>
         </div>
-        <button id="pvp-arena-btn" class="btn-text" style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.4); color: #fca5a5; padding: 6px 14px; border-radius: 8px; font-weight: 700; cursor: pointer; transition: all 0.2s ease;">⚔️ Hot Seat PvP</button>
+        <button id="pvp-arena-btn" class="btn-primary" style="background: linear-gradient(135deg, #ef4444, #f43f5e); border: 1px solid #fda4af; color: #ffffff; padding: 6px 16px; border-radius: 8px; font-weight: 800; cursor: pointer; box-shadow: 0 0 18px rgba(239, 68, 68, 0.5); transition: all 0.2s ease;">⚔️ Multiplayer PvP</button>
       </div>
     </header>
 
@@ -147,7 +148,10 @@
             <span class="home-pill">👑 15 Boss Gauntlets</span>
             <span class="home-pill">⚡ Chain Reactions</span>
           </div>
-          <button id="home-btn-choose-element" class="btn-primary" style="margin-top: 8px; background: linear-gradient(135deg, #3b82f6, #8b5cf6, #ec4899); border: 1px solid #c084fc; font-size: 1.1rem; font-weight: 800; padding: 12px 36px; border-radius: 9999px; box-shadow: 0 0 30px rgba(139, 92, 246, 0.6); cursor: pointer; transition: all 0.25s ease;">🧙 PICK YOUR ELEMENT MASTER</button>
+          <div style="display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-top: 12px;">
+            <button id="home-btn-multiplayer" class="btn-primary" style="background: linear-gradient(135deg, #ef4444, #f43f5e, #8b5cf6); border: 1px solid #fda4af; font-size: 1.1rem; font-weight: 800; padding: 12px 36px; border-radius: 9999px; box-shadow: 0 0 30px rgba(239, 68, 68, 0.6); cursor: pointer; transition: all 0.25s ease;">⚔️ PLAY MULTIPLAYER (1v1 PvP)</button>
+            <button id="home-btn-choose-element" class="btn-primary" style="background: linear-gradient(135deg, #3b82f6, #8b5cf6, #ec4899); border: 1px solid #c084fc; font-size: 1.1rem; font-weight: 800; padding: 12px 36px; border-radius: 9999px; box-shadow: 0 0 30px rgba(139, 92, 246, 0.6); cursor: pointer; transition: all 0.25s ease;">🧙 PICK YOUR ELEMENT MASTER</button>
+          </div>
         </div>
 
         <!-- Mode Cards Grid -->
@@ -221,7 +225,7 @@
           <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
             <button id="char-select-back-btn" class="btn-text">← Back to Menu</button>
             <h2 style="margin: 0 auto;">CHOOSE YOUR ELEMENTAL MASTER</h2>
-            <div style="width: 80px;"></div>
+            <button id="char-select-multiplayer-btn" class="btn-text" style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.4); color: #fca5a5; padding: 6px 12px; border-radius: 8px; font-weight: 700;">⚔️ Multiplayer</button>
           </div>
           <p class="modal-subtitle">Each class wields dedicated elemental spells, reactions, and combat playstyles.</p>
           <div class="class-category-tabs" id="class-category-tabs">

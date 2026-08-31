@@ -600,6 +600,23 @@ export class GameApp {
       this.characterSelectModal.classList.remove('hidden');
     });
 
+    document.getElementById('home-btn-multiplayer')?.addEventListener('click', () => {
+      this.openHotseatSelection();
+    });
+
+    document.getElementById('nav-multiplayer-btn')?.addEventListener('click', () => {
+      this.openHotseatSelection();
+    });
+
+    document.getElementById('pvp-arena-btn')?.addEventListener('click', () => {
+      this.openHotseatSelection();
+    });
+
+    document.getElementById('char-select-multiplayer-btn')?.addEventListener('click', () => {
+      this.characterSelectModal.classList.add('hidden');
+      this.openHotseatSelection();
+    });
+
     this.homeBtnHotseat?.addEventListener('click', () => {
       this.openHotseatSelection();
     });
