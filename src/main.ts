@@ -628,6 +628,12 @@ export class GameApp {
       this.openHotseatSelection();
     });
 
+    document.getElementById('char-select-unlock-all-btn')?.addEventListener('click', () => {
+      this.unlockManager.unlockAllElements(true);
+      this.renderCharacterSelectModal();
+      this.combatEngine.addLog('system', '✨ All 42 Elemental Powers & Omnipotent Avatar have been unlocked for everyone!');
+    });
+
     this.homeBtnHotseat?.addEventListener('click', () => {
       this.openHotseatSelection();
     });

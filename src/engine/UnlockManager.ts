@@ -9,7 +9,7 @@ export const ALL_42_ELEMENTS: ElementType[] = [
   'Metal', 'Darkness', 'Light', 'Electricity', 'Sound', 'Time', 'Death', 'Life', 'Chaos', 'Order',
   'Acid', 'Blood', 'Soul', 'Spirit', 'Energy', 'Force', 'Matter', 'Space', 'Gravity', 'Momentum',
   'Vibration', 'Radiation', 'Magnetism', 'Pressure', 'Heat', 'Cold', 'Wind', 'Storm', 'Thunder', 'Magma',
-  'Glass', 'Crystal', 'Undead'
+  'Glass', 'Crystal', 'Undead', 'Neutral'
 ];
 
 export class UnlockManager {
