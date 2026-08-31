@@ -166,7 +166,27 @@ export class BattlefieldRenderer {
       ctx.strokeRect(tx + 2, ty + 2, tileSize - 4, tileSize - 4);
     }
 
-    // 4. Draw Hovered Tile Reticle
+    // 4. Draw Pending Reanimation Graves
+    for (const p of this.combatEngine.pendingReanimations) {
+      const px = gridOffsetX + p.coord.x * tileSize;
+      const py = gridOffsetY + p.coord.y * tileSize;
+      ctx.save();
+      ctx.fillStyle = 'rgba(132, 204, 22, 0.25)';
+      ctx.fillRect(px + 4, py + 4, tileSize - 8, tileSize - 8);
+      ctx.strokeStyle = '#84cc16';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(px + 4, py + 4, tileSize - 8, tileSize - 8);
+      ctx.font = '20px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('⚰️', px + tileSize / 2, py + tileSize / 2 - 4);
+      ctx.font = 'bold 11px "Fira Code", monospace';
+      ctx.fillStyle = '#fef08a';
+      ctx.fillText(`${p.turnsRemaining}t`, px + tileSize / 2, py + tileSize / 2 + 14);
+      ctx.restore();
+    }
+
+    // 5. Draw Hovered Tile Reticle
     if (hoveredCoord) {
       const hx = gridOffsetX + hoveredCoord.x * tileSize;
       const hy = gridOffsetY + hoveredCoord.y * tileSize;
@@ -178,13 +198,13 @@ export class BattlefieldRenderer {
     }
     ctx.restore();
 
-    // 5. Draw Units (Hero and Enemies with Breathing Animation)
+    // 6. Draw Units (Hero, Allied Zombies, and Enemies with Breathing Animation)
     this.renderUnits(ctx, focusedUnitId);
 
-    // 6. Draw Traveling Projectiles
+    // 7. Draw Traveling Projectiles
     this.projManager.render(ctx);
 
-    // 7. Draw Particle & Shockwave Layer
+    // 8. Draw Particle & Shockwave Layer
     this.particleEngine.render(ctx);
 
     ctx.restore(); // Restore screen shake translation
@@ -276,6 +296,14 @@ export class BattlefieldRenderer {
         ctx.textBaseline = 'middle';
         ctx.fillText('💎', x + size / 2, y + size / 2);
         break;
+      case 'BonePile':
+        ctx.fillStyle = `rgba(148, 163, 184, ${0.35 + 0.1 * pulse})`;
+        ctx.fillRect(x, y, size, size);
+        ctx.font = '20px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('🦴', x + size / 2, y + size / 2);
+        break;
       default:
         break;
     }
@@ -297,7 +325,12 @@ export class BattlefieldRenderer {
   }
 
   private renderUnits(ctx: CanvasRenderingContext2D, focusedUnitId: string | null): void {
-    const allUnits = [this.combatEngine.hero, ...this.combatEngine.enemies];
+    const allUnits = [
+      this.combatEngine.hero,
+      ...this.combatEngine.zombies,
+      ...this.combatEngine.enemies,
+    ];
+
     for (const unit of allUnits) {
       if (unit.isDead) continue;
 
@@ -314,7 +347,8 @@ export class BattlefieldRenderer {
 
       const screenPos = { x: rawPos.x, y: rawPos.y + floatOffset };
 
-      const isPlayer = unit.faction === 'Player';
+      const isPlayerHero = unit.faction === 'Player' && !unit.isZombie;
+      const isZombie = !!unit.isZombie;
       const isFocused = unit.id === focusedUnitId;
       const isBoss = !!unit.isBoss;
       const radius = this.tileSize * (isBoss ? 0.44 : 0.38);
@@ -326,7 +360,13 @@ export class BattlefieldRenderer {
         this.particleEngine.emit(
           screenPos.x,
           screenPos.y + radius * 0.8,
-          isPlayer ? 'rgba(56, 189, 248, 0.5)' : isBoss ? 'rgba(245, 158, 11, 0.7)' : 'rgba(239, 68, 68, 0.5)',
+          isPlayerHero
+            ? 'rgba(56, 189, 248, 0.5)'
+            : isZombie
+            ? 'rgba(132, 204, 22, 0.6)'
+            : isBoss
+            ? 'rgba(245, 158, 11, 0.7)'
+            : 'rgba(239, 68, 68, 0.5)',
           2,
           1.0,
           'spark'
@@ -339,12 +379,14 @@ export class BattlefieldRenderer {
 
       ctx.shadowColor = isBoss
         ? '#f59e0b'
+        : isZombie
+        ? '#84cc16'
         : isFocused
         ? '#fef08a'
         : elemData
         ? elemData.glowColor
         : 'rgba(255,255,255,0.3)';
-      ctx.shadowBlur = (isBoss ? 26 : isFocused ? 22 : 14) + auraPulse;
+      ctx.shadowBlur = (isBoss ? 26 : isZombie ? 20 : isFocused ? 22 : 14) + auraPulse;
 
       // Boss Orbital Runic Particles
       if (isBoss) {
@@ -362,7 +404,13 @@ export class BattlefieldRenderer {
       }
 
       // Unit Background Ring
-      ctx.fillStyle = isPlayer ? '#0f172a' : isBoss ? '#31102f' : '#1e1b4b';
+      ctx.fillStyle = isPlayerHero
+        ? '#0f172a'
+        : isZombie
+        ? '#14280f'
+        : isBoss
+        ? '#31102f'
+        : '#1e1b4b';
       ctx.beginPath();
       ctx.arc(screenPos.x, screenPos.y, radius, 0, Math.PI * 2);
       ctx.fill();
@@ -370,14 +418,16 @@ export class BattlefieldRenderer {
       // Unit Border Ring
       ctx.strokeStyle = isBoss
         ? '#fbbf24'
+        : isZombie
+        ? '#84cc16'
         : isFocused
         ? '#fef08a'
-        : isPlayer
+        : isPlayerHero
         ? '#38bdf8'
         : elemData
         ? elemData.color
         : '#ef4444';
-      ctx.lineWidth = isBoss ? 5 : isFocused ? 4 : 3;
+      ctx.lineWidth = isBoss ? 5 : isZombie ? 3.5 : isFocused ? 4 : 3;
       ctx.stroke();
 
       // Avatar Icon
@@ -396,7 +446,7 @@ export class BattlefieldRenderer {
 
       ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
       ctx.fillRect(hpX, hpY, hpWidth, hpHeight);
-      ctx.fillStyle = isPlayer ? '#22c55e' : isBoss ? '#f59e0b' : '#ef4444';
+      ctx.fillStyle = isPlayerHero ? '#22c55e' : isZombie ? '#84cc16' : isBoss ? '#f59e0b' : '#ef4444';
       ctx.fillRect(hpX, hpY, hpWidth * hpPct, hpHeight);
 
       if (isBoss) {
@@ -409,8 +459,13 @@ export class BattlefieldRenderer {
         ctx.fillText('👑', screenPos.x, hpY - 8);
       }
 
-      // Unit Status Indicator
-      if (unit.statusEffects.length > 0) {
+      // Zombie Lifetime Indicator
+      if (isZombie && unit.zombieLifetime !== undefined) {
+        ctx.font = 'bold 11px "Fira Code", monospace';
+        ctx.fillStyle = '#a3e635';
+        ctx.fillText(`[🧟 ${unit.zombieLifetime}t]`, screenPos.x, hpY - 6);
+      } else if (unit.statusEffects.length > 0) {
+        // Unit Status Indicator
         ctx.font = '10px "Fira Code", monospace';
         ctx.fillStyle = '#fef08a';
         ctx.fillText(`[${unit.statusEffects[0].type}]`, screenPos.x, hpY - (isBoss ? 18 : 4));

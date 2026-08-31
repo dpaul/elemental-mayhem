@@ -69,7 +69,17 @@ export type TileHazardType =
   | 'IceSurface'
   | 'LavaPool'
   | 'AcidPool'
-  | 'CrystalSpikes';
+  | 'CrystalSpikes'
+  | 'BonePile';
+
+export interface PendingReanimation {
+  id: string;
+  coord: GridCoord;
+  turnsRemaining: number;
+  baseHp: number;
+  baseAp: number;
+  victimName: string;
+}
 
 export interface TileHazard {
   type: TileHazardType;
@@ -164,6 +174,9 @@ export interface Unit {
   statusEffects: StatusEffect[];
   isDead: boolean;
   isBoss?: boolean;
+  isZombie?: boolean;
+  zombieLifetime?: number; // 4 turns max
+  infectedByZombie?: boolean;
 }
 
 export type TurnPhase =

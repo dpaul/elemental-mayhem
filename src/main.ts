@@ -403,7 +403,74 @@ class GameController {
 
     await delay(350);
 
-    // Sequential Enemy AI Turns
+    // 1. Allied Zombies Turn
+    if (this.combatEngine.zombies.length > 0) {
+      this.hud.updatePhaseBanner('ALLIED ZOMBIES');
+      await delay(250);
+
+      for (const zombie of this.combatEngine.zombies) {
+        if (zombie.isDead) continue;
+        zombie.stats.currentAp = zombie.stats.maxAp;
+
+        const liveEnemies = this.enemies.filter((e) => !e.isDead);
+        if (liveEnemies.length === 0) break;
+
+        const closestEnemy = liveEnemies.sort(
+          (a, b) =>
+            this.combatEngine.grid.manhattanDistance(zombie.coord, a.coord) -
+            this.combatEngine.grid.manhattanDistance(zombie.coord, b.coord)
+        )[0];
+
+        const steps = this.enemyAI.planTurnSteps(zombie, closestEnemy);
+        this.focusedUnitId = zombie.id;
+
+        for (const step of steps) {
+          if (zombie.isDead || closestEnemy.isDead) break;
+
+          if (step.type === 'move') {
+            await new Promise<void>((resolve) => {
+              this.renderer.animManager.animateMovement(zombie.id, step.path, 130, () => {
+                this.combatEngine.moveUnit(zombie, step.destination);
+                resolve();
+              });
+            });
+            this.updateHUD();
+            await delay(150);
+          } else if (step.type === 'cast') {
+            const startPos = this.renderer.gridToScreen(zombie.coord);
+            const targetPos = this.renderer.gridToScreen(step.targetCoord);
+
+            await new Promise<void>((resolve) => {
+              this.renderer.projManager.spawnProjectile(
+                startPos,
+                targetPos,
+                step.ability.element,
+                '#84cc16',
+                200,
+                () => {
+                  this.combatEngine.executeAbility(zombie, step.ability, step.targetCoord);
+                  this.renderer.triggerSpellImpact(step.targetCoord, step.ability.element, false);
+                  this.renderer.particleEngine.addFloatingText(
+                    `-${step.ability.baseDamage}`,
+                    targetPos.x,
+                    targetPos.y - 15,
+                    '#84cc16',
+                    22
+                  );
+                  resolve();
+                }
+              );
+            });
+
+            this.updateHUD();
+            await delay(250);
+          }
+        }
+        this.focusedUnitId = null;
+      }
+    }
+
+    // 2. Sequential Enemy AI Turns
     this.turnManager.startEnemyTurn(this.enemies);
 
     for (const enemy of this.enemies) {
@@ -413,7 +480,15 @@ class GameController {
       this.hud.updatePhaseBanner(`ENEMY: ${enemy.name.toUpperCase()}`);
       await delay(350);
 
-      const steps = this.enemyAI.planTurnSteps(enemy, this.hero);
+      // Target closest player unit (Hero or Zombie)
+      const playerTargets = [this.hero, ...this.combatEngine.zombies.filter((z) => !z.isDead)];
+      const targetUnit = playerTargets.sort(
+        (a, b) =>
+          this.combatEngine.grid.manhattanDistance(enemy.coord, a.coord) -
+          this.combatEngine.grid.manhattanDistance(enemy.coord, b.coord)
+      )[0] || this.hero;
+
+      const steps = this.enemyAI.planTurnSteps(enemy, targetUnit);
 
       for (const step of steps) {
         if (enemy.isDead || this.hero.isDead) break;
@@ -483,10 +558,14 @@ class GameController {
       await delay(250);
     }
 
-    // Environment & Status Ticks
+    // 3. Environment, Zombie Ticks & Status Ticks
     this.hud.updatePhaseBanner('ENVIRONMENT TICK');
     this.hazardManager.tickHazards();
+    this.combatEngine.tickZombies();
     this.combatEngine.statusManager.tickStatusEffects(this.hero);
+    for (const zombie of this.combatEngine.zombies) {
+      this.combatEngine.statusManager.tickStatusEffects(zombie);
+    }
     for (const enemy of this.enemies) {
       this.combatEngine.statusManager.tickStatusEffects(enemy);
     }

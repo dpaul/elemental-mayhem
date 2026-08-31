@@ -1,10 +1,10 @@
-// Elemental Mayhem - Combat Resolution & Ability Execution Engine
+// Elemental Mayhem - Combat Resolution, Necromancy & Ability Execution Engine
 import { Grid } from './Grid';
 import { TileHazardManager } from './TileHazardManager';
 import { ElementalMatrix } from './ElementalMatrix';
 import { ReactionEngine } from './ReactionEngine';
 import { StatusEffectManager } from './StatusEffectManager';
-import { Unit, Ability, GridCoord, CombatLogEntry, PerformanceStats } from '../types';
+import { Unit, Ability, GridCoord, CombatLogEntry, PerformanceStats, PendingReanimation } from '../types';
 
 export class CombatEngine {
   public grid: Grid;
@@ -14,6 +14,8 @@ export class CombatEngine {
   public statusManager: StatusEffectManager;
   public hero: Unit;
   public enemies: Unit[];
+  public zombies: Unit[] = [];
+  public pendingReanimations: PendingReanimation[] = [];
   public logs: CombatLogEntry[];
   public performance: PerformanceStats;
 
@@ -25,6 +27,8 @@ export class CombatEngine {
     this.statusManager = new StatusEffectManager();
     this.hero = hero;
     this.enemies = enemies;
+    this.zombies = [];
+    this.pendingReanimations = [];
     this.logs = [];
     this.performance = {
       turnsUsed: 0,
@@ -42,12 +46,129 @@ export class CombatEngine {
     if (!this.hero.isDead && this.hero.coord.x === coord.x && this.hero.coord.y === coord.y) {
       return this.hero;
     }
+    for (const zombie of this.zombies) {
+      if (!zombie.isDead && zombie.coord.x === coord.x && zombie.coord.y === coord.y) {
+        return zombie;
+      }
+    }
     for (const enemy of this.enemies) {
       if (!enemy.isDead && enemy.coord.x === coord.x && enemy.coord.y === coord.y) {
         return enemy;
       }
     }
     return null;
+  }
+
+  public getAllAllies(): Unit[] {
+    return [this.hero, ...this.zombies.filter((z) => !z.isDead)];
+  }
+
+  public spawnZombie(coord: GridCoord, baseHp: number, baseAp: number): Unit {
+    const maxHp = baseHp * 4; // Quadruple health
+    const maxAp = Math.max(9, baseAp * 3); // Triple speed (min 9 AP)
+
+    const zombie: Unit = {
+      id: `zombie_${Date.now()}_${Math.random()}`,
+      name: 'Reanimated Zombie',
+      faction: 'Player',
+      avatar: '🧟',
+      coord: { ...coord },
+      stats: {
+        maxHp,
+        currentHp: maxHp,
+        maxAp,
+        currentAp: maxAp,
+        moveCostPerTile: 1,
+        elementalAffinity: 'Undead',
+      },
+      abilities: [
+        {
+          id: 'zombie_bite',
+          name: 'Zombie Bite',
+          element: 'Undead',
+          icon: '🧟',
+          apCost: 1,
+          cooldown: 0,
+          currentCooldown: 0,
+          range: 1, // Only attacks when adjacent
+          aoeRadius: 0,
+          targeting: 'SingleUnit',
+          baseDamage: 28,
+          description: 'Lethal melee bite that infects target to rise in 3 turns after death.',
+          level: 1,
+        },
+      ],
+      statusEffects: [],
+      isDead: false,
+      isZombie: true,
+      zombieLifetime: 4, // Only lasts 4 turns
+    };
+
+    this.zombies.push(zombie);
+    return zombie;
+  }
+
+  public tickZombies(): void {
+    // 1. Tick active zombies
+    for (let i = this.zombies.length - 1; i >= 0; i--) {
+      const zombie = this.zombies[i];
+      if (zombie.isDead) {
+        this.zombies.splice(i, 1);
+        continue;
+      }
+
+      if (zombie.zombieLifetime !== undefined) {
+        zombie.zombieLifetime -= 1;
+        if (zombie.zombieLifetime <= 0) {
+          zombie.isDead = true;
+          this.zombies.splice(i, 1);
+
+          // Turn into a pile of bones on the battlefield
+          this.hazardManager.applyHazard(zombie.coord, 'BonePile', 3, 0, 'Undead');
+
+          // Grant the Necromancer +3 AP
+          this.hero.stats.currentAp = Math.min(
+            this.hero.stats.maxAp + 6,
+            this.hero.stats.currentAp + 3
+          );
+
+          this.addLog(
+            'system',
+            `🦴 Reanimated Zombie expired after 4 turns into a pile of bones, granting the Necromancer +3 AP!`
+          );
+        }
+      }
+    }
+
+    // 2. Tick pending reanimations
+    for (let i = this.pendingReanimations.length - 1; i >= 0; i--) {
+      const p = this.pendingReanimations[i];
+      p.turnsRemaining -= 1;
+
+      if (p.turnsRemaining <= 0) {
+        this.pendingReanimations.splice(i, 1);
+
+        // Find available tile at or adjacent to grave
+        let spawnTile: GridCoord = { ...p.coord };
+        if (this.getUnitAt(spawnTile) !== null) {
+          const adj = this.grid
+            .getNeighbors(spawnTile)
+            .find((n) => !this.grid.getTile(n)?.isObstacle && this.getUnitAt(n) === null);
+          if (adj) spawnTile = adj;
+        }
+
+        const newZombie = this.spawnZombie(spawnTile, p.baseHp, p.baseAp);
+        this.addLog(
+          'system',
+          `🧟 The corpse of ${p.victimName} has risen as a Reanimated Zombie (${newZombie.stats.maxHp} HP, ${newZombie.stats.maxAp} AP) after 3 turns!`
+        );
+      } else {
+        this.addLog(
+          'system',
+          `⏳ Corpse of ${p.victimName} is festering (${p.turnsRemaining} turns until reanimating)...`
+        );
+      }
+    }
   }
 
   public moveUnit(unit: Unit, targetCoord: GridCoord): boolean {
@@ -198,6 +319,41 @@ export class CombatEngine {
           if (targetUnit.faction === 'Enemy') {
             this.performance.enemiesKilled += 1;
           }
+
+          // --- NECROMANCER REANIMATION MECHANIC ---
+          if (caster.isZombie && targetUnit.faction === 'Enemy') {
+            // 2. Kill by a Zombie (Infectious strike -> reanimates after 3 turns):
+            this.pendingReanimations.push({
+              id: `reanim_${Date.now()}_${Math.random()}`,
+              coord: { ...targetUnit.coord },
+              turnsRemaining: 3,
+              baseHp: targetUnit.stats.maxHp,
+              baseAp: targetUnit.stats.maxAp,
+              victimName: targetUnit.name,
+            });
+            this.addLog(
+              'system',
+              `⚰️ ${targetUnit.name} was slain by a Zombie! A corpse lies waiting and will reanimate as a Zombie after 3 turns!`
+            );
+          } else {
+            // 1. Direct kill by Necromancer hero or Undead element ability:
+            const isNecromancerKill =
+              (caster.stats.elementalAffinity === 'Undead' || ability.element === 'Undead') &&
+              targetUnit.faction === 'Enemy' &&
+              caster.faction === 'Player';
+
+            if (isNecromancerKill) {
+              const zombie = this.spawnZombie(
+                targetUnit.coord,
+                targetUnit.stats.maxHp,
+                targetUnit.stats.maxAp
+              );
+              this.addLog(
+                'system',
+                `🧟 ${targetUnit.name} was slain by Necromancy and immediately rises as an allied Zombie with ${zombie.stats.maxHp} HP (4x) and ${zombie.stats.maxAp} Speed (3x)!`
+              );
+            }
+          }
         }
       }
 
@@ -248,6 +404,10 @@ export class CombatEngine {
 
     // 4. Clear all hazards from the battlefield
     this.hazardManager.clearAllHazards();
+
+    // 5. Clear zombies and pending reanimations
+    this.zombies = [];
+    this.pendingReanimations = [];
 
     this.addLog(
       'system',
