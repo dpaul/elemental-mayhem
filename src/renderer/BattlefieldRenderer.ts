@@ -3,7 +3,7 @@ import { CombatEngine } from '../engine/CombatEngine';
 import { ParticleEngine } from './ParticleEngine';
 import { AnimationManager } from './AnimationManager';
 import { ProjectileManager } from './ProjectileManager';
-import { GridCoord, TileHazardType, ElementType } from '../types';
+import { GridCoord, TileHazardType, ElementType, Unit } from '../types';
 import { CORE_ELEMENTS } from '../constants/elements';
 
 export class BattlefieldRenderer {
@@ -83,6 +83,11 @@ export class BattlefieldRenderer {
 
     // 3. Screen shake
     this.particleEngine.triggerScreenShake(isCrit ? 10 : 5, isCrit ? 300 : 200);
+  }
+
+  public triggerDeathAnimation(unit: Unit, killerElement?: ElementType): void {
+    const pos = this.gridToScreen(unit.coord);
+    this.particleEngine.triggerDeathAnimation(unit, pos.x, pos.y, killerElement);
   }
 
   public update(deltaTimeMs: number): void {

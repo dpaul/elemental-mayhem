@@ -59,6 +59,7 @@ export class GameApp {
   private isBusy: boolean = false;
   private focusedUnitId: string | null = null;
   private lastFrameTime: number = performance.now();
+  private deadUnitIds: Set<string> = new Set();
 
   // Home Screen & Particle Background
   private homeScreen: HTMLElement;
@@ -763,6 +764,22 @@ export class GameApp {
     this.checkCombatState();
   }
 
+  private checkAndTriggerDeaths(killerElement?: ElementType): void {
+    const allUnits = [
+      this.hero,
+      ...this.combatEngine.zombies,
+      ...this.combatEngine.lifeBeings,
+      ...this.combatEngine.enemies,
+    ];
+
+    for (const unit of allUnits) {
+      if (unit.isDead && !this.deadUnitIds.has(unit.id)) {
+        this.deadUnitIds.add(unit.id);
+        this.renderer.triggerDeathAnimation(unit, killerElement || unit.stats.elementalAffinity);
+      }
+    }
+  }
+
   private async handlePlayerCast(ability: Ability, targetCoord: GridCoord): Promise<void> {
     const activeUnit = this.getActivePlayerUnit();
     const isTargetable = this.targetableTiles.some((c) => c.x === targetCoord.x && c.y === targetCoord.y);
@@ -820,6 +837,7 @@ export class GameApp {
           );
         }
 
+        this.checkAndTriggerDeaths(ability.element);
         resolve();
       });
     });
@@ -978,6 +996,7 @@ export class GameApp {
                     22
                   );
                 }
+                this.checkAndTriggerDeaths(minion.isLifeBeing ? 'Life' : 'Undead');
                 resolve();
               }
             );
@@ -1065,6 +1084,7 @@ export class GameApp {
                 );
               }
 
+              this.checkAndTriggerDeaths(step.ability.element);
               resolve();
             });
           });
@@ -1092,6 +1112,7 @@ export class GameApp {
     for (const enemy of this.enemies) {
       this.combatEngine.statusManager.tickStatusEffects(enemy);
     }
+    this.checkAndTriggerDeaths();
     await delay(300);
 
     // Return to Player Turn

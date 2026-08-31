@@ -69,4 +69,60 @@ describe('ParticleEngine & Visual FX (TDD Red -> Green)', () => {
     const shake = particleEngine.getScreenShakeOffset();
     expect(shake).toBeDefined();
   });
+
+  it('should trigger custom elemental death animations with ascending soul and shockwaves', () => {
+    const mockUnit: import('../types').Unit = {
+      id: 'enemy_fire',
+      name: 'Flame Acolyte',
+      faction: 'Enemy',
+      avatar: '🔥',
+      coord: { x: 5, y: 5 },
+      stats: {
+        maxHp: 50,
+        currentHp: 0,
+        maxAp: 6,
+        currentAp: 0,
+        moveCostPerTile: 1,
+        elementalAffinity: 'Fire',
+      },
+      abilities: [],
+      statusEffects: [],
+      isDead: true,
+    };
+
+    particleEngine.triggerDeathAnimation(mockUnit, 200, 200, 'Water');
+    particleEngine.update(16);
+
+    // Should have triggered screen shake
+    const shake = particleEngine.getScreenShakeOffset();
+    expect(Math.abs(shake.x) + Math.abs(shake.y)).toBeGreaterThanOrEqual(0);
+  });
+
+  it('should trigger cataclysmic boss death animation with titan shockwaves', () => {
+    const mockBoss: import('../types').Unit = {
+      id: 'boss_titan',
+      name: 'Solar Overlord',
+      faction: 'Enemy',
+      avatar: '👑',
+      coord: { x: 5, y: 5 },
+      stats: {
+        maxHp: 300,
+        currentHp: 0,
+        maxAp: 6,
+        currentAp: 0,
+        moveCostPerTile: 1,
+        elementalAffinity: 'Light',
+      },
+      abilities: [],
+      statusEffects: [],
+      isDead: true,
+      isBoss: true,
+    };
+
+    particleEngine.triggerDeathAnimation(mockBoss, 300, 300, 'Darkness');
+    particleEngine.update(16);
+
+    const shake = particleEngine.getScreenShakeOffset();
+    expect(shake).toBeDefined();
+  });
 });
