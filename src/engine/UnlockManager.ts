@@ -58,7 +58,7 @@ export class UnlockManager {
     const newlyUnlocked: ElementType[] = [];
 
     if (round === 5) {
-      const tier1: ElementType[] = ['Ice', 'Magma', 'Crystal', 'Poison', 'Acid', 'Sky', 'Heat', 'Cold'];
+      const tier1: ElementType[] = ['Ice', 'Magma', 'Crystal', 'Poison', 'Acid', 'Sky', 'Heat', 'Cold', 'Undead'];
       tier1.forEach((elem) => {
         if (this.unlockElement(elem)) newlyUnlocked.push(elem);
       });

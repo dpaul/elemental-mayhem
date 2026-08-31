@@ -117,6 +117,32 @@ export class ReactionEngine {
       };
     }
 
+    // 10. Holy Smite: Light on Undead / Blinded or Undead on Blinded
+    if (
+      (incomingElement === 'Light' && (currentStatus === 'VoidMarked' || currentStatus === 'Poisoned')) ||
+      (incomingElement === 'Undead' && currentStatus === 'Blinded')
+    ) {
+      return {
+        reactionName: 'Holy Smite',
+        elementA: 'Undead',
+        elementB: 'Light',
+        bonusDamage: 30,
+        description: 'Holy Smite! Radiant glory incinerates necrotic corruption.',
+      };
+    }
+
+    // 11. Necrosis: Undead on Poisoned or Bleeding
+    if (incomingElement === 'Undead' && (currentStatus === 'Poisoned' || currentStatus === 'Bleeding')) {
+      return {
+        reactionName: 'Necrosis',
+        elementA: currentStatus === 'Poisoned' ? 'Poison' : 'Blood',
+        elementB: 'Undead',
+        bonusDamage: 26,
+        statusApplied: 'Corroded',
+        description: 'Necrosis! Creeping gangrene rapidly dissolves flesh and bone.',
+      };
+    }
+
     return null;
   }
 }

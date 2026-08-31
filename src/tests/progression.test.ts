@@ -216,15 +216,17 @@ describe('UnlockManager & Boss Elemental Progression (TDD Red -> Green)', () => 
     expect(unlockManager.isElementUnlocked('Void')).toBe(false);
   });
 
-  it('should unlock Tier 1 elements (Ice, Magma, Crystal, Poison, Acid, Sky) when defeating Round 5 Boss', () => {
+  it('should unlock Tier 1 elements (Ice, Magma, Crystal, Poison, Acid, Sky, Undead) when defeating Round 5 Boss', () => {
     const unlocked = unlockManager.checkBossDefeatUnlocks(5);
     expect(unlocked).toContain('Ice');
     expect(unlocked).toContain('Magma');
     expect(unlocked).toContain('Crystal');
     expect(unlocked).toContain('Poison');
     expect(unlocked).toContain('Acid');
+    expect(unlocked).toContain('Undead');
     expect(unlockManager.isElementUnlocked('Ice')).toBe(true);
     expect(unlockManager.isElementUnlocked('Magma')).toBe(true);
+    expect(unlockManager.isElementUnlocked('Undead')).toBe(true);
     expect(unlockManager.isElementUnlocked('Lightning')).toBe(false);
   });
 

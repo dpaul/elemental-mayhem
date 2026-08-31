@@ -467,6 +467,17 @@ export const CORE_ELEMENTS: Record<ElementType, ElementData> = {
     strongAgainst: ['Light', 'Darkness', 'Energy'],
     weakAgainst: ['Sound', 'Metal', 'Earth'],
   },
+  Undead: {
+    id: 'Undead',
+    name: 'Undead',
+    color: '#84cc16',
+    glowColor: 'rgba(132, 204, 22, 0.5)',
+    icon: '🧟‍♂️',
+    category: 'Cosmic',
+    description: 'Relentless necrotic power raising skeletal thralls, siphoning lifeforce, and defying mortal death.',
+    strongAgainst: ['Poison', 'Blood', 'Death'],
+    weakAgainst: ['Light', 'Life', 'Fire'],
+  },
   Neutral: {
     id: 'Neutral',
     name: 'Neutral',

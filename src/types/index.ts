@@ -43,6 +43,7 @@ export type ElementType =
   | 'Magma'
   | 'Glass'
   | 'Crystal'
+  | 'Undead'
   | 'Neutral';
 
 export interface ElementData {

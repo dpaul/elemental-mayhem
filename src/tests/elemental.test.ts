@@ -78,6 +78,16 @@ describe('ReactionEngine (TDD Red -> Green)', () => {
     const annihilation = reactionEngine.evaluateUnitReaction('Light', 'VoidMarked');
     expect(annihilation).not.toBeNull();
     expect(annihilation?.reactionName).toBe('Annihilation');
+
+    // 8. Holy Smite (Light on Undead)
+    const holySmite = reactionEngine.evaluateUnitReaction('Undead', 'Blinded');
+    expect(holySmite).not.toBeNull();
+    expect(holySmite?.reactionName).toBe('Holy Smite');
+
+    // 9. Necrosis (Undead on Poisoned)
+    const necrosis = reactionEngine.evaluateUnitReaction('Undead', 'Poisoned');
+    expect(necrosis).not.toBeNull();
+    expect(necrosis?.reactionName).toBe('Necrosis');
   });
 });
 
@@ -159,7 +169,7 @@ describe('Hero Elemental Classes & Dedicated Move Kits (TDD Red -> Green)', () =
     'Love', 'Sky', 'Nature', 'Ice', 'Metal', 'Darkness', 'Light',
     'Sound', 'Time', 'Death', 'Life', 'Chaos', 'Acid', 'Blood',
     'Soul', 'Spirit', 'Energy', 'Force', 'Space', 'Magnetism',
-    'Wind', 'Storm', 'Thunder', 'Magma', 'Crystal',
+    'Wind', 'Storm', 'Thunder', 'Magma', 'Crystal', 'Undead',
     'Fire', 'Water', 'Lightning', 'Earth', 'Poison', 'Void'
   ] as const;
 
@@ -215,5 +225,12 @@ describe('Hero Elemental Classes & Dedicated Move Kits (TDD Red -> Green)', () =
     const thundercaller = createHeroForElement('Thunder');
     expect(thundercaller.name).toBe('Thundercaller');
     expect(thundercaller.stats.elementalAffinity).toBe('Thunder');
+
+    // 8. Necromancer (Undead)
+    const necromancer = createHeroForElement('Undead');
+    expect(necromancer.name).toBe('Necromancer');
+    expect(necromancer.avatar).toBe('🧟‍♂️');
+    expect(necromancer.stats.elementalAffinity).toBe('Undead');
+    expect(necromancer.abilities.every((a) => a.element === 'Undead')).toBe(true);
   });
 });
