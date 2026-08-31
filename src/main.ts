@@ -394,7 +394,6 @@ export class GameApp {
   private renderCharacterSelectModal(): void {
     const allElements = Object.keys(HERO_CLASSES) as ElementType[];
     const filteredElements = allElements.filter((elem) => {
-      if (elem === 'Neutral') return false;
       if (this.selectedClassCategory === 'All') return true;
       const config = HERO_CLASSES[elem];
       return config && config.category === this.selectedClassCategory;
@@ -421,15 +420,13 @@ export class GameApp {
       `).join('');
 
       const badgeHtml = isAdmin
-        ? `<span class="lock-badge" style="background: rgba(239, 68, 68, 0.25); color: #fca5a5; border: 1px solid #ef4444;">👑 Admin Only</span>`
+        ? `<span class="element-badge" style="background: rgba(239, 68, 68, 0.3); color: #fca5a5; border: 1px solid #ef4444;">👑 Admin Power</span>`
         : isUnlocked
         ? `<span class="element-badge" style="background:${elemData.glowColor}; color:${elemData.color}; width:fit-content;">${elem}</span>`
         : `<span class="lock-badge">🔒 Locked</span>`;
 
-      const actionHtml = isAdmin
-        ? `<div class="unlock-requirement-box" style="background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; color: #fca5a5;">👑 Admin Exclusive (Players Unable to Get)</div>`
-        : isUnlocked
-        ? `<button class="class-select-btn">Choose ${config.className}</button>`
+      const actionHtml = isUnlocked
+        ? `<button class="class-select-btn" style="${isAdmin ? 'background: linear-gradient(135deg, #ef4444, #8b5cf6); border-color: #f87171;' : ''}">Choose ${config.className}</button>`
         : `<div class="unlock-requirement-box">🔒 ${config.unlockRequirement || 'Defeat Boss to Unlock'}</div>`;
 
       card.innerHTML = `
@@ -448,7 +445,7 @@ export class GameApp {
         ${actionHtml}
       `;
 
-      if (isUnlocked && !isAdmin) {
+      if (isUnlocked) {
         card.onclick = () => {
           this.selectedElement = elem;
           this.characterSelectModal.classList.add('hidden');
@@ -472,13 +469,14 @@ export class GameApp {
     const allElements = Object.keys(HERO_CLASSES) as ElementType[];
     this.hotseatClassSelectContainer.innerHTML = '';
 
-    allElements.filter((e) => e !== 'Neutral').forEach((elem) => {
+    allElements.forEach((elem) => {
       const config = HERO_CLASSES[elem];
       if (!config) return;
       const elemData = CORE_ELEMENTS[elem] || CORE_ELEMENTS.Fire;
       const isAdmin = this.unlockManager.isAdminOnly(elem);
+      const isUnlocked = this.unlockManager.isElementUnlocked(elem);
       const card = document.createElement('div');
-      card.className = `class-card ${isAdmin ? 'locked' : ''}`;
+      card.className = `class-card ${isUnlocked ? '' : 'locked'}`;
       card.style.setProperty('--card-color', elemData.color);
       card.style.setProperty('--card-glow', elemData.glowColor);
 
@@ -490,12 +488,10 @@ export class GameApp {
       `).join('');
 
       const badgeHtml = isAdmin
-        ? `<span class="lock-badge" style="background: rgba(239, 68, 68, 0.25); color: #fca5a5; border: 1px solid #ef4444;">👑 Admin Only</span>`
+        ? `<span class="element-badge" style="background: rgba(239, 68, 68, 0.3); color: #fca5a5; border: 1px solid #ef4444;">👑 Admin Power</span>`
         : `<span class="element-badge" style="background:${elemData.glowColor}; color:${elemData.color}; width:fit-content;">${elem}</span>`;
 
-      const actionHtml = isAdmin
-        ? `<div class="unlock-requirement-box" style="background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; color: #fca5a5;">👑 Admin Exclusive</div>`
-        : `<button class="class-select-btn">Pick for Player ${playerNum}</button>`;
+      const actionHtml = `<button class="class-select-btn" style="${isAdmin ? 'background: linear-gradient(135deg, #ef4444, #8b5cf6); border-color: #f87171;' : ''}">Pick for Player ${playerNum}</button>`;
 
       card.innerHTML = `
         <div class="class-card-header">
@@ -511,20 +507,18 @@ export class GameApp {
         ${actionHtml}
       `;
 
-      if (!isAdmin) {
-        card.onclick = () => {
-          if (playerNum === 1) {
-            this.hotseatP1Element = elem;
-            this.hotseatModalTitle.textContent = '⚔️ HOT SEAT ARENA: SELECT PLAYER 2';
-            this.hotseatModalSubtitle.textContent = 'Player 2, choose your elemental champion.';
-            this.renderHotseatClassCards(2);
-          } else {
-            this.hotseatP2Element = elem;
-            this.hotseatSelectModal.classList.add('hidden');
-            this.startHotseatMatch();
-          }
-        };
-      }
+      card.onclick = () => {
+        if (playerNum === 1) {
+          this.hotseatP1Element = elem;
+          this.hotseatModalTitle.textContent = '⚔️ HOT SEAT ARENA: SELECT PLAYER 2';
+          this.hotseatModalSubtitle.textContent = 'Player 2, choose your elemental champion.';
+          this.renderHotseatClassCards(2);
+        } else {
+          this.hotseatP2Element = elem;
+          this.hotseatSelectModal.classList.add('hidden');
+          this.startHotseatMatch();
+        }
+      };
 
       this.hotseatClassSelectContainer.appendChild(card);
     });

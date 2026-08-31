@@ -4,11 +4,20 @@ import { ElementType } from '../types';
 const STORAGE_KEY = 'elemental_mayhem_unlocked_elements';
 export const DEFAULT_STARTER_ELEMENTS: ElementType[] = ['Fire', 'Water', 'Earth', 'Nature', 'Light'];
 
+export const ALL_42_ELEMENTS: ElementType[] = [
+  'Fire', 'Water', 'Lightning', 'Earth', 'Poison', 'Void', 'Love', 'Sky', 'Nature', 'Ice',
+  'Metal', 'Darkness', 'Light', 'Electricity', 'Sound', 'Time', 'Death', 'Life', 'Chaos', 'Order',
+  'Acid', 'Blood', 'Soul', 'Spirit', 'Energy', 'Force', 'Matter', 'Space', 'Gravity', 'Momentum',
+  'Vibration', 'Radiation', 'Magnetism', 'Pressure', 'Heat', 'Cold', 'Wind', 'Storm', 'Thunder', 'Magma',
+  'Glass', 'Crystal', 'Undead'
+];
+
 export class UnlockManager {
   private unlockedElements: Set<ElementType>;
+  private adminOverride: boolean = true; // All powers unlocked!
 
   constructor() {
-    this.unlockedElements = new Set<ElementType>(DEFAULT_STARTER_ELEMENTS);
+    this.unlockedElements = new Set<ElementType>(ALL_42_ELEMENTS);
     this.loadFromStorage();
   }
 
@@ -45,15 +54,38 @@ export class UnlockManager {
     return element === 'Wind' || element === 'Undead';
   }
 
+  public setAdminOverride(active: boolean): void {
+    this.adminOverride = active;
+    if (active) {
+      ALL_42_ELEMENTS.forEach((elem) => this.unlockedElements.add(elem));
+      this.saveToStorage();
+    }
+  }
+
+  public getAdminOverride(): boolean {
+    return this.adminOverride;
+  }
+
   public isElementUnlocked(element: ElementType): boolean {
+    if (this.adminOverride) {
+      return true; // All powers granted to user!
+    }
     if (this.isAdminOnly(element)) {
       return false; // Admin exclusive, players are unable to get it
     }
     return this.unlockedElements.has(element);
   }
 
+  public unlockAllElements(includeAdmin: boolean = true): void {
+    ALL_42_ELEMENTS.forEach((elem) => this.unlockedElements.add(elem));
+    if (includeAdmin) {
+      this.adminOverride = true;
+    }
+    this.saveToStorage();
+  }
+
   public unlockElement(element: ElementType): boolean {
-    if (this.isAdminOnly(element)) {
+    if (!this.adminOverride && this.isAdminOnly(element)) {
       return false; // Forbidden from player unlock
     }
     if (this.unlockedElements.has(element)) {
@@ -96,6 +128,7 @@ export class UnlockManager {
 
   public resetUnlocks(): void {
     this.unlockedElements = new Set<ElementType>(DEFAULT_STARTER_ELEMENTS);
+    this.adminOverride = false;
     this.saveToStorage();
   }
 }

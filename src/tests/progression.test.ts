@@ -277,4 +277,12 @@ describe('UnlockManager & Boss Elemental Progression (TDD Red -> Green)', () => 
     const duplicate = unlockManager.checkBossDefeatUnlocks(5);
     expect(duplicate.length).toBe(0);
   });
+
+  it('should unlock all 42 powers and admin elements when Omnipotent/Admin override is active', () => {
+    unlockManager.unlockAllElements(true);
+    expect(unlockManager.isElementUnlocked('Wind')).toBe(true);
+    expect(unlockManager.isElementUnlocked('Undead')).toBe(true);
+    expect(unlockManager.isElementUnlocked('Void')).toBe(true);
+    expect(unlockManager.isElementUnlocked('Fire')).toBe(true);
+  });
 });
