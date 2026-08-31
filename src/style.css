@@ -1015,6 +1015,11 @@ body {
   box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6);
 }
 
+.card-element:hover {
+  border-color: #ec4899;
+  box-shadow: 0 0 30px rgba(236, 72, 153, 0.4);
+}
+
 .card-campaign:hover {
   border-color: #38bdf8;
   box-shadow: 0 0 30px rgba(56, 189, 248, 0.35);

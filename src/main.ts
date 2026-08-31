@@ -565,6 +565,18 @@ export class GameApp {
 
   private setupEventListeners(canvas: HTMLCanvasElement): void {
     // Home Screen Actions
+    document.getElementById('home-btn-choose-element')?.addEventListener('click', () => {
+      this.hideHomeScreen();
+      this.renderCharacterSelectModal();
+      this.characterSelectModal.classList.remove('hidden');
+    });
+
+    document.getElementById('home-btn-element-card')?.addEventListener('click', () => {
+      this.hideHomeScreen();
+      this.renderCharacterSelectModal();
+      this.characterSelectModal.classList.remove('hidden');
+    });
+
     this.homeBtnCampaign?.addEventListener('click', () => {
       this.hideHomeScreen();
       this.renderCharacterSelectModal();
