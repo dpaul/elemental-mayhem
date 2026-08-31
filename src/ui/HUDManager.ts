@@ -75,8 +75,9 @@ export class HUDManager {
         card.style.borderColor = isSelected ? elemData.color : 'rgba(255, 255, 255, 0.08)';
       }
 
+      const hotkeyLabel = idx === 9 ? '0' : `${idx + 1}`;
       card.innerHTML = `
-        <span class="ability-hotkey">[${idx + 1}]</span>
+        <span class="ability-hotkey">[${hotkeyLabel}]</span>
         <span class="ability-ap">${ability.apCost} AP</span>
         <span class="ability-icon">${ability.icon}</span>
         <span class="ability-name">${ability.name}</span>

@@ -844,8 +844,8 @@ export class GameApp {
       }
 
       const activeUnit = this.getActivePlayerUnit();
-      if (e.key >= '1' && e.key <= '5') {
-        const idx = parseInt(e.key) - 1;
+      if ((e.key >= '1' && e.key <= '9') || e.key === '0') {
+        const idx = e.key === '0' ? 9 : parseInt(e.key) - 1;
         if (activeUnit.abilities[idx]) {
           this.selectAbility(activeUnit.abilities[idx]);
         }

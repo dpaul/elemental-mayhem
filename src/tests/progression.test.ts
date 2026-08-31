@@ -217,16 +217,19 @@ describe('UnlockManager & Boss Elemental Progression (TDD Red -> Green)', () => 
     expect(unlockManager.isElementUnlocked('Void')).toBe(false);
   });
 
-  it('should designate Wind and Undead (Necromancer) as Admin Only that players cannot unlock', () => {
+  it('should designate Wind, Undead (Necromancer), and Neutral (Omnipotent Avatar) as Admin Only that players cannot unlock normally', () => {
     expect(unlockManager.isAdminOnly('Wind')).toBe(true);
     expect(unlockManager.isAdminOnly('Undead')).toBe(true);
+    expect(unlockManager.isAdminOnly('Neutral')).toBe(true);
     expect(unlockManager.isAdminOnly('Fire')).toBe(false);
 
     // Attempting to unlock admin elements returns false and keeps them locked
     expect(unlockManager.unlockElement('Wind')).toBe(false);
     expect(unlockManager.unlockElement('Undead')).toBe(false);
+    expect(unlockManager.unlockElement('Neutral')).toBe(false);
     expect(unlockManager.isElementUnlocked('Wind')).toBe(false);
     expect(unlockManager.isElementUnlocked('Undead')).toBe(false);
+    expect(unlockManager.isElementUnlocked('Neutral')).toBe(false);
   });
 
   it('should unlock Tier 1 elements (Ice, Magma, Crystal, Poison, Acid, Sky, Heat, Cold) when defeating Round 5 Boss without Undead', () => {

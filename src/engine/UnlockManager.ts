@@ -51,7 +51,7 @@ export class UnlockManager {
   }
 
   public isAdminOnly(element: ElementType): boolean {
-    return element === 'Wind' || element === 'Undead';
+    return element === 'Wind' || element === 'Undead' || element === 'Neutral';
   }
 
   public setAdminOverride(active: boolean): void {

@@ -5,6 +5,7 @@ import { EnemyAI } from '../engine/EnemyAI';
 import { Grid } from '../engine/Grid';
 import { TileHazardManager } from '../engine/TileHazardManager';
 import { Unit, Ability } from '../types';
+import { HERO_CLASSES } from '../constants/classes';
 
 describe('CombatEngine & TurnManager (TDD Red -> Green)', () => {
   let grid: Grid;
@@ -566,5 +567,56 @@ describe('Life Element Unzombify, Cascade Explosions & Being of Life (TDD Red ->
     expect(newBeing.faction).toBe('Player');
     expect(newBeing.avatar).toBe('🧚');
     expect(newBeing.stats.maxAp).toBe(12);
+  });
+
+  it('should verify that all elements have exactly 10 spells and at least 1 dedicated shield spell', () => {
+    const classes = Object.values(HERO_CLASSES) as any[];
+
+    expect(classes.length).toBeGreaterThanOrEqual(42);
+
+    classes.forEach((cls) => {
+      expect(cls.abilities.length).toBe(10);
+      const shieldSpell = cls.abilities.find(
+        (a: any) =>
+          a.appliesStatus === 'Shielded' ||
+          a.name.toLowerCase().includes('shield') ||
+          a.name.toLowerCase().includes('barrier') ||
+          a.name.toLowerCase().includes('aegis') ||
+          a.name.toLowerCase().includes('ward') ||
+          a.name.toLowerCase().includes('bulwark')
+      );
+      expect(shieldSpell).toBeDefined();
+    });
+  });
+
+  it('should absorb incoming damage when a unit has the Shielded status active', () => {
+    const target = enemyZombie1;
+    combatEngine.statusManager.applyStatus(target, {
+      type: 'Shielded',
+      stacks: 1,
+      duration: 3,
+    });
+
+    const initialHp = target.stats.currentHp;
+    const strike = {
+      id: 'test_strike',
+      name: 'Test Strike',
+      element: 'Neutral' as const,
+      icon: '⚔️',
+      apCost: 1,
+      cooldown: 0,
+      currentCooldown: 0,
+      range: 5,
+      aoeRadius: 0,
+      targeting: 'SingleUnit' as const,
+      baseDamage: 30,
+      description: 'Test blow.',
+      level: 1,
+    };
+
+    combatEngine.executeAbility(biomancer, strike, target.coord);
+    // 30 base damage - 35 absorbed = 0 damage taken!
+    expect(target.stats.currentHp).toBe(initialHp);
+    expect(target.isDead).toBe(false);
   });
 });

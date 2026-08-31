@@ -427,6 +427,23 @@ export class CombatEngine {
       }
     }
 
+    // 4. Self-targeting Buffs and Shield Spells
+    if (ability.targeting === 'Self') {
+      if (ability.appliesStatus) {
+        this.statusManager.applyStatus(caster, {
+          type: ability.appliesStatus,
+          stacks: 1,
+          duration: ability.statusDuration || 3,
+          element: ability.element,
+        });
+        this.addLog(
+          'system',
+          `🛡️ ${caster.name} is now protected by ${ability.name} (${ability.appliesStatus})!`
+        );
+      }
+      return { success: true };
+    }
+
     // Collect affected coordinates (single target or AoE)
     const affectedCoords: GridCoord[] = [];
     if (ability.aoeRadius > 0) {
@@ -477,6 +494,13 @@ export class CombatEngine {
           if (reaction.hazardCreated) {
             this.hazardManager.applyHazard(coord, reaction.hazardCreated, 2, 15, ability.element);
           }
+        }
+
+        // Check for Elemental Shield absorption
+        if (finalDamage > 0 && this.statusManager.hasStatus(targetUnit, 'Shielded')) {
+          const absorbed = Math.min(finalDamage, 35);
+          finalDamage -= absorbed;
+          this.addLog('system', `🛡️ ${targetUnit.name}'s Elemental Shield absorbed ${absorbed} damage!`);
         }
 
         // Apply direct damage
