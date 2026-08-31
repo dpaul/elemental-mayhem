@@ -1,4 +1,4 @@
-// Elemental Mayhem - Enemy AI Decision Tree & Step Planning
+// Elemental Mayhem - Tactical Enemy AI Decision Tree & Step Planning
 import { CombatEngine } from './CombatEngine';
 import { Unit, Ability, GridCoord } from '../types';
 
@@ -13,6 +13,42 @@ export class EnemyAI {
     this.combatEngine = combatEngine;
   }
 
+  /**
+   * Evaluates the tactical priority of an ability against a target.
+   * Higher score = higher priority to cast.
+   */
+  private scoreAbility(ability: Ability, target: Unit): number {
+    let score = ability.baseDamage;
+
+    // 1. Check if this ability triggers an elemental reaction with player's active status
+    const targetStatus = target.statusEffects.length > 0 ? target.statusEffects[0].type : null;
+    if (targetStatus) {
+      const reaction = this.combatEngine.reactionEngine.evaluateUnitReaction(ability.element, targetStatus);
+      if (reaction) {
+        score += reaction.bonusDamage * 1.5; // Highly prioritize reaction triggers
+      }
+    }
+
+    // 2. Bonus for applying debilitating status effects if target has no active status
+    if (ability.appliesStatus && target.statusEffects.length === 0) {
+      score += 15;
+    }
+
+    // 3. Bonus for AoE spells
+    if (ability.aoeRadius > 0) {
+      score += 10;
+    }
+
+    // 4. Multiplier if enemy has elemental affinity advantage
+    const multiplier = this.combatEngine.matrix.getAffinityMultiplier(
+      ability.element,
+      target.stats.elementalAffinity
+    );
+    score *= multiplier;
+
+    return score;
+  }
+
   public planTurnSteps(enemy: Unit, target: Unit): AIStep[] {
     const steps: AIStep[] = [];
     if (enemy.isDead || target.isDead) return steps;
@@ -21,28 +57,36 @@ export class EnemyAI {
     let simulatedCoord = { ...enemy.coord };
 
     let attempts = 0;
-    while (simulatedAp > 0 && attempts < 5) {
+    while (simulatedAp > 0 && attempts < 6) {
       attempts++;
       const dist = this.combatEngine.grid.manhattanDistance(simulatedCoord, target.coord);
 
-      // Check if any ability can hit target right now
-      const usableAbility = enemy.abilities.find(
+      // Find all usable abilities right now
+      const usableAbilities = enemy.abilities.filter(
         (a) => a.apCost <= simulatedAp && a.currentCooldown === 0 && dist <= a.range
       );
 
-      if (usableAbility && this.combatEngine.grid.hasLineOfSight(simulatedCoord, target.coord)) {
+      if (usableAbilities.length > 0 && this.combatEngine.grid.hasLineOfSight(simulatedCoord, target.coord)) {
+        // Pick best ability based on tactical score
+        usableAbilities.sort((a, b) => {
+          return this.scoreAbility(b, target) - this.scoreAbility(a, target);
+        });
+
+        const chosenAbility = usableAbilities[0];
         steps.push({
           type: 'cast',
           unit: enemy,
-          ability: usableAbility,
+          ability: chosenAbility,
           targetCoord: { ...target.coord },
         });
-        simulatedAp -= usableAbility.apCost;
+        simulatedAp -= chosenAbility.apCost;
       } else {
-        // Find best ability we want to cast
-        const targetAbility = enemy.abilities.find(
-          (a) => a.currentCooldown === 0 && a.apCost <= simulatedAp
-        );
+        // Find best ability we would LIKE to cast if we get in range
+        const potentialAbilities = enemy.abilities
+          .filter((a) => a.currentCooldown === 0 && a.apCost <= simulatedAp)
+          .sort((a, b) => this.scoreAbility(b, target) - this.scoreAbility(a, target));
+
+        const targetAbility = potentialAbilities[0];
 
         const fullPath = this.combatEngine.grid.findPath(simulatedCoord, target.coord);
         if (fullPath && fullPath.length > 1) {

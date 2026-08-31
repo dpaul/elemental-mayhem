@@ -223,4 +223,54 @@ describe('EnemyAI (TDD Red -> Green)', () => {
     // Either moved closer or cast ability
     expect(enemy.stats.currentAp).toBeLessThan(4);
   });
+
+  it('should prioritize reaction-triggering abilities over standard abilities', () => {
+    // Give hero Burning status
+    hero.statusEffects = [{ type: 'Burning', stacks: 1, duration: 3 }];
+    hero.coord = { x: 5, y: 7 }; // distance 1
+
+    const basicPunch: Ability = {
+      id: 'punch',
+      name: 'Basic Punch',
+      element: 'Neutral',
+      icon: '👊',
+      apCost: 1,
+      cooldown: 0,
+      currentCooldown: 0,
+      range: 1,
+      aoeRadius: 0,
+      targeting: 'SingleUnit',
+      baseDamage: 12,
+      description: 'Quick neutral punch.',
+      level: 1,
+    };
+
+    const windGust: Ability = {
+      id: 'wind_gust',
+      name: 'Wind Gust',
+      element: 'Wind', // Wind + Burning = Firestorm reaction!
+      icon: '💨',
+      apCost: 2,
+      cooldown: 0,
+      currentCooldown: 0,
+      range: 3,
+      aoeRadius: 0,
+      targeting: 'SingleUnit',
+      baseDamage: 15,
+      description: 'Gust of wind fanning flames.',
+      level: 1,
+    };
+
+    enemy.abilities = [basicPunch, windGust];
+    enemy.stats.currentAp = 4;
+
+    const steps = ai.planTurnSteps(enemy, hero);
+    // The first cast should prioritize Wind Gust due to Firestorm reaction bonus
+    expect(steps.length).toBeGreaterThan(0);
+    const firstCast = steps.find((s) => s.type === 'cast');
+    expect(firstCast).toBeDefined();
+    if (firstCast && firstCast.type === 'cast') {
+      expect(firstCast.ability.name).toBe('Wind Gust');
+    }
+  });
 });
