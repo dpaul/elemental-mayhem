@@ -328,6 +328,7 @@ export class BattlefieldRenderer {
     const allUnits = [
       this.combatEngine.hero,
       ...this.combatEngine.zombies,
+      ...this.combatEngine.lifeBeings,
       ...this.combatEngine.enemies,
     ];
 
@@ -347,8 +348,9 @@ export class BattlefieldRenderer {
 
       const screenPos = { x: rawPos.x, y: rawPos.y + floatOffset };
 
-      const isPlayerHero = unit.faction === 'Player' && !unit.isZombie;
+      const isPlayerHero = unit.faction === 'Player' && !unit.isZombie && !unit.isLifeBeing;
       const isZombie = !!unit.isZombie;
+      const isLifeBeing = !!unit.isLifeBeing;
       const isFocused = unit.id === focusedUnitId;
       const isBoss = !!unit.isBoss;
       const radius = this.tileSize * (isBoss ? 0.44 : 0.38);
@@ -364,6 +366,8 @@ export class BattlefieldRenderer {
             ? 'rgba(56, 189, 248, 0.5)'
             : isZombie
             ? 'rgba(132, 204, 22, 0.6)'
+            : isLifeBeing
+            ? 'rgba(74, 222, 128, 0.7)'
             : isBoss
             ? 'rgba(245, 158, 11, 0.7)'
             : 'rgba(239, 68, 68, 0.5)',
@@ -381,12 +385,14 @@ export class BattlefieldRenderer {
         ? '#f59e0b'
         : isZombie
         ? '#84cc16'
+        : isLifeBeing
+        ? '#4ade80'
         : isFocused
         ? '#fef08a'
         : elemData
         ? elemData.glowColor
         : 'rgba(255,255,255,0.3)';
-      ctx.shadowBlur = (isBoss ? 26 : isZombie ? 20 : isFocused ? 22 : 14) + auraPulse;
+      ctx.shadowBlur = (isBoss ? 26 : isZombie || isLifeBeing ? 20 : isFocused ? 22 : 14) + auraPulse;
 
       // Boss Orbital Runic Particles
       if (isBoss) {
@@ -408,6 +414,8 @@ export class BattlefieldRenderer {
         ? '#0f172a'
         : isZombie
         ? '#14280f'
+        : isLifeBeing
+        ? '#064e3b'
         : isBoss
         ? '#31102f'
         : '#1e1b4b';
@@ -420,6 +428,8 @@ export class BattlefieldRenderer {
         ? '#fbbf24'
         : isZombie
         ? '#84cc16'
+        : isLifeBeing
+        ? '#4ade80'
         : isFocused
         ? '#fef08a'
         : isPlayerHero
@@ -427,7 +437,7 @@ export class BattlefieldRenderer {
         : elemData
         ? elemData.color
         : '#ef4444';
-      ctx.lineWidth = isBoss ? 5 : isZombie ? 3.5 : isFocused ? 4 : 3;
+      ctx.lineWidth = isBoss ? 5 : isZombie || isLifeBeing ? 3.5 : isFocused ? 4 : 3;
       ctx.stroke();
 
       // Avatar Icon
@@ -446,7 +456,13 @@ export class BattlefieldRenderer {
 
       ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
       ctx.fillRect(hpX, hpY, hpWidth, hpHeight);
-      ctx.fillStyle = isPlayerHero ? '#22c55e' : isZombie ? '#84cc16' : isBoss ? '#f59e0b' : '#ef4444';
+      ctx.fillStyle = isPlayerHero || isLifeBeing
+        ? '#22c55e'
+        : isZombie
+        ? '#84cc16'
+        : isBoss
+        ? '#f59e0b'
+        : '#ef4444';
       ctx.fillRect(hpX, hpY, hpWidth * hpPct, hpHeight);
 
       if (isBoss) {
@@ -459,11 +475,15 @@ export class BattlefieldRenderer {
         ctx.fillText('👑', screenPos.x, hpY - 8);
       }
 
-      // Zombie Lifetime Indicator
+      // Unit Special Indicator
       if (isZombie && unit.zombieLifetime !== undefined) {
         ctx.font = 'bold 11px "Fira Code", monospace';
         ctx.fillStyle = '#a3e635';
         ctx.fillText(`[🧟 ${unit.zombieLifetime}t]`, screenPos.x, hpY - 6);
+      } else if (isLifeBeing) {
+        ctx.font = 'bold 10px "Fira Code", monospace';
+        ctx.fillStyle = '#86efac';
+        ctx.fillText('[Life Being]', screenPos.x, hpY - 6);
       } else if (unit.statusEffects.length > 0) {
         // Unit Status Indicator
         ctx.font = '10px "Fira Code", monospace';

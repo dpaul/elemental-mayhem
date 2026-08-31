@@ -468,3 +468,103 @@ describe('Necromancer Reanimation & Zombie Lifecycles (TDD Red -> Green)', () =>
     expect(necromancer.stats.currentAp).toBe(5); // 2 + 3 = 5 AP
   });
 });
+
+describe('Life Element Unzombify, Cascade Explosions & Being of Life (TDD Red -> Green)', () => {
+  let grid: Grid;
+  let hazardManager: TileHazardManager;
+  let combatEngine: CombatEngine;
+  let biomancer: Unit;
+  let enemyZombie1: Unit;
+  let enemyZombie2: Unit;
+  let unzombifyBurst: Ability;
+
+  beforeEach(() => {
+    grid = new Grid(10);
+    hazardManager = new TileHazardManager(grid);
+
+    unzombifyBurst = {
+      id: 'unzombify_burst',
+      name: 'Unzombify Explosion',
+      element: 'Life',
+      icon: '🌟',
+      apCost: 3,
+      cooldown: 2,
+      currentCooldown: 0,
+      range: 6,
+      aoeRadius: 1, // 3x3 area
+      targeting: 'AnyTile',
+      baseDamage: 25,
+      description: 'Unzombifies all zombies in 3x3 area.',
+      level: 1,
+    };
+
+    biomancer = {
+      id: 'hero_bio',
+      name: 'Biomancer',
+      faction: 'Player',
+      avatar: '🌱',
+      coord: { x: 1, y: 1 },
+      stats: {
+        maxHp: 120,
+        currentHp: 120,
+        maxAp: 6,
+        currentAp: 6,
+        moveCostPerTile: 1,
+        elementalAffinity: 'Life',
+      },
+      abilities: [unzombifyBurst],
+      statusEffects: [],
+      isDead: false,
+    };
+
+    combatEngine = new CombatEngine(grid, hazardManager, biomancer, []);
+
+    // Spawn 2 zombies in adjacent tiles to test chain reaction
+    enemyZombie1 = combatEngine.spawnZombie({ x: 4, y: 4 }, 25, 4, 'Enemy');
+    enemyZombie2 = combatEngine.spawnZombie({ x: 5, y: 4 }, 25, 4, 'Enemy');
+  });
+
+  it('should unzombify zombies in 3x3 area, trigger cascading explosion, and summon a Being of Life with 3x Speed', () => {
+    expect(combatEngine.zombies.length).toBe(2);
+
+    // Cast Unzombify Explosion at (4,4)
+    const result = combatEngine.executeAbility(biomancer, unzombifyBurst, { x: 4, y: 4 });
+    expect(result.success).toBe(true);
+
+    // Both zombies should have exploded and perished in the chain reaction
+    expect(enemyZombie1.isDead).toBe(true);
+    expect(enemyZombie2.isDead).toBe(true);
+
+    // Being of Life should be summoned with 3x Speed (12 AP)
+    expect(combatEngine.lifeBeings.length).toBe(1);
+    const lifeBeing = combatEngine.lifeBeings[0];
+    expect(lifeBeing.avatar).toBe('🧚');
+    expect(lifeBeing.isLifeBeing).toBe(true);
+    expect(lifeBeing.stats.maxAp).toBe(12); // 3x speed
+    expect(lifeBeing.stats.currentAp).toBe(12);
+  });
+
+  it('should transmute a targeted Zombie directly into an allied Being of Life', () => {
+    const lifeBeing = combatEngine.spawnLifeBeing({ x: 1, y: 2 }, 'Player');
+    const transmuteSpell = lifeBeing.abilities.find((a) => a.id === 'transmute_zombie')!;
+    expect(transmuteSpell).toBeDefined();
+
+    // Spawn target zombie at (3,2)
+    const targetZombie = combatEngine.spawnZombie({ x: 3, y: 2 }, 30, 4, 'Enemy');
+    expect(combatEngine.zombies.length).toBe(3); // 2 from beforeEach + 1 target
+    expect(combatEngine.lifeBeings.length).toBe(1);
+
+    // Transmute the zombie
+    const result = combatEngine.executeAbility(lifeBeing, transmuteSpell, { x: 3, y: 2 });
+    expect(result.success).toBe(true);
+    expect(targetZombie.isDead).toBe(true);
+
+    // Should spawn a new allied Being of Life at that position
+    expect(combatEngine.lifeBeings.length).toBe(2);
+    const newBeing = combatEngine.lifeBeings[1];
+    expect(newBeing.coord).toEqual({ x: 3, y: 2 });
+    expect(newBeing.faction).toBe('Player');
+    expect(newBeing.avatar).toBe('🧚');
+    expect(newBeing.stats.maxAp).toBe(12);
+  });
+});

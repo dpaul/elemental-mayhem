@@ -32,6 +32,7 @@
           <span class="pill-label">XP:</span>
           <span class="pill-value" id="xp-counter">0</span>
         </div>
+        <button id="pvp-arena-btn" class="btn-text" style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.4); color: #fca5a5; padding: 6px 14px; border-radius: 8px; font-weight: 700; cursor: pointer; transition: all 0.2s ease;">⚔️ Hot Seat PvP</button>
       </div>
     </header>
 
@@ -130,6 +131,19 @@
           </div>
         </div>
         <div class="modal-body class-select-grid" id="class-select-container">
+          <!-- Injected dynamically via TS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Hot Seat PvP Setup Modal -->
+    <div id="hotseat-select-modal" class="modal-overlay hidden">
+      <div class="modal-content glass-card class-select-modal-content">
+        <div class="modal-header text-center" style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+          <h2 id="hotseat-modal-title">⚔️ HOT SEAT ARENA: SELECT PLAYER 1</h2>
+          <p id="hotseat-modal-subtitle" class="modal-subtitle">Player 1, choose your elemental champion.</p>
+        </div>
+        <div class="modal-body class-select-grid" id="hotseat-class-select-container">
           <!-- Injected dynamically via TS -->
         </div>
       </div>

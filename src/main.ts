@@ -1,5 +1,4 @@
-// Elemental Mayhem - Main Application Controller (Smooth Animated Execution)
-import './style.css';
+// Elemental Mayhem - Main Application & Game Loop Controller
 import { Grid } from './engine/Grid';
 import { TileHazardManager } from './engine/TileHazardManager';
 import { CombatEngine } from './engine/CombatEngine';
@@ -11,17 +10,19 @@ import { EscalationManager } from './engine/EscalationManager';
 import { UnlockManager } from './engine/UnlockManager';
 import { BattlefieldRenderer } from './renderer/BattlefieldRenderer';
 import { HUDManager } from './ui/HUDManager';
-import { Unit, Ability, GridCoord, PassiveRelic, ElementType } from './types';
+import { ElementType, Unit, Ability, GridCoord } from './types';
 import { CORE_ELEMENTS } from './constants/elements';
 import { HERO_CLASSES, createHeroForElement } from './constants/classes';
 
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
-class GameController {
+export class GameApp {
   private grid: Grid;
   private hazardManager: TileHazardManager;
-  private turnManager: TurnManager;
   private combatEngine: CombatEngine;
+  private turnManager: TurnManager;
   private enemyAI: EnemyAI;
   private scorer: PerformanceScorer;
   private upgradeManager: UpgradeManager;
@@ -30,12 +31,13 @@ class GameController {
   private renderer: BattlefieldRenderer;
   private hud: HUDManager;
 
-  private selectedElement: ElementType = 'Fire';
-  private selectedClassCategory: string = 'All';
   private hero: Unit;
   private enemies: Unit[];
   private currentRound: number = 1;
   private maxRounds: number = 15;
+  private selectedElement: ElementType = 'Fire';
+  private selectedClassCategory: string = 'All';
+
   private totalEssence: number = 0;
   private totalXp: number = 0;
 
@@ -47,6 +49,17 @@ class GameController {
   private isBusy: boolean = false;
   private focusedUnitId: string | null = null;
   private lastFrameTime: number = performance.now();
+
+  // Hot Seat Arena Mode
+  private isHotseatMode: boolean = false;
+  private hotseatCurrentPlayer: 1 | 2 = 1;
+  private hotseatP1Element: ElementType = 'Fire';
+  private hotseatP2Element: ElementType = 'Water';
+  private hotseatSelectModal: HTMLElement;
+  private hotseatModalTitle: HTMLElement;
+  private hotseatModalSubtitle: HTMLElement;
+  private hotseatClassSelectContainer: HTMLElement;
+  private pvpArenaBtn: HTMLElement | null;
 
   // Modals
   private characterSelectModal: HTMLElement;
@@ -86,6 +99,13 @@ class GameController {
     this.outcomeSubtitle = document.getElementById('outcome-subtitle')!;
     this.outcomeStatsList = document.getElementById('outcome-stats-list')!;
     this.restartGameBtn = document.getElementById('restart-game-btn')!;
+
+    // Hotseat modal elements
+    this.hotseatSelectModal = document.getElementById('hotseat-select-modal')!;
+    this.hotseatModalTitle = document.getElementById('hotseat-modal-title')!;
+    this.hotseatModalSubtitle = document.getElementById('hotseat-modal-subtitle')!;
+    this.hotseatClassSelectContainer = document.getElementById('hotseat-class-select-container')!;
+    this.pvpArenaBtn = document.getElementById('pvp-arena-btn');
 
     this.hero = this.createHero(this.selectedElement);
     this.enemies = this.escalationManager.generateRoundEnemies(1);
@@ -178,7 +198,9 @@ class GameController {
 
       if (isUnlocked) {
         card.onclick = () => {
-          this.startGauntletWithElement(elem);
+          this.selectedElement = elem;
+          this.characterSelectModal.classList.add('hidden');
+          this.restartGame(elem);
         };
       }
 
@@ -186,14 +208,99 @@ class GameController {
     });
   }
 
-  private startGauntletWithElement(element: ElementType): void {
-    this.selectedElement = element;
-    this.characterSelectModal.classList.add('hidden');
-    this.restartGame(element);
-    this.combatEngine.addLog(
-      'system',
-      `✨ Chosen Path: You enter the arena as the ${HERO_CLASSES[element].className} (${element})!`
-    );
+  private openHotseatSelection(): void {
+    this.hotseatModalTitle.textContent = '⚔️ HOT SEAT ARENA: SELECT PLAYER 1';
+    this.hotseatModalSubtitle.textContent = 'Player 1, choose your elemental champion.';
+    this.renderHotseatClassCards(1);
+    this.hotseatSelectModal.classList.remove('hidden');
+  }
+
+  private renderHotseatClassCards(playerNum: 1 | 2): void {
+    const allElements = Object.keys(HERO_CLASSES) as ElementType[];
+    this.hotseatClassSelectContainer.innerHTML = '';
+
+    allElements.filter((e) => e !== 'Neutral').forEach((elem) => {
+      const config = HERO_CLASSES[elem];
+      if (!config) return;
+      const elemData = CORE_ELEMENTS[elem] || CORE_ELEMENTS.Fire;
+      const card = document.createElement('div');
+      card.className = 'class-card';
+      card.style.setProperty('--card-color', elemData.color);
+      card.style.setProperty('--card-glow', elemData.glowColor);
+
+      const abilityRows = config.abilities.map((ab) => `
+        <div class="class-ability-row">
+          <span class="class-ability-name">${ab.icon} ${ab.name}</span>
+          <span class="class-ability-meta">${ab.apCost} AP | ${ab.baseDamage} DMG</span>
+        </div>
+      `).join('');
+
+      card.innerHTML = `
+        <div class="class-card-header">
+          <span class="class-avatar">${config.avatar}</span>
+          <div class="class-info">
+            <div class="class-name">${config.className}</div>
+            <span class="element-badge" style="background:${elemData.glowColor}; color:${elemData.color}; width:fit-content;">${elem}</span>
+          </div>
+        </div>
+        <div class="class-tagline">${config.tagline}</div>
+        <div class="class-abilities-title">Dedicated Spells:</div>
+        <div class="class-ability-list">${abilityRows}</div>
+        <button class="class-select-btn">Pick for Player ${playerNum}</button>
+      `;
+
+      card.onclick = () => {
+        if (playerNum === 1) {
+          this.hotseatP1Element = elem;
+          this.hotseatModalTitle.textContent = '⚔️ HOT SEAT ARENA: SELECT PLAYER 2';
+          this.hotseatModalSubtitle.textContent = 'Player 2, choose your elemental champion.';
+          this.renderHotseatClassCards(2);
+        } else {
+          this.hotseatP2Element = elem;
+          this.hotseatSelectModal.classList.add('hidden');
+          this.startHotseatMatch();
+        }
+      };
+
+      this.hotseatClassSelectContainer.appendChild(card);
+    });
+  }
+
+  private startHotseatMatch(): void {
+    this.isHotseatMode = true;
+    this.hotseatCurrentPlayer = 1;
+
+    const p1 = createHeroForElement(this.hotseatP1Element);
+    p1.id = 'hero_p1';
+    p1.name = `Player 1 (${p1.name})`;
+    p1.faction = 'Player';
+    p1.coord = { x: 2, y: 5 };
+
+    const p2 = createHeroForElement(this.hotseatP2Element);
+    p2.id = 'hero_p2';
+    p2.name = `Player 2 (${p2.name})`;
+    p2.faction = 'Enemy';
+    p2.coord = { x: 7, y: 5 };
+
+    this.hero = p1;
+    this.enemies = [p2];
+
+    this.grid = new Grid(10);
+    this.hazardManager = new TileHazardManager(this.grid);
+    this.setupObstacles();
+
+    this.combatEngine = new CombatEngine(this.grid, this.hazardManager, this.hero, this.enemies);
+    const canvas = document.getElementById('battlefield-canvas') as HTMLCanvasElement;
+    this.renderer = new BattlefieldRenderer(canvas, this.combatEngine);
+    this.enemyAI = new EnemyAI(this.combatEngine);
+
+    this.combatEngine.addLog('system', `⚔️ Hot Seat PvP Arena: ${p1.name} VS ${p2.name}!`);
+    this.turnManager.setPhase('HOTSEAT_P1_TURN');
+    this.hud.updatePhaseBanner("PLAYER 1'S TURN (Hot Seat)");
+    this.selectedAbility = null;
+    this.targetableTiles = [];
+    this.updateReachableTiles();
+    this.updateHUD();
   }
 
   private setupObstacles(): void {
@@ -220,7 +327,7 @@ class GameController {
     });
 
     canvas.addEventListener('click', async (e) => {
-      if (this.isBusy || this.turnManager.getCurrentPhase() !== 'PLAYER_TURN') return;
+      if (this.isBusy) return;
       const gridCoord = this.renderer.screenToGrid(e.clientX, e.clientY);
       if (!gridCoord) return;
 
@@ -235,6 +342,10 @@ class GameController {
       if (!this.isBusy) {
         this.endPlayerTurn();
       }
+    });
+
+    this.pvpArenaBtn?.addEventListener('click', () => {
+      this.openHotseatSelection();
     });
 
     this.proceedNextRoundBtn.addEventListener('click', () => {
@@ -254,10 +365,11 @@ class GameController {
     window.addEventListener('keydown', (e) => {
       if (this.isBusy) return;
 
+      const activeUnit = this.getActivePlayerUnit();
       if (e.key >= '1' && e.key <= '5') {
         const idx = parseInt(e.key) - 1;
-        if (this.hero.abilities[idx]) {
-          this.selectAbility(this.hero.abilities[idx]);
+        if (activeUnit.abilities[idx]) {
+          this.selectAbility(activeUnit.abilities[idx]);
         }
       } else if (e.key === ' ' || e.code === 'Space') {
         e.preventDefault();
@@ -270,45 +382,58 @@ class GameController {
     });
   }
 
+  private getActivePlayerUnit(): Unit {
+    if (this.isHotseatMode && this.hotseatCurrentPlayer === 2) {
+      return this.enemies[0];
+    }
+    return this.hero;
+  }
+
   private selectAbility(ability: Ability): void {
-    if (this.isBusy || ability.apCost > this.hero.stats.currentAp || ability.currentCooldown > 0) return;
+    const activeUnit = this.getActivePlayerUnit();
+    if (this.isBusy || ability.apCost > activeUnit.stats.currentAp || ability.currentCooldown > 0) return;
 
     if (this.selectedAbility?.id === ability.id) {
       this.selectedAbility = null;
       this.targetableTiles = [];
     } else {
       this.selectedAbility = ability;
-      this.targetableTiles = this.grid.getReachableTiles(this.hero.coord, ability.range);
+      this.targetableTiles = [];
+      const centerCoord = activeUnit.coord;
+
+      if (ability.targeting === 'Self') {
+        this.targetableTiles.push(centerCoord);
+      } else {
+        for (let x = 0; x < this.grid.size; x++) {
+          for (let y = 0; y < this.grid.size; y++) {
+            const coord = { x, y };
+            const dist = this.grid.manhattanDistance(centerCoord, coord);
+            if (dist <= ability.range && this.grid.hasLineOfSight(centerCoord, coord)) {
+              this.targetableTiles.push(coord);
+            }
+          }
+        }
+      }
     }
     this.updateHUD();
   }
 
-  private updateReachableTiles(): void {
-    if (this.turnManager.getCurrentPhase() === 'PLAYER_TURN' && !this.isBusy) {
-      const maxDist = Math.floor(this.hero.stats.currentAp / this.hero.stats.moveCostPerTile);
-      this.reachableTiles = this.grid.getReachableTiles(this.hero.coord, maxDist);
-    } else {
-      this.reachableTiles = [];
-    }
-  }
+  private async handlePlayerMove(targetCoord: GridCoord): Promise<void> {
+    const activeUnit = this.getActivePlayerUnit();
+    const isReachable = this.reachableTiles.some((c) => c.x === targetCoord.x && c.y === targetCoord.y);
+    if (!isReachable) return;
 
-  private async handlePlayerMove(destination: GridCoord): Promise<void> {
-    const path = this.grid.findPath(this.hero.coord, destination);
+    const path = this.grid.findPath(activeUnit.coord, targetCoord);
     if (!path || path.length === 0) return;
-
-    const apCost = path.length * this.hero.stats.moveCostPerTile;
-    if (this.hero.stats.currentAp < apCost) return;
 
     this.isBusy = true;
     this.reachableTiles = [];
+    this.selectedAbility = null;
     this.targetableTiles = [];
-    this.updateHUD();
 
-    // Animate smooth movement
-    const fullPath = [this.hero.coord, ...path];
     await new Promise<void>((resolve) => {
-      this.renderer.animManager.animateMovement(this.hero.id, fullPath, 160, () => {
-        this.combatEngine.moveUnit(this.hero, destination);
+      this.renderer.animManager.animateMovement(activeUnit.id, path, 160, () => {
+        this.combatEngine.moveUnit(activeUnit, targetCoord);
         resolve();
       });
     });
@@ -320,9 +445,9 @@ class GameController {
   }
 
   private async handlePlayerCast(ability: Ability, targetCoord: GridCoord): Promise<void> {
-    const dist = this.grid.manhattanDistance(this.hero.coord, targetCoord);
-    if (dist > ability.range || !this.grid.hasLineOfSight(this.hero.coord, targetCoord)) return;
-    if (this.hero.stats.currentAp < ability.apCost || ability.currentCooldown > 0) return;
+    const activeUnit = this.getActivePlayerUnit();
+    const isTargetable = this.targetableTiles.some((c) => c.x === targetCoord.x && c.y === targetCoord.y);
+    if (!isTargetable) return;
 
     this.isBusy = true;
     this.selectedAbility = null;
@@ -330,12 +455,11 @@ class GameController {
     this.reachableTiles = [];
     this.updateHUD();
 
-    const startPos = this.renderer.gridToScreen(this.hero.coord);
+    const startPos = this.renderer.gridToScreen(activeUnit.coord);
     const targetPos = this.renderer.gridToScreen(targetCoord);
     const elemData = CORE_ELEMENTS[ability.element];
     const color = elemData ? elemData.color : '#ffd000';
 
-    // If beam/laser-type spell, also fire laser beam
     const isBeam = ability.name.toLowerCase().includes('beam') ||
       ability.name.toLowerCase().includes('ray') ||
       ability.name.toLowerCase().includes('lance') ||
@@ -348,25 +472,24 @@ class GameController {
     // Launch Projectile and await arrival
     await new Promise<void>((resolve) => {
       this.renderer.projManager.spawnProjectile(startPos, targetPos, ability.element, color, 260, () => {
-        // Execute ability upon arrival
         const logCountBefore = this.combatEngine.logs.length;
-        this.combatEngine.executeAbility(this.hero, ability, targetCoord);
+        this.combatEngine.executeAbility(activeUnit, ability, targetCoord);
 
-        // Trigger spell impact with shockwave, particle burst & screen shake
         const isAoE = ability.aoeRadius > 0;
         this.renderer.triggerSpellImpact(targetCoord, ability.element, isAoE);
 
-        // Check if a reaction was triggered
         const newLogs = this.combatEngine.logs.slice(logCountBefore);
         const reactionLog = newLogs.find((l) => l.type === 'reaction');
 
-        this.renderer.particleEngine.addFloatingText(
-          `-${ability.baseDamage}`,
-          targetPos.x,
-          targetPos.y - 15,
-          color,
-          22
-        );
+        if (ability.baseDamage > 0) {
+          this.renderer.particleEngine.addFloatingText(
+            `-${ability.baseDamage}`,
+            targetPos.x,
+            targetPos.y - 15,
+            color,
+            22
+          );
+        }
 
         if (reactionLog) {
           this.renderer.particleEngine.addFloatingText(
@@ -391,83 +514,161 @@ class GameController {
   }
 
   private async endPlayerTurn(): Promise<void> {
-    if (this.turnManager.getCurrentPhase() !== 'PLAYER_TURN' || this.isBusy) return;
+    if (this.isBusy) return;
 
+    // --- HOT SEAT ARENA TURN MANAGEMENT ---
+    if (this.isHotseatMode) {
+      this.isBusy = true;
+      this.selectedAbility = null;
+      this.targetableTiles = [];
+      this.reachableTiles = [];
+
+      const currentFaction = this.hotseatCurrentPlayer === 1 ? 'Player' : 'Enemy';
+      const enemyFaction = this.hotseatCurrentPlayer === 1 ? 'Enemy' : 'Player';
+
+      // Minion turn for active player
+      const activeMinions = [
+        ...this.combatEngine.zombies.filter((z) => !z.isDead && z.faction === currentFaction),
+        ...this.combatEngine.lifeBeings.filter((b) => !b.isDead && b.faction === currentFaction),
+      ];
+
+      for (const minion of activeMinions) {
+        if (minion.isDead) continue;
+        minion.stats.currentAp = minion.stats.maxAp;
+        const targets = (enemyFaction === 'Player' ? [this.hero] : this.enemies).filter((u) => !u.isDead);
+        if (targets.length === 0) break;
+        const closestTarget = targets.sort(
+          (a, b) =>
+            this.combatEngine.grid.manhattanDistance(minion.coord, a.coord) -
+            this.combatEngine.grid.manhattanDistance(minion.coord, b.coord)
+        )[0];
+
+        const steps = this.enemyAI.planTurnSteps(minion, closestTarget);
+        for (const step of steps) {
+          if (minion.isDead || closestTarget.isDead) break;
+          if (step.type === 'move') {
+            this.combatEngine.moveUnit(minion, step.destination);
+          } else if (step.type === 'cast') {
+            this.combatEngine.executeAbility(minion, step.ability, step.targetCoord);
+          }
+        }
+      }
+
+      const p1 = this.hero;
+      const p2 = this.enemies[0];
+      if (p1.isDead || p2.isDead) {
+        this.showHotseatVictoryModal(p1.isDead ? 'PLAYER 2' : 'PLAYER 1');
+        this.isBusy = false;
+        return;
+      }
+
+      this.hazardManager.tickHazards();
+      this.combatEngine.tickZombies();
+      this.combatEngine.statusManager.tickStatusEffects(p1);
+      this.combatEngine.statusManager.tickStatusEffects(p2);
+
+      if (this.hotseatCurrentPlayer === 1) {
+        this.hotseatCurrentPlayer = 2;
+        p2.stats.currentAp = p2.stats.maxAp;
+        p2.abilities.forEach((a) => {
+          if (a.currentCooldown > 0) a.currentCooldown--;
+        });
+        this.hud.updatePhaseBanner("PLAYER 2'S TURN (Hot Seat)");
+        this.combatEngine.addLog('system', "⚔️ Player 2's Turn begins!");
+      } else {
+        this.hotseatCurrentPlayer = 1;
+        p1.stats.currentAp = p1.stats.maxAp;
+        p1.abilities.forEach((a) => {
+          if (a.currentCooldown > 0) a.currentCooldown--;
+        });
+        this.hud.updatePhaseBanner("PLAYER 1'S TURN (Hot Seat)");
+        this.combatEngine.addLog('system', "⚔️ Player 1's Turn begins!");
+      }
+
+      this.isBusy = false;
+      this.updateReachableTiles();
+      this.updateHUD();
+      return;
+    }
+
+    // --- SINGLE PLAYER CAMPAIGN TURN MANAGEMENT ---
     this.isBusy = true;
     this.turnManager.endPlayerTurn();
     this.selectedAbility = null;
     this.targetableTiles = [];
     this.reachableTiles = [];
-    this.hud.updatePhaseBanner('ENEMY TURN');
+    this.hud.updatePhaseBanner('ALLIED MINIONS');
     this.updateHUD();
 
-    await delay(350);
+    await delay(250);
 
-    // 1. Allied Zombies Turn
-    if (this.combatEngine.zombies.length > 0) {
-      this.hud.updatePhaseBanner('ALLIED ZOMBIES');
-      await delay(250);
+    // 1. Allied Minions (Zombies & Beings of Life)
+    const alliedMinions = [
+      ...this.combatEngine.zombies.filter((z) => !z.isDead && z.faction === 'Player'),
+      ...this.combatEngine.lifeBeings.filter((b) => !b.isDead && b.faction === 'Player'),
+    ];
 
-      for (const zombie of this.combatEngine.zombies) {
-        if (zombie.isDead) continue;
-        zombie.stats.currentAp = zombie.stats.maxAp;
+    for (const minion of alliedMinions) {
+      if (minion.isDead) continue;
+      minion.stats.currentAp = minion.stats.maxAp;
 
-        const liveEnemies = this.enemies.filter((e) => !e.isDead);
-        if (liveEnemies.length === 0) break;
+      const liveEnemies = this.enemies.filter((e) => !e.isDead);
+      if (liveEnemies.length === 0) break;
 
-        const closestEnemy = liveEnemies.sort(
-          (a, b) =>
-            this.combatEngine.grid.manhattanDistance(zombie.coord, a.coord) -
-            this.combatEngine.grid.manhattanDistance(zombie.coord, b.coord)
-        )[0];
+      const closestEnemy = liveEnemies.sort(
+        (a, b) =>
+          this.combatEngine.grid.manhattanDistance(minion.coord, a.coord) -
+          this.combatEngine.grid.manhattanDistance(minion.coord, b.coord)
+      )[0];
 
-        const steps = this.enemyAI.planTurnSteps(zombie, closestEnemy);
-        this.focusedUnitId = zombie.id;
+      const steps = this.enemyAI.planTurnSteps(minion, closestEnemy);
+      this.focusedUnitId = minion.id;
 
-        for (const step of steps) {
-          if (zombie.isDead || closestEnemy.isDead) break;
+      for (const step of steps) {
+        if (minion.isDead || closestEnemy.isDead) break;
 
-          if (step.type === 'move') {
-            await new Promise<void>((resolve) => {
-              this.renderer.animManager.animateMovement(zombie.id, step.path, 130, () => {
-                this.combatEngine.moveUnit(zombie, step.destination);
-                resolve();
-              });
+        if (step.type === 'move') {
+          await new Promise<void>((resolve) => {
+            this.renderer.animManager.animateMovement(minion.id, step.path, 130, () => {
+              this.combatEngine.moveUnit(minion, step.destination);
+              resolve();
             });
-            this.updateHUD();
-            await delay(150);
-          } else if (step.type === 'cast') {
-            const startPos = this.renderer.gridToScreen(zombie.coord);
-            const targetPos = this.renderer.gridToScreen(step.targetCoord);
+          });
+          this.updateHUD();
+          await delay(150);
+        } else if (step.type === 'cast') {
+          const startPos = this.renderer.gridToScreen(minion.coord);
+          const targetPos = this.renderer.gridToScreen(step.targetCoord);
 
-            await new Promise<void>((resolve) => {
-              this.renderer.projManager.spawnProjectile(
-                startPos,
-                targetPos,
-                step.ability.element,
-                '#84cc16',
-                200,
-                () => {
-                  this.combatEngine.executeAbility(zombie, step.ability, step.targetCoord);
-                  this.renderer.triggerSpellImpact(step.targetCoord, step.ability.element, false);
+          await new Promise<void>((resolve) => {
+            this.renderer.projManager.spawnProjectile(
+              startPos,
+              targetPos,
+              step.ability.element,
+              minion.isLifeBeing ? '#4ade80' : '#84cc16',
+              200,
+              () => {
+                this.combatEngine.executeAbility(minion, step.ability, step.targetCoord);
+                this.renderer.triggerSpellImpact(step.targetCoord, step.ability.element, false);
+                if (step.ability.baseDamage > 0) {
                   this.renderer.particleEngine.addFloatingText(
                     `-${step.ability.baseDamage}`,
                     targetPos.x,
                     targetPos.y - 15,
-                    '#84cc16',
+                    minion.isLifeBeing ? '#4ade80' : '#84cc16',
                     22
                   );
-                  resolve();
                 }
-              );
-            });
+                resolve();
+              }
+            );
+          });
 
-            this.updateHUD();
-            await delay(250);
-          }
+          this.updateHUD();
+          await delay(250);
         }
-        this.focusedUnitId = null;
       }
+      this.focusedUnitId = null;
     }
 
     // 2. Sequential Enemy AI Turns
@@ -480,8 +681,8 @@ class GameController {
       this.hud.updatePhaseBanner(`ENEMY: ${enemy.name.toUpperCase()}`);
       await delay(350);
 
-      // Target closest player unit (Hero or Zombie)
-      const playerTargets = [this.hero, ...this.combatEngine.zombies.filter((z) => !z.isDead)];
+      // Target closest player unit
+      const playerTargets = this.combatEngine.getAllAllies();
       const targetUnit = playerTargets.sort(
         (a, b) =>
           this.combatEngine.grid.manhattanDistance(enemy.coord, a.coord) -
@@ -558,13 +759,16 @@ class GameController {
       await delay(250);
     }
 
-    // 3. Environment, Zombie Ticks & Status Ticks
+    // 3. Environment & Summons Ticks
     this.hud.updatePhaseBanner('ENVIRONMENT TICK');
     this.hazardManager.tickHazards();
     this.combatEngine.tickZombies();
     this.combatEngine.statusManager.tickStatusEffects(this.hero);
     for (const zombie of this.combatEngine.zombies) {
       this.combatEngine.statusManager.tickStatusEffects(zombie);
+    }
+    for (const being of this.combatEngine.lifeBeings) {
+      this.combatEngine.statusManager.tickStatusEffects(being);
     }
     for (const enemy of this.enemies) {
       this.combatEngine.statusManager.tickStatusEffects(enemy);
@@ -583,6 +787,8 @@ class GameController {
   }
 
   private checkCombatState(): void {
+    if (this.isHotseatMode) return;
+
     if (this.hero.isDead) {
       this.combatEngine.addLog('system', '💀 You have fallen in combat! Game Over.');
       this.turnManager.setPhase('GAME_OVER');
@@ -599,121 +805,66 @@ class GameController {
     }
   }
 
+  private showHotseatVictoryModal(winnerName: string): void {
+    this.outcomeTitle.textContent = `🏆 ${winnerName} IS VICTORIOUS!`;
+    this.outcomeSubtitle.textContent = 'A supreme demonstration of tactical elemental mastery in the Arena!';
+    this.outcomeStatsList.innerHTML = `
+      <div class="stat-row">
+        <span>Arena Winner:</span>
+        <strong style="color: #4ade80;">${winnerName}</strong>
+      </div>
+      <div class="stat-row">
+        <span>Mode:</span>
+        <strong>Hot Seat PvP (1v1)</strong>
+      </div>
+    `;
+    this.gameOverModal.classList.remove('hidden');
+  }
+
   private openUpgradeModal(): void {
-    this.combatEngine.resetRoundState();
+    this.turnManager.setPhase('UPGRADE_PHASE');
     const rewards = this.scorer.calculateRoundRewards(this.combatEngine.performance);
     this.totalEssence += rewards.essence;
     this.totalXp += rewards.xp;
 
-    // Check if this was a Boss round and unlock elements
-    if (this.currentRound % 5 === 0) {
+    // Check boss defeat unlocks
+    const isBossRound = this.currentRound === 5 || this.currentRound === 10 || this.currentRound === 15;
+    if (isBossRound) {
       const newlyUnlocked = this.unlockManager.checkBossDefeatUnlocks(this.currentRound);
       if (newlyUnlocked.length > 0) {
-        const names = newlyUnlocked.map((e) => `${e} (${HERO_CLASSES[e].className})`).join(' and ');
         this.combatEngine.addLog(
           'system',
-          `👑 🔓 BOSS VANQUISHED! You absorbed the elemental core and unlocked ${names} for future gauntlets!`
+          `🎉 BOSS DEFEATED! Unlocked new elemental classes: ${newlyUnlocked.join(', ')}!`
         );
       }
     }
 
-    this.updateHUD();
-
     this.modalEssence.textContent = `${this.totalEssence}`;
     this.modalXp.textContent = `${this.totalXp}`;
 
-    const upgrades = this.escalationManager.getAvailableUpgrades();
     this.upgradeChoicesContainer.innerHTML = '';
 
-    const gridDiv = document.createElement('div');
-    gridDiv.className = 'upgrade-grid';
-
-    // Upgrade existing abilities
-    this.hero.abilities.forEach((ab) => {
+    this.hero.abilities.slice(0, 3).forEach((ability) => {
       const card = document.createElement('div');
-      card.className = 'upgrade-item';
+      card.className = 'upgrade-card';
       card.innerHTML = `
-        <div style="font-weight:700; font-size:1rem;">Upgrade ${ab.icon} ${ab.name}</div>
-        <div style="font-size:0.85rem; color:#94a3b8;">Level ${ab.level} -> ${ab.level + 1} (+30% Damage)</div>
-        <button class="btn-primary" style="margin-top:auto; padding:6px 12px; font-size:0.8rem;">
-          Upgrade (30 Essence, 40 XP)
-        </button>
+        <div class="upgrade-header">
+          <span class="upgrade-icon">${ability.icon}</span>
+          <div>
+            <div class="upgrade-name">Enhance: ${ability.name} (Lv. ${ability.level + 1})</div>
+            <div class="upgrade-type">SPELL EMPOWERMENT • +30% DMG</div>
+          </div>
+        </div>
+        <div class="upgrade-desc">Empower ${ability.name} with increased elemental damage and range.</div>
       `;
-      card.querySelector('button')!.onclick = () => {
-        if (this.totalEssence >= 30 && this.totalXp >= 40) {
-          this.totalEssence -= 30;
-          this.totalXp -= 40;
-          this.upgradeManager.upgradeAbility(this.hero, ab.id);
-          this.modalEssence.textContent = `${this.totalEssence}`;
-          this.modalXp.textContent = `${this.totalXp}`;
-          this.updateHUD();
-          card.querySelector('div:nth-child(2)')!.textContent = `Level ${ab.level} -> ${ab.level + 1}`;
-        }
+      card.onclick = () => {
+        this.upgradeManager.upgradeAbility(this.hero, ability.id);
+        this.combatEngine.addLog('system', `Upgraded ${ability.name} to Level ${ability.level}!`);
+        this.advanceToNextRound();
       };
-      gridDiv.appendChild(card);
+      this.upgradeChoicesContainer.appendChild(card);
     });
 
-    // Unlock new abilities (only for unlocked elements or hero's active element)
-    upgrades.abilities
-      .filter(
-        (newAb) =>
-          this.unlockManager.isElementUnlocked(newAb.element) ||
-          newAb.element === 'Neutral' ||
-          newAb.element === this.hero.stats.elementalAffinity
-      )
-      .forEach((newAb) => {
-        const alreadyOwned = this.hero.abilities.some((a) => a.id === newAb.id);
-        if (alreadyOwned) return;
-
-        const card = document.createElement('div');
-        card.className = 'upgrade-item';
-        card.innerHTML = `
-          <div style="font-weight:700; font-size:1rem;">Unlock ${newAb.icon} ${newAb.name}</div>
-          <div style="font-size:0.85rem; color:#94a3b8;">${newAb.description} (${newAb.element})</div>
-          <button class="btn-primary" style="margin-top:auto; padding:6px 12px; font-size:0.8rem;">
-            Unlock (45 Essence, 50 XP)
-          </button>
-        `;
-        card.querySelector('button')!.onclick = () => {
-          if (this.totalEssence >= 45 && this.totalXp >= 50) {
-            this.totalEssence -= 45;
-            this.totalXp -= 50;
-            this.upgradeManager.unlockAbility(this.hero, newAb);
-            this.modalEssence.textContent = `${this.totalEssence}`;
-            this.modalXp.textContent = `${this.totalXp}`;
-            this.updateHUD();
-            card.remove();
-          }
-        };
-        gridDiv.appendChild(card);
-      });
-
-    // Relics
-    upgrades.relics.forEach((relic: PassiveRelic) => {
-      const card = document.createElement('div');
-      card.className = 'upgrade-item';
-      card.innerHTML = `
-        <div style="font-weight:700; font-size:1rem;">Relic: ${relic.icon} ${relic.name}</div>
-        <div style="font-size:0.85rem; color:#94a3b8;">${relic.description}</div>
-        <button class="btn-primary" style="margin-top:auto; padding:6px 12px; font-size:0.8rem;">
-          Acquire (${relic.costEssence} Essence, ${relic.costXp} XP)
-        </button>
-      `;
-      card.querySelector('button')!.onclick = () => {
-        if (this.totalEssence >= relic.costEssence && this.totalXp >= relic.costXp) {
-          this.totalEssence -= relic.costEssence;
-          this.totalXp -= relic.costXp;
-          this.upgradeManager.applyRelic(this.hero, relic);
-          this.modalEssence.textContent = `${this.totalEssence}`;
-          this.modalXp.textContent = `${this.totalXp}`;
-          this.updateHUD();
-          card.remove();
-        }
-      };
-      gridDiv.appendChild(card);
-    });
-
-    this.upgradeChoicesContainer.appendChild(gridDiv);
     this.upgradeModal.classList.remove('hidden');
   }
 
@@ -721,27 +872,20 @@ class GameController {
     this.upgradeModal.classList.add('hidden');
     this.currentRound += 1;
 
-    // Reset Hero position and stats
-    this.hero.coord = { x: 1, y: 1 };
+    // Reset round state
     this.combatEngine.resetRoundState();
+    this.hero.coord = { x: 1, y: 1 };
 
-    // Generate new round enemies
+    // Generate new enemies for this round
     this.enemies = this.escalationManager.generateRoundEnemies(this.currentRound);
     this.combatEngine.enemies = this.enemies;
 
-    const isBoss = this.currentRound % 5 === 0;
-    if (isBoss) {
-      const bossUnit = this.enemies.find((e) => e.isBoss);
-      const bossName = bossUnit ? bossUnit.name : 'A Boss';
-      this.combatEngine.addLog(
-        'system',
-        `👑 ⚠️ BOSS ENCOUNTER! Round ${this.currentRound}: ${bossName} enters the arena!`
-      );
-    } else {
-      this.combatEngine.addLog(
-        'system',
-        `⚔️ Round ${this.currentRound} / ${this.maxRounds} Begins! Enemies incoming.`
-      );
+    // Update round indicator
+    const roundBadge = document.getElementById('round-indicator');
+    if (roundBadge) {
+      const isBoss = this.currentRound === 5 || this.currentRound === 10 || this.currentRound === 15;
+      roundBadge.textContent = isBoss ? `👑 BOSS ROUND ${this.currentRound}` : `ROUND ${this.currentRound} / ${this.maxRounds}`;
+      roundBadge.style.color = isBoss ? '#fbbf24' : '#38bdf8';
     }
 
     this.turnManager.startPlayerTurn([this.hero]);
@@ -751,95 +895,131 @@ class GameController {
   }
 
   private showVictoryModal(): void {
-    this.combatEngine.resetRoundState();
-
-    if (this.currentRound % 5 === 0) {
-      const newlyUnlocked = this.unlockManager.checkBossDefeatUnlocks(this.currentRound);
-      if (newlyUnlocked.length > 0) {
-        const names = newlyUnlocked.map((e) => `${e} (${HERO_CLASSES[e].className})`).join(' and ');
-        this.combatEngine.addLog(
-          'system',
-          `👑 🔓 SUPREME BOSS VANQUISHED! You unlocked ${names}!`
-        );
-      }
-    }
-
-    this.outcomeTitle.textContent = '👑 GAUNTLET CONQUERED!';
-    this.outcomeSubtitle.textContent = `You have mastered the elements and vanquished all ${this.maxRounds} rounds including all Primordial Bosses!`;
-    this.outcomeStatsList.innerHTML = `
-      <div style="margin: 16px 0; font-family: var(--font-mono); font-size: 0.9rem; line-height: 1.8;">
-        <div>Rounds Conquered: <strong>${this.currentRound} / ${this.maxRounds}</strong></div>
-        <div>Total Damage Dealt: <strong>${this.combatEngine.performance.damageDealt}</strong></div>
-        <div>Reactions Triggered: <strong>${this.combatEngine.performance.reactionsTriggered}</strong></div>
-        <div>Total Essence Earned: <strong>${this.totalEssence}</strong></div>
-        <div>Total XP Earned: <strong>${this.totalXp}</strong></div>
-      </div>
-    `;
+    this.turnManager.setPhase('VICTORY');
+    this.outcomeTitle.textContent = 'GAUNTLET CONQUERED!';
+    this.outcomeSubtitle.textContent = 'You have mastered all 15 rounds of the Elemental Mayhem!';
+    this.renderOutcomeStats();
     this.gameOverModal.classList.remove('hidden');
   }
 
   private showDefeatModal(): void {
-    this.outcomeTitle.textContent = '💀 DEFEAT';
-    this.outcomeSubtitle.textContent = 'Your elemental essence has collapsed in the arena.';
-    this.outcomeStatsList.innerHTML = `
-      <div style="margin: 16px 0; font-family: var(--font-mono); font-size: 0.9rem;">
-        <div>Fallen in Round: <strong>${this.currentRound} / ${this.maxRounds}</strong></div>
-        <div>Reactions Triggered: <strong>${this.combatEngine.performance.reactionsTriggered}</strong></div>
-      </div>
-    `;
+    this.turnManager.setPhase('GAME_OVER');
+    this.outcomeTitle.textContent = 'DEFEATED IN BATTLE';
+    this.outcomeSubtitle.textContent = `You fell on Round ${this.currentRound}. Re-arm and try again!`;
+    this.renderOutcomeStats();
     this.gameOverModal.classList.remove('hidden');
   }
 
-  private restartGame(element: ElementType = this.selectedElement): void {
-    this.selectedElement = element;
+  private renderOutcomeStats(): void {
+    this.outcomeStatsList.innerHTML = `
+      <div class="stat-row">
+        <span>Rounds Completed:</span>
+        <strong>${this.currentRound - 1} / ${this.maxRounds}</strong>
+      </div>
+      <div class="stat-row">
+        <span>Total Essence:</span>
+        <strong>${this.totalEssence}</strong>
+      </div>
+      <div class="stat-row">
+        <span>Total XP:</span>
+        <strong>${this.totalXp}</strong>
+      </div>
+    `;
+  }
+
+  private restartGame(element: ElementType): void {
     this.gameOverModal.classList.add('hidden');
     this.currentRound = 1;
     this.totalEssence = 0;
     this.totalXp = 0;
-    this.isBusy = false;
-    this.hazardManager.clearAllHazards();
-    this.hero = this.createHero(this.selectedElement);
+    this.selectedElement = element;
+    this.isHotseatMode = false;
+
+    this.hero = this.createHero(element);
     this.enemies = this.escalationManager.generateRoundEnemies(1);
+
+    this.grid = new Grid(10);
+    this.hazardManager = new TileHazardManager(this.grid);
+    this.setupObstacles();
+
     this.combatEngine = new CombatEngine(this.grid, this.hazardManager, this.hero, this.enemies);
+    const canvas = document.getElementById('battlefield-canvas') as HTMLCanvasElement;
+    this.renderer = new BattlefieldRenderer(canvas, this.combatEngine);
     this.enemyAI = new EnemyAI(this.combatEngine);
-    this.renderer = new BattlefieldRenderer(
-      document.getElementById('battlefield-canvas') as HTMLCanvasElement,
-      this.combatEngine
-    );
+
+    const roundBadge = document.getElementById('round-indicator');
+    if (roundBadge) {
+      roundBadge.textContent = `ROUND 1 / ${this.maxRounds}`;
+      roundBadge.style.color = '#38bdf8';
+    }
+
     this.turnManager.startPlayerTurn([this.hero]);
+    this.isBusy = false;
     this.updateReachableTiles();
     this.updateHUD();
   }
 
-  private updateHUD(): void {
-    this.hud.updateHeroStatus(this.hero);
-    this.hud.renderAbilities(
-      this.hero.abilities,
-      this.selectedAbility?.id || null,
-      this.hero.stats.currentAp,
-      (ab) => this.selectAbility(ab)
-    );
-    this.hud.updatePhaseBanner(this.turnManager.getCurrentPhase());
-    this.hud.updateCurrencies(this.totalEssence, this.totalXp, this.currentRound, this.maxRounds);
-    this.hud.updateCombatLog(this.combatEngine.logs);
+  private updateReachableTiles(): void {
+    const activeUnit = this.getActivePlayerUnit();
+    this.reachableTiles = [];
+    const maxSteps = Math.floor(activeUnit.stats.currentAp / activeUnit.stats.moveCostPerTile);
+    if (maxSteps <= 0) return;
+
+    for (let x = 0; x < this.grid.size; x++) {
+      for (let y = 0; y < this.grid.size; y++) {
+        const coord = { x, y };
+        if (this.grid.getTile(coord)?.isObstacle) continue;
+        if (this.combatEngine.getUnitAt(coord) !== null) continue;
+
+        const path = this.grid.findPath(activeUnit.coord, coord);
+        if (path && path.length > 0 && path.length <= maxSteps) {
+          this.reachableTiles.push(coord);
+        }
+      }
+    }
   }
 
-  private gameLoop = (): void => {
+  private updateHUD(): void {
+    const activeUnit = this.getActivePlayerUnit();
+    this.hud.updateHeroStatus(activeUnit);
+    this.hud.renderAbilities(
+      activeUnit.abilities,
+      this.selectedAbility?.id || null,
+      activeUnit.stats.currentAp,
+      (ability) => this.selectAbility(ability)
+    );
+
+    const essenceEl = document.getElementById('essence-counter');
+    const xpEl = document.getElementById('xp-counter');
+    if (essenceEl) essenceEl.textContent = `${this.totalEssence}`;
+    if (xpEl) xpEl.textContent = `${this.totalXp}`;
+
+    const logList = document.getElementById('combat-log-list');
+    if (logList) {
+      logList.innerHTML = this.combatEngine.logs
+        .slice(0, 15)
+        .map((log) => `<div class="log-entry log-${log.type}">${log.message}</div>`)
+        .join('');
+    }
+  }
+
+  private gameLoop(): void {
     const now = performance.now();
-    const dt = Math.min(100, now - this.lastFrameTime);
+    const deltaTimeMs = Math.min(now - this.lastFrameTime, 100);
     this.lastFrameTime = now;
 
-    this.renderer.update(dt);
+    this.renderer.update(deltaTimeMs);
     this.renderer.render(
       this.hoveredCoord,
-      this.selectedAbility ? [] : this.reachableTiles,
+      this.reachableTiles,
       this.targetableTiles,
       this.focusedUnitId
     );
-    requestAnimationFrame(this.gameLoop);
-  };
+
+    requestAnimationFrame(() => this.gameLoop());
+  }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-  new GameController();
+  new GameApp();
 });

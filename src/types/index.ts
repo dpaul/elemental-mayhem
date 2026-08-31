@@ -177,6 +177,7 @@ export interface Unit {
   isZombie?: boolean;
   zombieLifetime?: number; // 4 turns max
   infectedByZombie?: boolean;
+  isLifeBeing?: boolean;
 }
 
 export type TurnPhase =
@@ -187,7 +188,10 @@ export type TurnPhase =
   | 'ROUND_END'
   | 'UPGRADE_PHASE'
   | 'VICTORY'
-  | 'GAME_OVER';
+  | 'GAME_OVER'
+  | 'HOTSEAT_P1_TURN'
+  | 'HOTSEAT_P2_TURN'
+  | 'HOTSEAT_VICTORY';
 
 export interface ReactionResult {
   reactionName: string;

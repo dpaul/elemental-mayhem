@@ -1,10 +1,18 @@
-// Elemental Mayhem - Combat Resolution, Necromancy & Ability Execution Engine
+// Elemental Mayhem - Combat Resolution, Necromancy & Life Entity Engine
 import { Grid } from './Grid';
 import { TileHazardManager } from './TileHazardManager';
 import { ElementalMatrix } from './ElementalMatrix';
 import { ReactionEngine } from './ReactionEngine';
 import { StatusEffectManager } from './StatusEffectManager';
-import { Unit, Ability, GridCoord, CombatLogEntry, PerformanceStats, PendingReanimation } from '../types';
+import {
+  Unit,
+  Ability,
+  GridCoord,
+  CombatLogEntry,
+  PerformanceStats,
+  PendingReanimation,
+  UnitFaction,
+} from '../types';
 
 export class CombatEngine {
   public grid: Grid;
@@ -15,6 +23,7 @@ export class CombatEngine {
   public hero: Unit;
   public enemies: Unit[];
   public zombies: Unit[] = [];
+  public lifeBeings: Unit[] = [];
   public pendingReanimations: PendingReanimation[] = [];
   public logs: CombatLogEntry[];
   public performance: PerformanceStats;
@@ -28,6 +37,7 @@ export class CombatEngine {
     this.hero = hero;
     this.enemies = enemies;
     this.zombies = [];
+    this.lifeBeings = [];
     this.pendingReanimations = [];
     this.logs = [];
     this.performance = {
@@ -51,6 +61,11 @@ export class CombatEngine {
         return zombie;
       }
     }
+    for (const being of this.lifeBeings) {
+      if (!being.isDead && being.coord.x === coord.x && being.coord.y === coord.y) {
+        return being;
+      }
+    }
     for (const enemy of this.enemies) {
       if (!enemy.isDead && enemy.coord.x === coord.x && enemy.coord.y === coord.y) {
         return enemy;
@@ -60,17 +75,21 @@ export class CombatEngine {
   }
 
   public getAllAllies(): Unit[] {
-    return [this.hero, ...this.zombies.filter((z) => !z.isDead)];
+    return [
+      this.hero,
+      ...this.zombies.filter((z) => !z.isDead && z.faction === 'Player'),
+      ...this.lifeBeings.filter((b) => !b.isDead && b.faction === 'Player'),
+    ];
   }
 
-  public spawnZombie(coord: GridCoord, baseHp: number, baseAp: number): Unit {
+  public spawnZombie(coord: GridCoord, baseHp: number, baseAp: number, faction: UnitFaction = 'Player'): Unit {
     const maxHp = baseHp * 4; // Quadruple health
     const maxAp = Math.max(9, baseAp * 3); // Triple speed (min 9 AP)
 
     const zombie: Unit = {
       id: `zombie_${Date.now()}_${Math.random()}`,
       name: 'Reanimated Zombie',
-      faction: 'Player',
+      faction,
       avatar: '🧟',
       coord: { ...coord },
       stats: {
@@ -108,6 +127,62 @@ export class CombatEngine {
     return zombie;
   }
 
+  public spawnLifeBeing(coord: GridCoord, faction: UnitFaction = 'Player'): Unit {
+    const being: Unit = {
+      id: `lifebeing_${Date.now()}_${Math.random()}`,
+      name: 'Being of Life',
+      faction,
+      avatar: '🧚',
+      coord: { ...coord },
+      stats: {
+        maxHp: 120,
+        currentHp: 120,
+        maxAp: 12, // 3x movement / speed (12 AP)
+        currentAp: 12,
+        moveCostPerTile: 1,
+        elementalAffinity: 'Life',
+      },
+      abilities: [
+        {
+          id: 'transmute_zombie',
+          name: 'Touch of Life',
+          element: 'Life',
+          icon: '✨',
+          apCost: 1,
+          cooldown: 0,
+          currentCooldown: 0,
+          range: 3,
+          aoeRadius: 0,
+          targeting: 'SingleUnit',
+          baseDamage: 0,
+          description: 'Transmutes a targeted Zombie directly into an allied Being of Life.',
+          level: 1,
+        },
+        {
+          id: 'vital_spark',
+          name: 'Vital Spark',
+          element: 'Life',
+          icon: '🌱',
+          apCost: 1,
+          cooldown: 0,
+          currentCooldown: 0,
+          range: 2,
+          aoeRadius: 0,
+          targeting: 'SingleUnit',
+          baseDamage: 22,
+          description: 'Radiant pulse of life energy.',
+          level: 1,
+        },
+      ],
+      statusEffects: [],
+      isDead: false,
+      isLifeBeing: true,
+    };
+
+    this.lifeBeings.push(being);
+    return being;
+  }
+
   public tickZombies(): void {
     // 1. Tick active zombies
     for (let i = this.zombies.length - 1; i >= 0; i--) {
@@ -126,15 +201,17 @@ export class CombatEngine {
           // Turn into a pile of bones on the battlefield
           this.hazardManager.applyHazard(zombie.coord, 'BonePile', 3, 0, 'Undead');
 
-          // Grant the Necromancer +3 AP
-          this.hero.stats.currentAp = Math.min(
-            this.hero.stats.maxAp + 6,
-            this.hero.stats.currentAp + 3
-          );
+          // Grant the player +3 AP
+          if (zombie.faction === 'Player') {
+            this.hero.stats.currentAp = Math.min(
+              this.hero.stats.maxAp + 6,
+              this.hero.stats.currentAp + 3
+            );
+          }
 
           this.addLog(
             'system',
-            `🦴 Reanimated Zombie expired after 4 turns into a pile of bones, granting the Necromancer +3 AP!`
+            `🦴 Reanimated Zombie expired after 4 turns into a pile of bones, granting +3 AP!`
           );
         }
       }
@@ -236,7 +313,7 @@ export class CombatEngine {
       `${caster.name} casts ${ability.name} (${ability.element})!`
     );
 
-    // 1. Special 5th Ability: Raise Undead Horde (raises 4 zombies in adjacent free tiles)
+    // 1. Special Ability: Raise Undead Horde (raises 4 zombies in adjacent free tiles)
     if (ability.id === 'raise_undead_horde') {
       const neighbors = this.grid.getNeighbors(caster.coord);
       const diagonals = [
@@ -253,14 +330,101 @@ export class CombatEngine {
 
       const spawnCount = Math.min(4, validTiles.length);
       for (let i = 0; i < spawnCount; i++) {
-        this.spawnZombie(validTiles[i], 50, 4);
+        this.spawnZombie(validTiles[i], 50, 4, caster.faction);
       }
 
       this.addLog(
         'system',
-        `⚰️ The Necromancer raises ${spawnCount} Reanimated Zombies from the ground adjacent to them!`
+        `⚰️ ${caster.name} raises ${spawnCount} Reanimated Zombies from the ground adjacent to them!`
       );
       return { success: true };
+    }
+
+    // 2. Special Ability: Unzombify Explosion (Life 3x3 AoE unzombifies, cascades explosions, summons Being of Life)
+    if (ability.id === 'unzombify_burst') {
+      const queue: GridCoord[] = [];
+      for (let x = targetCoord.x - 1; x <= targetCoord.x + 1; x++) {
+        for (let y = targetCoord.y - 1; y <= targetCoord.y + 1; y++) {
+          const c = { x, y };
+          if (this.grid.isInBounds(c)) {
+            const unit = this.getUnitAt(c);
+            if (unit && unit.isZombie && !unit.isDead) {
+              queue.push(c);
+            }
+          }
+        }
+      }
+
+      const visited = new Set<string>();
+      let unzombifiedCount = 0;
+
+      while (queue.length > 0) {
+        const c = queue.shift()!;
+        const key = `${c.x},${c.y}`;
+        if (visited.has(key)) continue;
+        visited.add(key);
+
+        const zUnit = this.getUnitAt(c);
+        if (zUnit && zUnit.isZombie && !zUnit.isDead) {
+          zUnit.isDead = true;
+          unzombifiedCount++;
+          this.addLog(
+            'system',
+            `🌟 ${zUnit.name} was UNZOMBIFIED and exploded in a radiant blast of Life!`
+          );
+
+          // 3x3 Explosion dealing 40 damage and triggering chain reactions on other zombies
+          for (let nx = c.x - 1; nx <= c.x + 1; nx++) {
+            for (let ny = c.y - 1; ny <= c.y + 1; ny++) {
+              const nc = { x: nx, y: ny };
+              if (this.grid.isInBounds(nc)) {
+                const affectedUnit = this.getUnitAt(nc);
+                if (affectedUnit && !affectedUnit.isDead) {
+                  if (affectedUnit.isZombie && !visited.has(`${nc.x},${nc.y}`)) {
+                    queue.push(nc);
+                  } else if (affectedUnit.faction !== caster.faction) {
+                    affectedUnit.stats.currentHp = Math.max(0, affectedUnit.stats.currentHp - 40);
+                    if (affectedUnit.stats.currentHp === 0) {
+                      affectedUnit.isDead = true;
+                      this.addLog('system', `☠️ ${affectedUnit.name} was purified by the Life blast!`);
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Summons a Being of Life (3x Speed)
+      let spawnTile = { ...targetCoord };
+      if (this.getUnitAt(spawnTile) !== null) {
+        const adj = this.grid.getNeighbors(spawnTile).find(
+          (n) => !this.grid.getTile(n)?.isObstacle && this.getUnitAt(n) === null
+        );
+        if (adj) spawnTile = adj;
+      }
+
+      const lifeBeing = this.spawnLifeBeing(spawnTile, caster.faction);
+      this.addLog(
+        'system',
+        `🧚 A luminous Being of Life materialized on the battlefield with 3x Speed (${lifeBeing.stats.maxAp} AP)!`
+      );
+      return { success: true };
+    }
+
+    // 3. Special Ability: Transmute Zombie to Being of Life
+    if (ability.id === 'transmute_zombie') {
+      const targetUnit = this.getUnitAt(targetCoord);
+      if (targetUnit && targetUnit.isZombie && !targetUnit.isDead) {
+        targetUnit.isDead = true;
+        const newBeing = this.spawnLifeBeing(targetUnit.coord, caster.faction);
+        this.addLog(
+          'system',
+          `✨ Touch of Life transmuted a Zombie into an allied Being of Life (${newBeing.stats.maxHp} HP, ${newBeing.stats.maxAp} AP)!`
+        );
+        return { success: true };
+      }
     }
 
     // Collect affected coordinates (single target or AoE)
@@ -342,7 +506,7 @@ export class CombatEngine {
         }
 
         // 1 in 5 (20%) chance the target panics and flees when attacked by a Zombie
-        if (caster.isZombie && targetUnit.faction === 'Enemy' && !targetUnit.isDead) {
+        if (caster.isZombie && targetUnit.faction !== caster.faction && !targetUnit.isDead) {
           const fleeRoll = Math.random();
           if (fleeRoll < 0.2) {
             // Find free neighboring tile further away from zombie
@@ -372,12 +536,13 @@ export class CombatEngine {
           }
 
           // --- NECROMANCER REANIMATION MECHANIC ---
-          if (caster.isZombie && targetUnit.faction === 'Enemy') {
+          if (caster.isZombie && targetUnit.faction !== caster.faction) {
             // Killed by a Zombie -> reanimates IMMEDIATELY!
             const newZombie = this.spawnZombie(
               targetUnit.coord,
               targetUnit.stats.maxHp,
-              targetUnit.stats.maxAp
+              targetUnit.stats.maxAp,
+              caster.faction
             );
             this.addLog(
               'system',
@@ -387,14 +552,14 @@ export class CombatEngine {
             // Direct kill by Necromancer hero or Undead element ability:
             const isNecromancerKill =
               (caster.stats.elementalAffinity === 'Undead' || ability.element === 'Undead') &&
-              targetUnit.faction === 'Enemy' &&
-              caster.faction === 'Player';
+              targetUnit.faction !== caster.faction;
 
             if (isNecromancerKill) {
               const zombie = this.spawnZombie(
                 targetUnit.coord,
                 targetUnit.stats.maxHp,
-                targetUnit.stats.maxAp
+                targetUnit.stats.maxAp,
+                caster.faction
               );
               this.addLog(
                 'system',
@@ -402,7 +567,7 @@ export class CombatEngine {
               );
             }
           }
-        } else if (caster.isZombie && targetUnit.faction === 'Enemy' && !targetUnit.isDead) {
+        } else if (caster.isZombie && targetUnit.faction !== caster.faction && !targetUnit.isDead) {
           // Damaged by a zombie but survived -> reanimates in 1 turn!
           this.pendingReanimations.push({
             id: `reanim_${Date.now()}_${Math.random()}`,
@@ -467,8 +632,9 @@ export class CombatEngine {
     // 4. Clear all hazards from the battlefield
     this.hazardManager.clearAllHazards();
 
-    // 5. Clear zombies and pending reanimations
+    // 5. Clear summons and pending reanimations
     this.zombies = [];
+    this.lifeBeings = [];
     this.pendingReanimations = [];
 
     this.addLog(
