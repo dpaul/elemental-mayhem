@@ -299,6 +299,23 @@ export class GameApp {
     this.guideModal.classList.add('hidden');
   }
 
+  public openAdminPanel(): void {
+    document.getElementById('admin-panel-modal')?.classList.remove('hidden');
+  }
+
+  public closeAdminPanel(): void {
+    document.getElementById('admin-panel-modal')?.classList.add('hidden');
+  }
+
+  public toggleAdminPanel(): void {
+    const modal = document.getElementById('admin-panel-modal');
+    if (modal?.classList.contains('hidden')) {
+      this.openAdminPanel();
+    } else {
+      this.closeAdminPanel();
+    }
+  }
+
   private renderCodex(): void {
     if (!this.codexGridContainer) return;
     this.codexGridContainer.innerHTML = '';
@@ -657,6 +674,114 @@ export class GameApp {
       this.showHomeScreen();
     });
 
+    // Admin God Panel Controls
+    document.getElementById('nav-admin-btn')?.addEventListener('click', () => {
+      this.openAdminPanel();
+    });
+
+    document.getElementById('close-admin-btn')?.addEventListener('click', () => {
+      this.closeAdminPanel();
+    });
+
+    document.getElementById('admin-btn-ap')?.addEventListener('click', () => {
+      const activeUnit = this.getActivePlayerUnit();
+      activeUnit.stats.maxAp = 99;
+      activeUnit.stats.currentAp = 99;
+      this.renderer.particleEngine.triggerScreenShake(8, 250);
+      const pos = this.renderer.gridToScreen(activeUnit.coord);
+      this.renderer.particleEngine.addFloatingText('⚡ 99 AP GOD POWER!', pos.x, pos.y - 30, '#fde68a', 26);
+      this.combatEngine.addLog('system', '👑 ADMIN: Granted 99 AP to active champion!');
+      this.updateReachableTiles();
+      this.updateHUD();
+    });
+
+    document.getElementById('admin-btn-hp')?.addEventListener('click', () => {
+      const activeUnit = this.getActivePlayerUnit();
+      activeUnit.stats.maxHp = 9999;
+      activeUnit.stats.currentHp = 9999;
+      this.renderer.particleEngine.triggerScreenShake(8, 250);
+      const pos = this.renderer.gridToScreen(activeUnit.coord);
+      this.renderer.particleEngine.addFloatingText('💖 9999 HP GOD MODE!', pos.x, pos.y - 30, '#4ade80', 26);
+      this.combatEngine.addLog('system', '👑 ADMIN: Set champion HP to 9999 (Invincibility)!');
+      this.updateHUD();
+    });
+
+    document.getElementById('admin-btn-smite')?.addEventListener('click', () => {
+      this.renderer.particleEngine.triggerScreenShake(20, 600);
+      this.combatEngine.addLog('system', '👑 ADMIN SMITE: Obliterated all enemies!');
+      for (const enemy of this.enemies) {
+        if (!enemy.isDead) {
+          enemy.stats.currentHp = 0;
+          enemy.isDead = true;
+          this.renderer.triggerDeathAnimation(enemy, 'Light');
+        }
+      }
+      this.closeAdminPanel();
+      this.updateHUD();
+      this.checkCombatState();
+    });
+
+    document.getElementById('admin-btn-spawn-zombies')?.addEventListener('click', () => {
+      let count = 0;
+      for (let x = 0; x < this.grid.size && count < 8; x++) {
+        for (let y = 0; y < this.grid.size && count < 8; y++) {
+          const coord = { x, y };
+          if (this.grid.isWalkable(coord) && !this.combatEngine.getUnitAt(coord)) {
+            this.combatEngine.spawnZombie(coord, 60, 4, 'Player');
+            count++;
+          }
+        }
+      }
+      this.combatEngine.addLog('system', `👑 ADMIN: Summoned ${count} Reanimated Zombies!`);
+      this.renderer.particleEngine.triggerScreenShake(10, 300);
+      this.closeAdminPanel();
+      this.updateHUD();
+    });
+
+    document.getElementById('admin-btn-spawn-life')?.addEventListener('click', () => {
+      let count = 0;
+      for (let x = 0; x < this.grid.size && count < 4; x++) {
+        for (let y = 0; y < this.grid.size && count < 4; y++) {
+          const coord = { x, y };
+          if (this.grid.isWalkable(coord) && !this.combatEngine.getUnitAt(coord)) {
+            this.combatEngine.spawnLifeBeing(coord, 'Player');
+            count++;
+          }
+        }
+      }
+      this.combatEngine.addLog('system', `👑 ADMIN: Summoned ${count} Beings of Life!`);
+      this.renderer.particleEngine.triggerScreenShake(10, 300);
+      this.closeAdminPanel();
+      this.updateHUD();
+    });
+
+    document.getElementById('admin-btn-cleanse')?.addEventListener('click', () => {
+      for (let x = 0; x < this.grid.size; x++) {
+        for (let y = 0; y < this.grid.size; y++) {
+          const tile = this.grid.getTile({ x, y });
+          if (tile) {
+            tile.hazard = { type: 'None', duration: 0, damagePerTurn: 0, element: 'Neutral' };
+          }
+        }
+      }
+      this.combatEngine.addLog('system', '👑 ADMIN: Cleansed all hazards from battlefield!');
+      this.closeAdminPanel();
+      this.updateHUD();
+    });
+
+    document.getElementById('admin-btn-resources')?.addEventListener('click', () => {
+      this.totalEssence += 9999;
+      this.totalXp += 9999;
+      this.updateHUD();
+      this.combatEngine.addLog('system', '👑 ADMIN: Granted +9999 Essence and +9999 XP!');
+    });
+
+    document.getElementById('admin-btn-next-round')?.addEventListener('click', () => {
+      this.closeAdminPanel();
+      this.enemies.forEach((e) => { e.isDead = true; e.stats.currentHp = 0; });
+      this.checkCombatState();
+    });
+
     // Canvas Interactions
     canvas.addEventListener('mousemove', (e) => {
       if (this.isBusy) return;
@@ -712,6 +837,12 @@ export class GameApp {
     window.addEventListener('keydown', (e) => {
       if (this.isBusy) return;
 
+      if (e.key === 'F1' || e.key === '`' || e.key === '~') {
+        e.preventDefault();
+        this.toggleAdminPanel();
+        return;
+      }
+
       const activeUnit = this.getActivePlayerUnit();
       if (e.key >= '1' && e.key <= '5') {
         const idx = parseInt(e.key) - 1;
@@ -724,6 +855,7 @@ export class GameApp {
       } else if (e.key === 'Escape') {
         this.selectedAbility = null;
         this.targetableTiles = [];
+        this.closeAdminPanel();
         this.updateHUD();
       }
     });

@@ -23,6 +23,7 @@
         <span class="phase-label" id="phase-text">PLAYER TURN</span>
       </div>
       <div class="header-right">
+        <button id="nav-admin-btn" class="btn-primary" style="background: linear-gradient(135deg, #f59e0b, #ec4899); border: 1px solid #fde68a; color: #000; font-weight: 800; padding: 6px 14px; border-radius: 8px; box-shadow: 0 0 16px rgba(245, 158, 11, 0.6); cursor: pointer;" title="Open Admin God Command Console">👑 Admin</button>
         <button id="nav-multiplayer-btn" class="btn-text header-nav-btn" style="background: rgba(239, 68, 68, 0.25); border: 1px solid rgba(239, 68, 68, 0.5); color: #fca5a5; font-weight: 700;">⚔️ Multiplayer</button>
         <button id="nav-codex-btn" class="btn-text header-nav-btn" title="Elemental Codex">📖 Codex</button>
         <button id="nav-guide-btn" class="btn-text header-nav-btn" title="How to Play Guide">📜 Guide</button>
@@ -351,6 +352,68 @@
           <button id="change-element-btn" class="btn-primary" style="background: linear-gradient(135deg, #8b5cf6, #3b82f6); border-color: #60a5fa;">Change Element</button>
           <button id="gameover-pvp-btn" class="btn-primary" style="background: linear-gradient(135deg, #ef4444, #f59e0b); border-color: #fbbf24;">⚔️ Hot Seat PvP</button>
           <button id="gameover-home-btn" class="btn-primary" style="background: linear-gradient(135deg, #3b82f6, #06b6d4); border-color: #38bdf8;">🏠 Main Menu</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Admin God Powers Modal -->
+    <div id="admin-panel-modal" class="modal-overlay hidden">
+      <div class="modal-content glass-card admin-modal-content">
+        <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <h2 style="color: #fde68a;">👑 ADMIN GOD POWERS CONSOLE</h2>
+            <p class="modal-subtitle">Direct battlefield manipulation and omnipotent admin commands.</p>
+          </div>
+          <button id="close-admin-btn" class="btn-primary" style="padding: 6px 16px;">✕ Close</button>
+        </div>
+        <div class="admin-powers-grid">
+          <!-- Power 1: Infinite AP -->
+          <button class="admin-power-btn" id="admin-btn-ap">
+            <div class="admin-btn-header">⚡ Set 99 AP</div>
+            <div class="admin-btn-desc">Instantly refills and expands current Action Points to 99 for infinite movement & spellcasting.</div>
+          </button>
+
+          <!-- Power 2: God HP -->
+          <button class="admin-power-btn" id="admin-btn-hp">
+            <div class="admin-btn-header">💖 God Mode HP (9999 HP)</div>
+            <div class="admin-btn-desc">Fully heals hero and sets maximum health to 9999 HP.</div>
+          </button>
+
+          <!-- Power 3: Admin Smite -->
+          <button class="admin-power-btn" id="admin-btn-smite">
+            <div class="admin-btn-header">☠️ Admin Smite (Kill All Enemies)</div>
+            <div class="admin-btn-desc">Calls down catastrophic lightning & supernova smiting every enemy instantly!</div>
+          </button>
+
+          <!-- Power 4: Spawn Undead Legion -->
+          <button class="admin-power-btn" id="admin-btn-spawn-zombies">
+            <div class="admin-btn-header">🧟 Summon 8 Undead Legion</div>
+            <div class="admin-btn-desc">Rises a massive ring of 8 reanimated zombies under your command.</div>
+          </button>
+
+          <!-- Power 5: Spawn Seraphim Legion -->
+          <button class="admin-power-btn" id="admin-btn-spawn-life">
+            <div class="admin-btn-header">🧚 Summon 4 Beings of Life</div>
+            <div class="admin-btn-desc">Spawns 4 Beings of Life with 3x Speed and Touch of Life transmute.</div>
+          </button>
+
+          <!-- Power 6: Cleanse Hazards -->
+          <button class="admin-power-btn" id="admin-btn-cleanse">
+            <div class="admin-btn-header">🧹 Cleanse All Board Hazards</div>
+            <div class="admin-btn-desc">Removes all ground hazards (Lava, Mire, Rift, Acid) across the battlefield.</div>
+          </button>
+
+          <!-- Power 7: Add Resources -->
+          <button class="admin-power-btn" id="admin-btn-resources">
+            <div class="admin-btn-header">✨ +9999 Essence & XP</div>
+            <div class="admin-btn-desc">Instantly grants max currency to buy all armory upgrades and relics.</div>
+          </button>
+
+          <!-- Power 8: Next Boss Skip -->
+          <button class="admin-power-btn" id="admin-btn-next-round">
+            <div class="admin-btn-header">⏩ Jump to Next Round</div>
+            <div class="admin-btn-desc">Instantly completes current combat round and advances to next encounter.</div>
+          </button>
         </div>
       </div>
     </div>
