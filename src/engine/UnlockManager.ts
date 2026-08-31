@@ -41,11 +41,21 @@ export class UnlockManager {
     return Array.from(this.unlockedElements);
   }
 
+  public isAdminOnly(element: ElementType): boolean {
+    return element === 'Wind' || element === 'Undead';
+  }
+
   public isElementUnlocked(element: ElementType): boolean {
+    if (this.isAdminOnly(element)) {
+      return false; // Admin exclusive, players are unable to get it
+    }
     return this.unlockedElements.has(element);
   }
 
   public unlockElement(element: ElementType): boolean {
+    if (this.isAdminOnly(element)) {
+      return false; // Forbidden from player unlock
+    }
     if (this.unlockedElements.has(element)) {
       return false; // Already unlocked
     }
@@ -58,7 +68,7 @@ export class UnlockManager {
     const newlyUnlocked: ElementType[] = [];
 
     if (round === 5) {
-      const tier1: ElementType[] = ['Ice', 'Magma', 'Crystal', 'Poison', 'Acid', 'Sky', 'Heat', 'Cold', 'Undead'];
+      const tier1: ElementType[] = ['Ice', 'Magma', 'Crystal', 'Poison', 'Acid', 'Sky', 'Heat', 'Cold'];
       tier1.forEach((elem) => {
         if (this.unlockElement(elem)) newlyUnlocked.push(elem);
       });
@@ -74,7 +84,7 @@ export class UnlockManager {
     } else if (round === 15) {
       const tier3: ElementType[] = [
         'Void', 'Darkness', 'Chaos', 'Time', 'Space', 'Death',
-        'Life', 'Love', 'Blood', 'Soul', 'Spirit', 'Order', 'Gravity', 'Wind'
+        'Life', 'Love', 'Blood', 'Soul', 'Spirit', 'Order', 'Gravity'
       ];
       tier3.forEach((elem) => {
         if (this.unlockElement(elem)) newlyUnlocked.push(elem);

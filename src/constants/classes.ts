@@ -282,7 +282,7 @@ export const HERO_CLASSES: Record<ElementType, HeroClassConfig> = {
     tagline: 'Slice with aerodynamic velocity and blow away battlefield hazards.',
     description: 'High AP efficiency, ranged gale slices, and ability to fan flames into raging firestorms.',
     category: 'Primal',
-    unlockRequirement: 'Defeat Round 15 Final Boss (The Void Archon)',
+    unlockRequirement: '👑 Admin Exclusive (Unobtainable by Players)',
     abilities: [
       {
         id: 'wind_cutter',
@@ -3290,7 +3290,7 @@ export const HERO_CLASSES: Record<ElementType, HeroClassConfig> = {
     tagline: 'Summon necrotic plague, siphon life force, and command the army of the dead.',
     description: 'Specializes in lifesteal, necrotic rot, and persistent undead curses.',
     category: 'Cosmic',
-    unlockRequirement: 'Defeat Round 5 Boss',
+    unlockRequirement: '👑 Admin Exclusive (Unobtainable by Players)',
     abilities: [
       {
         id: 'grave_strike',

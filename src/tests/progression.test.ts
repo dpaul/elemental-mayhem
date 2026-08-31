@@ -203,30 +203,43 @@ describe('UnlockManager & Boss Elemental Progression (TDD Red -> Green)', () => 
     unlockManager.resetUnlocks();
   });
 
-  it('should start with default starter elements (Fire, Water, Earth, Nature, Light) and Wind/other elements locked', () => {
+  it('should start with default starter elements (Fire, Water, Earth, Nature, Light) and Wind/Undead/other elements locked', () => {
     expect(unlockManager.isElementUnlocked('Fire')).toBe(true);
     expect(unlockManager.isElementUnlocked('Water')).toBe(true);
     expect(unlockManager.isElementUnlocked('Earth')).toBe(true);
     expect(unlockManager.isElementUnlocked('Nature')).toBe(true);
     expect(unlockManager.isElementUnlocked('Light')).toBe(true);
-    expect(unlockManager.isElementUnlocked('Wind')).toBe(false); // Wind is the final unlock
+    expect(unlockManager.isElementUnlocked('Wind')).toBe(false); // Admin only
+    expect(unlockManager.isElementUnlocked('Undead')).toBe(false); // Admin only
     expect(unlockManager.isElementUnlocked('Ice')).toBe(false);
     expect(unlockManager.isElementUnlocked('Poison')).toBe(false);
     expect(unlockManager.isElementUnlocked('Lightning')).toBe(false);
     expect(unlockManager.isElementUnlocked('Void')).toBe(false);
   });
 
-  it('should unlock Tier 1 elements (Ice, Magma, Crystal, Poison, Acid, Sky, Undead) when defeating Round 5 Boss', () => {
+  it('should designate Wind and Undead (Necromancer) as Admin Only that players cannot unlock', () => {
+    expect(unlockManager.isAdminOnly('Wind')).toBe(true);
+    expect(unlockManager.isAdminOnly('Undead')).toBe(true);
+    expect(unlockManager.isAdminOnly('Fire')).toBe(false);
+
+    // Attempting to unlock admin elements returns false and keeps them locked
+    expect(unlockManager.unlockElement('Wind')).toBe(false);
+    expect(unlockManager.unlockElement('Undead')).toBe(false);
+    expect(unlockManager.isElementUnlocked('Wind')).toBe(false);
+    expect(unlockManager.isElementUnlocked('Undead')).toBe(false);
+  });
+
+  it('should unlock Tier 1 elements (Ice, Magma, Crystal, Poison, Acid, Sky, Heat, Cold) when defeating Round 5 Boss without Undead', () => {
     const unlocked = unlockManager.checkBossDefeatUnlocks(5);
     expect(unlocked).toContain('Ice');
     expect(unlocked).toContain('Magma');
     expect(unlocked).toContain('Crystal');
     expect(unlocked).toContain('Poison');
     expect(unlocked).toContain('Acid');
-    expect(unlocked).toContain('Undead');
+    expect(unlocked).not.toContain('Undead');
     expect(unlockManager.isElementUnlocked('Ice')).toBe(true);
     expect(unlockManager.isElementUnlocked('Magma')).toBe(true);
-    expect(unlockManager.isElementUnlocked('Undead')).toBe(true);
+    expect(unlockManager.isElementUnlocked('Undead')).toBe(false);
     expect(unlockManager.isElementUnlocked('Lightning')).toBe(false);
   });
 
@@ -241,17 +254,17 @@ describe('UnlockManager & Boss Elemental Progression (TDD Red -> Green)', () => 
     expect(unlockManager.isElementUnlocked('Storm')).toBe(true);
   });
 
-  it('should unlock Tier 3 elements including Wind when defeating Round 15 Final Boss', () => {
+  it('should unlock Tier 3 elements (Void, Time, Love, Death, Chaos, Life) when defeating Round 15 Final Boss without Wind', () => {
     const unlocked = unlockManager.checkBossDefeatUnlocks(15);
     expect(unlocked).toContain('Void');
     expect(unlocked).toContain('Time');
     expect(unlocked).toContain('Love');
     expect(unlocked).toContain('Death');
     expect(unlocked).toContain('Chaos');
-    expect(unlocked).toContain('Wind');
+    expect(unlocked).not.toContain('Wind');
     expect(unlockManager.isElementUnlocked('Void')).toBe(true);
     expect(unlockManager.isElementUnlocked('Time')).toBe(true);
-    expect(unlockManager.isElementUnlocked('Wind')).toBe(true);
+    expect(unlockManager.isElementUnlocked('Wind')).toBe(false);
   });
 
   it('should not unlock elements on non-boss rounds or if already unlocked', () => {
