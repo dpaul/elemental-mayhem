@@ -15,6 +15,7 @@
     <!-- Top Header Bar -->
     <header class="top-header glass-card">
       <div class="header-left">
+        <button id="nav-home-btn" class="btn-text header-nav-btn" title="Return to Main Menu">🏠 Home</button>
         <h1 class="game-title">ELEMENTAL <span class="accent-text">MAYHEM</span></h1>
         <div class="round-badge" id="round-indicator">ROUND 1 / 15</div>
       </div>
@@ -22,6 +23,8 @@
         <span class="phase-label" id="phase-text">PLAYER TURN</span>
       </div>
       <div class="header-right">
+        <button id="nav-codex-btn" class="btn-text header-nav-btn" title="Elemental Codex">📖 Codex</button>
+        <button id="nav-guide-btn" class="btn-text header-nav-btn" title="How to Play Guide">📜 Guide</button>
         <div class="currency-pill">
           <span class="pill-icon">✨</span>
           <span class="pill-label">Essence:</span>
@@ -116,13 +119,99 @@
       </div>
     </footer>
 
+    <!-- ==================================================================== -->
+    <!-- HOME SCREEN / MAIN MENU (DEFAULT ON LOAD)                            -->
+    <!-- ==================================================================== -->
+    <div id="home-screen" class="home-screen-overlay">
+      <canvas id="home-particles-canvas" class="home-particles-canvas"></canvas>
+      <div class="home-container glass-card">
+        <!-- Hero Header -->
+        <div class="home-header">
+          <div class="home-orb-ring">
+            <span class="home-orb orb-fire" title="Fire">🔥</span>
+            <span class="home-orb orb-water" title="Water">💧</span>
+            <span class="home-orb orb-lightning" title="Lightning">⚡</span>
+            <span class="home-orb orb-earth" title="Earth">🪨</span>
+            <span class="home-orb orb-undead" title="Undead">💀</span>
+            <span class="home-orb orb-life" title="Life">🌱</span>
+            <span class="home-orb orb-void" title="Void">🌌</span>
+            <span class="home-orb orb-ice" title="Ice">❄️</span>
+            <span class="home-orb orb-wind" title="Wind">🌪️</span>
+            <span class="home-orb orb-light" title="Light">☀️</span>
+          </div>
+          <h1 class="home-title">ELEMENTAL <span class="home-title-glow">MAYHEM</span></h1>
+          <p class="home-subtitle">Master 42 Elemental Forces • Cascade Reactions • Reanimate Undead • Ascend the Gauntlet</p>
+          <div class="home-pill-row">
+            <span class="home-pill">🌟 42 Elements</span>
+            <span class="home-pill">⚔️ 1v1 Hot Seat PvP</span>
+            <span class="home-pill">👑 15 Boss Gauntlets</span>
+            <span class="home-pill">⚡ Chain Reactions</span>
+          </div>
+        </div>
+
+        <!-- Mode Cards Grid -->
+        <div class="home-modes-grid">
+          <!-- Campaign Card -->
+          <div class="home-mode-card card-campaign" id="home-btn-campaign">
+            <div class="card-badge">Single Player</div>
+            <div class="card-icon">🛡️</div>
+            <h3 class="card-title">SOLO CAMPAIGN</h3>
+            <p class="card-desc">
+              Battle through 15 rounds of escalating elemental hazards, elite bosses, and unlock all 42 elemental masteries.
+            </p>
+            <button class="btn-primary card-action-btn">Launch Campaign</button>
+          </div>
+
+          <!-- Hot Seat PvP Card -->
+          <div class="home-mode-card card-hotseat" id="home-btn-hotseat">
+            <div class="card-badge badge-pvp">2-Player Local</div>
+            <div class="card-icon">⚔️</div>
+            <h3 class="card-title">HOT SEAT ARENA</h3>
+            <p class="card-desc">
+              Duel a friend locally on this device. Draft your elemental champions and wage war in tactical turn-based combat.
+            </p>
+            <button class="btn-primary card-action-btn btn-pvp">Enter 1v1 Arena</button>
+          </div>
+
+          <!-- Codex Card -->
+          <div class="home-mode-card card-codex" id="home-btn-codex">
+            <div class="card-badge badge-codex">Encyclopedia</div>
+            <div class="card-icon">📖</div>
+            <h3 class="card-title">ELEMENTAL CODEX</h3>
+            <p class="card-desc">
+              Explore all 42 elements, spell kits, strengths, weaknesses, reactions (Steam, Holy Smite, Necrosis), and lore.
+            </p>
+            <button class="btn-primary card-action-btn btn-codex">Browse Codex</button>
+          </div>
+
+          <!-- Guide Card -->
+          <div class="home-mode-card card-guide" id="home-btn-guide">
+            <div class="card-badge badge-guide">Tactics & Rules</div>
+            <div class="card-icon">📜</div>
+            <h3 class="card-title">HOW TO PLAY</h3>
+            <p class="card-desc">
+              Master Action Points (AP), Line of Sight, Tile Hazards, Necromancer zombie swarms, and Life unzombify explosions.
+            </p>
+            <button class="btn-primary card-action-btn btn-guide">Read Guide</button>
+          </div>
+        </div>
+
+        <div class="home-footer-text">
+          <span>✨ Elemental Mayhem Tactical Engine • Built with HTML5 Canvas & TypeScript</span>
+        </div>
+      </div>
+    </div>
+
     <!-- Character Element Selection Modal -->
-    <div id="character-select-modal" class="modal-overlay">
+    <div id="character-select-modal" class="modal-overlay hidden">
       <div class="modal-content glass-card class-select-modal-content">
         <div class="modal-header text-center" style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-          <h2>CHOOSE YOUR ELEMENTAL MASTER</h2>
+          <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+            <button id="char-select-back-btn" class="btn-text">← Back to Menu</button>
+            <h2 style="margin: 0 auto;">CHOOSE YOUR ELEMENTAL MASTER</h2>
+            <div style="width: 80px;"></div>
+          </div>
           <p class="modal-subtitle">Each class wields dedicated elemental spells, reactions, and combat playstyles.</p>
-          <button id="modal-pvp-arena-btn" class="btn-primary" style="margin: 4px 0 8px 0; background: linear-gradient(135deg, #ef4444, #f59e0b); border: 1px solid #fbbf24; font-size: 0.95rem; font-weight: 700; padding: 10px 24px; border-radius: 9999px; box-shadow: 0 0 20px rgba(239, 68, 68, 0.4); cursor: pointer;">⚔️ Enter 2-Player Hot Seat PvP Arena</button>
           <div class="class-category-tabs" id="class-category-tabs">
             <button class="category-tab active" data-category="All">🌟 All Elements</button>
             <button class="category-tab" data-category="Primal">🔥 Primal</button>
@@ -141,11 +230,77 @@
     <div id="hotseat-select-modal" class="modal-overlay hidden">
       <div class="modal-content glass-card class-select-modal-content">
         <div class="modal-header text-center" style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-          <h2 id="hotseat-modal-title">⚔️ HOT SEAT ARENA: SELECT PLAYER 1</h2>
+          <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+            <button id="hotseat-select-back-btn" class="btn-text">← Back to Menu</button>
+            <h2 id="hotseat-modal-title" style="margin: 0 auto;">⚔️ HOT SEAT ARENA: SELECT PLAYER 1</h2>
+            <div style="width: 80px;"></div>
+          </div>
           <p id="hotseat-modal-subtitle" class="modal-subtitle">Player 1, choose your elemental champion.</p>
         </div>
         <div class="modal-body class-select-grid" id="hotseat-class-select-container">
           <!-- Injected dynamically via TS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Elemental Codex Modal -->
+    <div id="codex-modal" class="modal-overlay hidden">
+      <div class="modal-content glass-card codex-modal-content">
+        <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <h2>📖 ELEMENTAL CODEX & REACTION MATRIX</h2>
+            <p class="modal-subtitle">Comprehensive guide to all 42 elemental forces, archetypes, and reactions.</p>
+          </div>
+          <button id="close-codex-btn" class="btn-primary" style="padding: 6px 16px;">✕ Close</button>
+        </div>
+        <div class="codex-filters">
+          <input type="text" id="codex-search-input" class="codex-search-input" placeholder="🔍 Search element or ability (e.g. Fire, Zombie, Life, Storm)..." />
+          <div class="class-category-tabs" id="codex-category-tabs">
+            <button class="category-tab active" data-category="All">🌟 All (42)</button>
+            <button class="category-tab" data-category="Primal">🔥 Primal</button>
+            <button class="category-tab" data-category="Forces">⚡ Forces</button>
+            <button class="category-tab" data-category="Life">🌿 Life</button>
+            <button class="category-tab" data-category="Cosmic">🌌 Cosmic</button>
+            <button class="category-tab" data-category="Reactions">⚡ Reactions Matrix</button>
+          </div>
+        </div>
+        <div class="modal-body codex-grid" id="codex-grid-container">
+          <!-- Injected dynamically via TS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- How to Play & Tactical Guide Modal -->
+    <div id="guide-modal" class="modal-overlay hidden">
+      <div class="modal-content glass-card guide-modal-content">
+        <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <h2>📜 HOW TO PLAY & TACTICAL GUIDE</h2>
+            <p class="modal-subtitle">Master tactical positioning, elemental synergies, and special class mechanics.</p>
+          </div>
+          <button id="close-guide-btn" class="btn-primary" style="padding: 6px 16px;">✕ Close</button>
+        </div>
+        <div class="modal-body guide-body-content">
+          <div class="guide-section">
+            <h3>⚡ 1. Turn Flow & Action Points (AP)</h3>
+            <p>Every turn, your champion receives <strong>Action Points (AP)</strong>. Moving costs <strong>1 AP per tile</strong>. Casting spells consumes AP based on the ability's cost (1–3 AP). Unused AP is restored at the start of your next turn.</p>
+          </div>
+          <div class="guide-section">
+            <h3>🔥 2. Elemental Matrix & Reactions</h3>
+            <p>Hitting enemies with opposing elements triggers massive damage bonuses and status effects. For instance, striking a <em>Frozen</em> enemy with <em>Fire</em> triggers <strong>Thermal Shock</strong>, while striking an <em>Undead</em> foe with <em>Light</em> triggers <strong>Holy Smite</strong>!</p>
+          </div>
+          <div class="guide-section">
+            <h3>🧟 3. Necromancy & Zombie Reanimation</h3>
+            <p>When playing as the <strong>Necromancer</strong>, any enemy slain by necrotic abilities rises immediately as an allied <strong>Zombie</strong> with <strong>4x HP</strong>, <strong>3x Speed</strong>, and a 4-turn lifespan! When the zombie expires, it turns into bone piles and restores <strong>+3 AP</strong> to the Necromancer.</p>
+          </div>
+          <div class="guide-section">
+            <h3>🌱 4. Life & Cascading Unzombify Explosions</h3>
+            <p>The <strong>Biomancer</strong> (Life) wields the <strong>Unzombify Explosion</strong>: an AoE spell that cleanses zombies in a 3x3 area. Each unzombified zombie explodes in a burst of radiant Life, triggering <strong>chain-reaction detonations</strong> on nearby zombies and summoning an agile <strong>Being of Life (3x Speed)</strong> capable of transmuting zombies!</p>
+          </div>
+          <div class="guide-section">
+            <h3>⚔️ 5. Hot Seat 1v1 PvP Arena</h3>
+            <p>Challenge a friend on the same device! Both players pick from any unlocked champion and duel with full abilities, AP systems, and minion controls.</p>
+          </div>
         </div>
       </div>
     </div>
@@ -179,6 +334,7 @@
           <button id="restart-game-btn" class="btn-primary">Play Again</button>
           <button id="change-element-btn" class="btn-primary" style="background: linear-gradient(135deg, #8b5cf6, #3b82f6); border-color: #60a5fa;">Change Element</button>
           <button id="gameover-pvp-btn" class="btn-primary" style="background: linear-gradient(135deg, #ef4444, #f59e0b); border-color: #fbbf24;">⚔️ Hot Seat PvP</button>
+          <button id="gameover-home-btn" class="btn-primary" style="background: linear-gradient(135deg, #3b82f6, #06b6d4); border-color: #38bdf8;">🏠 Main Menu</button>
         </div>
       </div>
     </div>

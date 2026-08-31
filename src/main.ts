@@ -18,6 +18,16 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+interface HomeParticle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  size: number;
+  color: string;
+  alpha: number;
+}
+
 export class GameApp {
   private grid: Grid;
   private hazardManager: TileHazardManager;
@@ -50,6 +60,21 @@ export class GameApp {
   private focusedUnitId: string | null = null;
   private lastFrameTime: number = performance.now();
 
+  // Home Screen & Particle Background
+  private homeScreen: HTMLElement;
+  private homeParticlesCanvas: HTMLCanvasElement;
+  private homeParticlesCtx: CanvasRenderingContext2D | null = null;
+  private homeParticles: HomeParticle[] = [];
+  private homeBtnCampaign: HTMLElement;
+  private homeBtnHotseat: HTMLElement;
+  private homeBtnCodex: HTMLElement;
+  private homeBtnGuide: HTMLElement;
+
+  // Header Nav Controls
+  private navHomeBtn: HTMLElement | null;
+  private navCodexBtn: HTMLElement | null;
+  private navGuideBtn: HTMLElement | null;
+
   // Hot Seat Arena Mode
   private isHotseatMode: boolean = false;
   private hotseatCurrentPlayer: 1 | 2 = 1;
@@ -61,7 +86,14 @@ export class GameApp {
   private hotseatClassSelectContainer: HTMLElement;
   private pvpArenaBtn: HTMLElement | null;
 
-  // Modals
+  // Codex & Guide Modals
+  private codexModal: HTMLElement;
+  private codexGridContainer: HTMLElement;
+  private codexSearchInput: HTMLInputElement;
+  private codexCategory: string = 'All';
+  private guideModal: HTMLElement;
+
+  // Standard Modals
   private characterSelectModal: HTMLElement;
   private classSelectContainer: HTMLElement;
   private changeElementBtn: HTMLElement;
@@ -86,6 +118,30 @@ export class GameApp {
     this.escalationManager = new EscalationManager();
     this.unlockManager = new UnlockManager();
 
+    // Home Screen Elements
+    this.homeScreen = document.getElementById('home-screen')!;
+    this.homeParticlesCanvas = document.getElementById('home-particles-canvas') as HTMLCanvasElement;
+    if (this.homeParticlesCanvas) {
+      this.homeParticlesCtx = this.homeParticlesCanvas.getContext('2d');
+      this.initHomeParticles();
+    }
+    this.homeBtnCampaign = document.getElementById('home-btn-campaign')!;
+    this.homeBtnHotseat = document.getElementById('home-btn-hotseat')!;
+    this.homeBtnCodex = document.getElementById('home-btn-codex')!;
+    this.homeBtnGuide = document.getElementById('home-btn-guide')!;
+
+    // Header Navigation
+    this.navHomeBtn = document.getElementById('nav-home-btn');
+    this.navCodexBtn = document.getElementById('nav-codex-btn');
+    this.navGuideBtn = document.getElementById('nav-guide-btn');
+
+    // Codex & Guide
+    this.codexModal = document.getElementById('codex-modal')!;
+    this.codexGridContainer = document.getElementById('codex-grid-container')!;
+    this.codexSearchInput = document.getElementById('codex-search-input') as HTMLInputElement;
+    this.guideModal = document.getElementById('guide-modal')!;
+
+    // Standard Modals
     this.characterSelectModal = document.getElementById('character-select-modal')!;
     this.classSelectContainer = document.getElementById('class-select-container')!;
     this.changeElementBtn = document.getElementById('change-element-btn')!;
@@ -116,7 +172,7 @@ export class GameApp {
     this.hud = new HUDManager();
 
     this.setupCategoryTabs();
-    this.renderCharacterSelectModal();
+    this.setupCodexTabs();
     this.setupObstacles();
     this.setupEventListeners(canvas);
     this.updateReachableTiles();
@@ -127,8 +183,76 @@ export class GameApp {
     this.gameLoop();
   }
 
+  private initHomeParticles(): void {
+    if (!this.homeParticlesCanvas) return;
+    this.homeParticlesCanvas.width = window.innerWidth;
+    this.homeParticlesCanvas.height = window.innerHeight;
+
+    window.addEventListener('resize', () => {
+      if (this.homeParticlesCanvas) {
+        this.homeParticlesCanvas.width = window.innerWidth;
+        this.homeParticlesCanvas.height = window.innerHeight;
+      }
+    });
+
+    const colors = ['#ff6b35', '#00d2ff', '#ffd000', '#22c55e', '#d946ef', '#38bdf8', '#8b5cf6'];
+    this.homeParticles = [];
+
+    for (let i = 0; i < 65; i++) {
+      this.homeParticles.push({
+        x: Math.random() * window.innerWidth,
+        y: Math.random() * window.innerHeight,
+        vx: (Math.random() - 0.5) * 0.8,
+        vy: (Math.random() - 0.5) * 0.8,
+        size: Math.random() * 3.5 + 1.5,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        alpha: Math.random() * 0.6 + 0.3,
+      });
+    }
+  }
+
+  private updateAndRenderHomeParticles(): void {
+    if (!this.homeParticlesCtx || !this.homeParticlesCanvas) return;
+    const ctx = this.homeParticlesCtx;
+    ctx.clearRect(0, 0, this.homeParticlesCanvas.width, this.homeParticlesCanvas.height);
+
+    for (const p of this.homeParticles) {
+      p.x += p.vx;
+      p.y += p.vy;
+
+      if (p.x < 0) p.x = this.homeParticlesCanvas.width;
+      if (p.x > this.homeParticlesCanvas.width) p.x = 0;
+      if (p.y < 0) p.y = this.homeParticlesCanvas.height;
+      if (p.y > this.homeParticlesCanvas.height) p.y = 0;
+
+      ctx.save();
+      ctx.globalAlpha = p.alpha;
+      ctx.fillStyle = p.color;
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  public showHomeScreen(): void {
+    this.homeScreen.classList.remove('hidden');
+    this.characterSelectModal.classList.add('hidden');
+    this.hotseatSelectModal.classList.add('hidden');
+    this.codexModal.classList.add('hidden');
+    this.guideModal.classList.add('hidden');
+    this.gameOverModal.classList.add('hidden');
+    this.upgradeModal.classList.add('hidden');
+  }
+
+  public hideHomeScreen(): void {
+    this.homeScreen.classList.add('hidden');
+  }
+
   private setupCategoryTabs(): void {
-    const tabs = document.querySelectorAll('.category-tab');
+    const tabs = document.querySelectorAll('#class-category-tabs .category-tab');
     tabs.forEach((tab) => {
       tab.addEventListener('click', (e) => {
         tabs.forEach((t) => t.classList.remove('active'));
@@ -137,6 +261,128 @@ export class GameApp {
         this.selectedClassCategory = target.getAttribute('data-category') || 'All';
         this.renderCharacterSelectModal();
       });
+    });
+  }
+
+  private setupCodexTabs(): void {
+    const tabs = document.querySelectorAll('#codex-category-tabs .category-tab');
+    tabs.forEach((tab) => {
+      tab.addEventListener('click', (e) => {
+        tabs.forEach((t) => t.classList.remove('active'));
+        const target = e.currentTarget as HTMLElement;
+        target.classList.add('active');
+        this.codexCategory = target.getAttribute('data-category') || 'All';
+        this.renderCodex();
+      });
+    });
+
+    this.codexSearchInput?.addEventListener('input', () => {
+      this.renderCodex();
+    });
+  }
+
+  public openCodex(): void {
+    this.renderCodex();
+    this.codexModal.classList.remove('hidden');
+  }
+
+  public closeCodex(): void {
+    this.codexModal.classList.add('hidden');
+  }
+
+  public openGuide(): void {
+    this.guideModal.classList.remove('hidden');
+  }
+
+  public closeGuide(): void {
+    this.guideModal.classList.add('hidden');
+  }
+
+  private renderCodex(): void {
+    if (!this.codexGridContainer) return;
+    this.codexGridContainer.innerHTML = '';
+    const query = this.codexSearchInput?.value.trim().toLowerCase() || '';
+
+    // If "Reactions" tab is selected, render Reactions Matrix
+    if (this.codexCategory === 'Reactions') {
+      const reactions = [
+        { name: 'Vaporize', elements: 'Fire + Water', desc: 'High-pressure steam deals +25 bonus damage and cleanses wet.', icon: '💨' },
+        { name: 'Superconduct', elements: 'Lightning + Water', desc: 'Electrified charge shocks the target, lowering AP next turn.', icon: '⚡' },
+        { name: 'Toxic Explosion', elements: 'Fire + Poison', desc: 'Venom ignites into an explosive blast dealing +30 damage in a 3x3 AoE.', icon: '💥' },
+        { name: 'Petrify', elements: 'Earth + Water/Poison', desc: 'Solidifying minerals encase target in stone, rooting them in place.', icon: '🪨' },
+        { name: 'Melt', elements: 'Fire + Ice', desc: 'Intense thermal shock liquefies ice, dealing +32 melt damage.', icon: '🔥' },
+        { name: 'Shatter', elements: 'Metal/Force + Frozen/Rooted', desc: 'Kinetic impact shatters brittle crystalline defenses for +28 damage.', icon: '🔨' },
+        { name: 'Firestorm', elements: 'Wind/Storm + Fire', desc: 'Roaring gusts fan flames into an inferno affecting adjacent tiles.', icon: '🌪️' },
+        { name: 'Annihilation', elements: 'Light + Darkness', desc: 'Absolute contrast collision unleashes antimatter destruction for +35 damage.', icon: '✨' },
+        { name: 'Void Collapse', elements: 'Void + Any Status', desc: 'Cosmic entropy collapses active debuffs for +20 bonus damage.', icon: '🌌' },
+        { name: 'Holy Smite', elements: 'Light + Undead', desc: 'Radiant glory incinerates necrotic corruption for +30 bonus damage.', icon: '☀️' },
+        { name: 'Necrosis', elements: 'Undead + Poison/Blood', desc: 'Creeping gangrene rapidly dissolves flesh, dealing +26 damage.', icon: '💀' },
+      ];
+
+      const filteredReactions = reactions.filter(
+        (r) => r.name.toLowerCase().includes(query) || r.elements.toLowerCase().includes(query) || r.desc.toLowerCase().includes(query)
+      );
+
+      filteredReactions.forEach((r) => {
+        const card = document.createElement('div');
+        card.className = 'codex-card';
+        card.innerHTML = `
+          <div class="codex-card-header">
+            <span class="codex-card-icon">${r.icon}</span>
+            <div>
+              <div class="codex-card-title">${r.name}</div>
+              <div class="codex-card-category">${r.elements}</div>
+            </div>
+          </div>
+          <div class="codex-card-desc">${r.desc}</div>
+        `;
+        this.codexGridContainer.appendChild(card);
+      });
+      return;
+    }
+
+    // Otherwise render elements
+    const allElements = Object.keys(CORE_ELEMENTS) as ElementType[];
+    const filtered = allElements.filter((elem) => {
+      if (elem === 'Neutral') return false;
+      const data = CORE_ELEMENTS[elem];
+      if (!data) return false;
+
+      const matchesCategory = this.codexCategory === 'All' || data.category === this.codexCategory;
+      const matchesSearch =
+        query === '' ||
+        data.name.toLowerCase().includes(query) ||
+        data.description.toLowerCase().includes(query) ||
+        (HERO_CLASSES[elem] && HERO_CLASSES[elem].className.toLowerCase().includes(query));
+
+      return matchesCategory && matchesSearch;
+    });
+
+    filtered.forEach((elem) => {
+      const data = CORE_ELEMENTS[elem];
+      const heroClass = HERO_CLASSES[elem];
+      const card = document.createElement('div');
+      card.className = 'codex-card';
+      card.style.borderColor = data.color;
+
+      const strongList = data.strongAgainst.join(', ') || 'None';
+      const weakList = data.weakAgainst.join(', ') || 'None';
+
+      card.innerHTML = `
+        <div class="codex-card-header">
+          <span class="codex-card-icon">${data.icon}</span>
+          <div>
+            <div class="codex-card-title" style="color:${data.color};">${data.name} ${heroClass ? `(${heroClass.className})` : ''}</div>
+            <div class="codex-card-category">${data.category} Element</div>
+          </div>
+        </div>
+        <div class="codex-card-desc">${data.description}</div>
+        <div class="codex-card-synergies">
+          <div class="synergy-strong">⚔️ Strong vs: ${strongList}</div>
+          <div class="synergy-weak">🛡️ Weak vs: ${weakList}</div>
+        </div>
+      `;
+      this.codexGridContainer.appendChild(card);
     });
   }
 
@@ -209,6 +455,7 @@ export class GameApp {
   }
 
   private openHotseatSelection(): void {
+    this.hideHomeScreen();
     this.hotseatModalTitle.textContent = '⚔️ HOT SEAT ARENA: SELECT PLAYER 1';
     this.hotseatModalSubtitle.textContent = 'Player 1, choose your elemental champion.';
     this.renderHotseatClassCards(1);
@@ -267,6 +514,7 @@ export class GameApp {
   }
 
   private startHotseatMatch(): void {
+    this.hideHomeScreen();
     this.isHotseatMode = true;
     this.hotseatCurrentPlayer = 1;
 
@@ -316,6 +564,60 @@ export class GameApp {
   }
 
   private setupEventListeners(canvas: HTMLCanvasElement): void {
+    // Home Screen Actions
+    this.homeBtnCampaign?.addEventListener('click', () => {
+      this.hideHomeScreen();
+      this.renderCharacterSelectModal();
+      this.characterSelectModal.classList.remove('hidden');
+    });
+
+    this.homeBtnHotseat?.addEventListener('click', () => {
+      this.openHotseatSelection();
+    });
+
+    this.homeBtnCodex?.addEventListener('click', () => {
+      this.openCodex();
+    });
+
+    this.homeBtnGuide?.addEventListener('click', () => {
+      this.openGuide();
+    });
+
+    // Header Navigation
+    this.navHomeBtn?.addEventListener('click', () => {
+      this.showHomeScreen();
+    });
+
+    this.navCodexBtn?.addEventListener('click', () => {
+      this.openCodex();
+    });
+
+    this.navGuideBtn?.addEventListener('click', () => {
+      this.openGuide();
+    });
+
+    // Close Modals
+    document.getElementById('close-codex-btn')?.addEventListener('click', () => {
+      this.closeCodex();
+    });
+
+    document.getElementById('close-guide-btn')?.addEventListener('click', () => {
+      this.closeGuide();
+    });
+
+    document.getElementById('char-select-back-btn')?.addEventListener('click', () => {
+      this.showHomeScreen();
+    });
+
+    document.getElementById('hotseat-select-back-btn')?.addEventListener('click', () => {
+      this.showHomeScreen();
+    });
+
+    document.getElementById('gameover-home-btn')?.addEventListener('click', () => {
+      this.showHomeScreen();
+    });
+
+    // Canvas Interactions
     canvas.addEventListener('mousemove', (e) => {
       if (this.isBusy) return;
       const gridCoord = this.renderer.screenToGrid(e.clientX, e.clientY);
@@ -345,13 +647,6 @@ export class GameApp {
     });
 
     this.pvpArenaBtn?.addEventListener('click', () => {
-      this.characterSelectModal.classList.add('hidden');
-      this.gameOverModal.classList.add('hidden');
-      this.openHotseatSelection();
-    });
-
-    document.getElementById('modal-pvp-arena-btn')?.addEventListener('click', () => {
-      this.characterSelectModal.classList.add('hidden');
       this.openHotseatSelection();
     });
 
@@ -940,6 +1235,7 @@ export class GameApp {
   }
 
   private restartGame(element: ElementType): void {
+    this.hideHomeScreen();
     this.gameOverModal.classList.add('hidden');
     this.currentRound = 1;
     this.totalEssence = 0;
@@ -1019,6 +1315,11 @@ export class GameApp {
     const now = performance.now();
     const deltaTimeMs = Math.min(now - this.lastFrameTime, 100);
     this.lastFrameTime = now;
+
+    // If home screen is visible, render particle cosmos
+    if (!this.homeScreen.classList.contains('hidden')) {
+      this.updateAndRenderHomeParticles();
+    }
 
     this.renderer.update(deltaTimeMs);
     this.renderer.render(
