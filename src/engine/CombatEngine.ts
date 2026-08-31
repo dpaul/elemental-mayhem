@@ -94,7 +94,7 @@ export class CombatEngine {
           aoeRadius: 0,
           targeting: 'SingleUnit',
           baseDamage: 28,
-          description: 'Lethal melee bite that infects target to rise in 3 turns after death.',
+          description: 'Lethal melee bite that infects target to rise in 1 turn or immediately upon death.',
           level: 1,
         },
       ],
@@ -160,7 +160,7 @@ export class CombatEngine {
         const newZombie = this.spawnZombie(spawnTile, p.baseHp, p.baseAp);
         this.addLog(
           'system',
-          `🧟 The corpse of ${p.victimName} has risen as a Reanimated Zombie (${newZombie.stats.maxHp} HP, ${newZombie.stats.maxAp} AP) after 3 turns!`
+          `🧟 An infected corpse has reanimated into an allied Zombie (${newZombie.stats.maxHp} HP, ${newZombie.stats.maxAp} AP) after 1 turn!`
         );
       } else {
         this.addLog(
@@ -215,15 +215,15 @@ export class CombatEngine {
     caster: Unit,
     ability: Ability,
     targetCoord: GridCoord
-  ): { success: boolean; message?: string } {
+  ): { success: boolean; message?: string; targetFled?: boolean } {
     if (caster.isDead) return { success: false, message: 'Caster is dead.' };
     if (caster.stats.currentAp < ability.apCost) return { success: false, message: 'Not enough AP.' };
     if (ability.currentCooldown > 0) return { success: false, message: 'Ability on cooldown.' };
 
     const dist = this.grid.manhattanDistance(caster.coord, targetCoord);
-    if (dist > ability.range) return { success: false, message: 'Target out of range.' };
+    if (dist > ability.range && ability.targeting !== 'Self') return { success: false, message: 'Target out of range.' };
 
-    if (!this.grid.hasLineOfSight(caster.coord, targetCoord)) {
+    if (ability.targeting !== 'Self' && !this.grid.hasLineOfSight(caster.coord, targetCoord)) {
       return { success: false, message: 'Line of sight blocked by obstacle.' };
     }
 
@@ -235,6 +235,33 @@ export class CombatEngine {
       caster.faction === 'Player' ? 'player' : 'enemy',
       `${caster.name} casts ${ability.name} (${ability.element})!`
     );
+
+    // 1. Special 5th Ability: Raise Undead Horde (raises 4 zombies in adjacent free tiles)
+    if (ability.id === 'raise_undead_horde') {
+      const neighbors = this.grid.getNeighbors(caster.coord);
+      const diagonals = [
+        { x: caster.coord.x - 1, y: caster.coord.y - 1 },
+        { x: caster.coord.x + 1, y: caster.coord.y - 1 },
+        { x: caster.coord.x - 1, y: caster.coord.y + 1 },
+        { x: caster.coord.x + 1, y: caster.coord.y + 1 },
+      ].filter((c) => this.grid.isInBounds(c));
+
+      const candidates = [...neighbors, ...diagonals];
+      const validTiles = candidates.filter(
+        (c) => !this.grid.getTile(c)?.isObstacle && this.getUnitAt(c) === null
+      );
+
+      const spawnCount = Math.min(4, validTiles.length);
+      for (let i = 0; i < spawnCount; i++) {
+        this.spawnZombie(validTiles[i], 50, 4);
+      }
+
+      this.addLog(
+        'system',
+        `⚰️ The Necromancer raises ${spawnCount} Reanimated Zombies from the ground adjacent to them!`
+      );
+      return { success: true };
+    }
 
     // Collect affected coordinates (single target or AoE)
     const affectedCoords: GridCoord[] = [];
@@ -250,6 +277,8 @@ export class CombatEngine {
     } else {
       affectedCoords.push(targetCoord);
     }
+
+    let enemyFledFlag = false;
 
     // Apply damage and reactions to each affected tile and unit
     for (const coord of affectedCoords) {
@@ -312,7 +341,29 @@ export class CombatEngine {
           });
         }
 
-        // Check for unit death
+        // 1 in 5 (20%) chance the target panics and flees when attacked by a Zombie
+        if (caster.isZombie && targetUnit.faction === 'Enemy' && !targetUnit.isDead) {
+          const fleeRoll = Math.random();
+          if (fleeRoll < 0.2) {
+            // Find free neighboring tile further away from zombie
+            const fleeNeighbors = this.grid.getNeighbors(targetUnit.coord).filter(
+              (n) =>
+                !this.grid.getTile(n)?.isObstacle &&
+                this.getUnitAt(n) === null &&
+                this.grid.manhattanDistance(n, caster.coord) > this.grid.manhattanDistance(targetUnit.coord, caster.coord)
+            );
+            if (fleeNeighbors.length > 0) {
+              targetUnit.coord = { ...fleeNeighbors[0] };
+              enemyFledFlag = true;
+              this.addLog(
+                'system',
+                `😱 ${targetUnit.name} panicked and fled in terror from the Zombie! The Zombie focuses on another target.`
+              );
+            }
+          }
+        }
+
+        // Check for unit death vs damaged by zombie
         if (targetUnit.stats.currentHp === 0) {
           targetUnit.isDead = true;
           this.addLog('system', `☠️ ${targetUnit.name} has been defeated!`);
@@ -322,21 +373,18 @@ export class CombatEngine {
 
           // --- NECROMANCER REANIMATION MECHANIC ---
           if (caster.isZombie && targetUnit.faction === 'Enemy') {
-            // 2. Kill by a Zombie (Infectious strike -> reanimates after 3 turns):
-            this.pendingReanimations.push({
-              id: `reanim_${Date.now()}_${Math.random()}`,
-              coord: { ...targetUnit.coord },
-              turnsRemaining: 3,
-              baseHp: targetUnit.stats.maxHp,
-              baseAp: targetUnit.stats.maxAp,
-              victimName: targetUnit.name,
-            });
+            // Killed by a Zombie -> reanimates IMMEDIATELY!
+            const newZombie = this.spawnZombie(
+              targetUnit.coord,
+              targetUnit.stats.maxHp,
+              targetUnit.stats.maxAp
+            );
             this.addLog(
               'system',
-              `⚰️ ${targetUnit.name} was slain by a Zombie! A corpse lies waiting and will reanimate as a Zombie after 3 turns!`
+              `🧟 ${targetUnit.name} was slain by a Zombie and immediately rises as an allied Zombie (${newZombie.stats.maxHp} HP, ${newZombie.stats.maxAp} Speed)!`
             );
           } else {
-            // 1. Direct kill by Necromancer hero or Undead element ability:
+            // Direct kill by Necromancer hero or Undead element ability:
             const isNecromancerKill =
               (caster.stats.elementalAffinity === 'Undead' || ability.element === 'Undead') &&
               targetUnit.faction === 'Enemy' &&
@@ -354,6 +402,20 @@ export class CombatEngine {
               );
             }
           }
+        } else if (caster.isZombie && targetUnit.faction === 'Enemy' && !targetUnit.isDead) {
+          // Damaged by a zombie but survived -> reanimates in 1 turn!
+          this.pendingReanimations.push({
+            id: `reanim_${Date.now()}_${Math.random()}`,
+            coord: { ...targetUnit.coord },
+            turnsRemaining: 1,
+            baseHp: targetUnit.stats.maxHp,
+            baseAp: targetUnit.stats.maxAp,
+            victimName: targetUnit.name,
+          });
+          this.addLog(
+            'system',
+            `☣️ ${targetUnit.name} was infected by the Zombie's attack and will reanimate in 1 turn!`
+          );
         }
       }
 
@@ -372,7 +434,7 @@ export class CombatEngine {
       }
     }
 
-    return { success: true };
+    return { success: true, targetFled: enemyFledFlag };
   }
 
   public addLog(type: 'player' | 'enemy' | 'reaction' | 'hazard' | 'system', message: string): void {

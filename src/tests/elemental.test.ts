@@ -178,7 +178,7 @@ describe('Hero Elemental Classes & Dedicated Move Kits (TDD Red -> Green)', () =
       const config = HERO_CLASSES[elem];
       expect(config).toBeDefined();
       expect(config.element).toBe(elem);
-      expect(config.abilities.length).toBe(4);
+      expect(config.abilities.length).toBeGreaterThanOrEqual(4);
       config.abilities.forEach((ab) => {
         expect(ab.element).toBe(elem);
       });

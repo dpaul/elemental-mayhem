@@ -382,33 +382,66 @@ describe('Necromancer Reanimation & Zombie Lifecycles (TDD Red -> Green)', () =>
     expect(zombie.abilities[0].range).toBe(1); // Attacks only when adjacent
   });
 
-  it('should create a 3-turn delayed reanimation when a Zombie attacks and kills an enemy', () => {
+  it('should immediately reanimate an enemy when killed by a Zombie', () => {
     // Spawn zombie directly next to enemy2
     const zombie = combatEngine.spawnZombie({ x: 3, y: 2 }, 30, 4);
     const bite = zombie.abilities[0];
 
-    // Zombie bites enemy2 (20 HP vs 28 damage)
+    // Zombie bites enemy2 to death (20 HP vs 28 damage)
     const result = combatEngine.executeAbility(zombie, bite, { x: 3, y: 3 });
     expect(result.success).toBe(true);
     expect(enemy2.isDead).toBe(true);
 
-    // Verify pending reanimation
+    // Should immediately reanimate as an allied zombie!
+    expect(combatEngine.zombies.length).toBe(2); // Initial zombie + newly risen zombie
+  });
+
+  it('should reanimate an enemy in 1 turn if it was damaged but survived a Zombie attack', () => {
+    // enemy1 has 40 HP, Zombie bite deals 28 damage -> enemy1 survives with 12 HP
+    const zombie = combatEngine.spawnZombie({ x: 2, y: 2 }, 30, 4);
+    const bite = zombie.abilities[0];
+
+    const result = combatEngine.executeAbility(zombie, bite, { x: 2, y: 3 });
+    expect(result.success).toBe(true);
+    expect(enemy1.isDead).toBe(false);
+    expect(enemy1.stats.currentHp).toBe(12);
+
+    // Infection pending reanimation in 1 turn
     expect(combatEngine.pendingReanimations.length).toBe(1);
-    expect(combatEngine.pendingReanimations[0].turnsRemaining).toBe(3);
-    expect(combatEngine.pendingReanimations[0].victimName).toBe('Cultist Guard');
-
-    // Tick 1
-    combatEngine.tickZombies();
-    expect(combatEngine.pendingReanimations[0].turnsRemaining).toBe(2);
-
-    // Tick 2
-    combatEngine.tickZombies();
     expect(combatEngine.pendingReanimations[0].turnsRemaining).toBe(1);
 
-    // Tick 3: Reanimates as a new zombie!
+    // After 1 turn tick: rises as a zombie!
     combatEngine.tickZombies();
     expect(combatEngine.pendingReanimations.length).toBe(0);
-    expect(combatEngine.zombies.length).toBe(2); // Initial zombie + newly risen zombie
+    expect(combatEngine.zombies.length).toBe(2); // Initial zombie + new zombie
+  });
+
+  it('should raise 4 zombies adjacent to the Necromancer using the 5th move Raise Undead Horde', () => {
+    const raiseHorde = {
+      id: 'raise_undead_horde',
+      name: 'Raise Undead Horde',
+      element: 'Undead' as const,
+      icon: '⚰️',
+      apCost: 3,
+      cooldown: 2,
+      currentCooldown: 0,
+      range: 1,
+      aoeRadius: 1,
+      targeting: 'Self' as const,
+      baseDamage: 0,
+      description: 'Raises 4 zombies.',
+      level: 1,
+    };
+
+    const result = combatEngine.executeAbility(necromancer, raiseHorde, necromancer.coord);
+    expect(result.success).toBe(true);
+    expect(combatEngine.zombies.length).toBe(4);
+    combatEngine.zombies.forEach((z) => {
+      expect(z.isZombie).toBe(true);
+      expect(z.faction).toBe('Player');
+      expect(z.stats.maxHp).toBe(50 * 4); // 200 HP
+      expect(z.stats.maxAp).toBe(4 * 3); // 12 AP
+    });
   });
 
   it('should expire a Zombie after 4 turns, leave a bone pile, and grant the Necromancer +3 AP', () => {
