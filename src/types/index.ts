@@ -114,7 +114,8 @@ export type StatusEffectType =
   | 'Stunned'
   | 'Blinded'
   | 'Regenerating'
-  | 'TimeDilation';
+  | 'TimeDilation'
+  | 'Confused';
 
 export interface StatusEffect {
   type: StatusEffectType;
@@ -169,16 +170,31 @@ export interface Unit {
   faction: UnitFaction;
   avatar: string;
   coord: GridCoord;
+  level?: number;
   stats: UnitStats;
   abilities: Ability[];
   statusEffects: StatusEffect[];
   isDead: boolean;
   isBoss?: boolean;
   isZombie?: boolean;
+  zombieClass?: ZombieClass;
   zombieLifetime?: number; // 4 turns max
   infectedByZombie?: boolean;
   isLifeBeing?: boolean;
 }
+
+export type ZombieClass =
+  | 'Walker'
+  | 'Runner'
+  | 'Brute'
+  | 'Spitter'
+  | 'Wizard'
+  | 'Boomer'
+  | 'Frostbite'
+  | 'DeathKnight'
+  | 'Screamer'
+  | 'PlagueBearer'
+  | 'Electro';
 
 export type TurnPhase =
   | 'ROUND_START'
@@ -242,6 +258,7 @@ export interface GameState {
   gridSize: number;
   tiles: TileState[][];
   hero: Unit;
+  heroLevel?: number;
   enemies: Unit[];
   selectedAbilityId: string | null;
   selectedTargetCoord: GridCoord | null;

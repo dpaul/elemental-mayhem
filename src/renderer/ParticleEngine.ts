@@ -63,6 +63,7 @@ export interface AscendingSoul {
   avatar: string;
   scale: number;
   isBoss?: boolean;
+  isPlayer?: boolean;
 }
 
 export class ParticleEngine {
@@ -71,6 +72,12 @@ export class ParticleEngine {
   private shockwaves: Shockwave[] = [];
   private beams: BeamEffect[] = [];
   private ascendingSouls: AscendingSoul[] = [];
+
+  // Screen Flash & Vignette System (Player Death & Cataclysms)
+  public deathFlashAlpha: number = 0;
+  public deathFlashColor: string = '#ffffff';
+  public deathVignetteAlpha: number = 0;
+  public deathVignetteColor: string = '#ef4444';
 
   // Screen Shake system
   private shakeIntensity: number = 0;
@@ -190,74 +197,99 @@ export class ParticleEngine {
     const elem = killerElement || unit.stats.elementalAffinity || 'Fire';
     const elemData = CORE_ELEMENTS[elem] || CORE_ELEMENTS.Fire;
     const isBoss = !!unit.isBoss;
+    const isPlayer = unit.faction === 'Player' || unit.id === 'hero';
 
-    // 1. Epic Screen Shake
-    this.triggerScreenShake(isBoss ? 20 : 8, isBoss ? 650 : 320);
+    // 1. Epic Screen Shake (Player, Boss, and CPU)
+    this.triggerScreenShake(isPlayer ? 28 : isBoss ? 28 : 22, isPlayer ? 1400 : isBoss ? 1300 : 950);
 
-    // 2. Concentric Shockwaves
-    this.addShockwave(x, y, elemData.color, isBoss ? 90 : 54, 4.5);
-    this.addShockwave(x, y, '#ffffff', isBoss ? 60 : 36, 6.0);
-    if (isBoss) {
-      this.addShockwave(x, y, '#f59e0b', 120, 3.2);
-    }
+    // 2. Fullscreen Flash & Radial Death Vignette for CPUs, Bosses, and Players
+    this.deathFlashAlpha = isPlayer ? 0.9 : isBoss ? 0.85 : 0.75;
+    this.deathFlashColor = elemData.color || '#ffffff';
+    this.deathVignetteAlpha = isPlayer ? 1.0 : isBoss ? 0.95 : 0.85;
+    this.deathVignetteColor = isPlayer ? '#dc2626' : isBoss ? '#f59e0b' : elemData.color || '#9333ea';
 
-    // 3. Ascending Soul Spirit
+    // 3. 4-Tier Concentric Shockwaves for All Units
+    this.addShockwave(x, y, '#ffffff', isPlayer ? 140 : isBoss ? 130 : 110, 8.5);
+    this.addShockwave(x, y, elemData.color, isPlayer ? 240 : isBoss ? 220 : 190, 5.5);
+    this.addShockwave(x, y, elemData.glowColor || '#ffd000', isPlayer ? 340 : isBoss ? 310 : 270, 4.0);
+    this.addShockwave(x, y, isBoss ? '#f59e0b' : isPlayer ? '#ef4444' : elemData.color, isPlayer ? 420 : isBoss ? 390 : 340, 2.8);
+
+    // 4. Ascending Soul Spirit with Celestial Halo & Trailing Stardust
     this.ascendingSouls.push({
       x,
       y,
-      vx: (Math.random() - 0.5) * 0.6,
-      vy: isBoss ? -1.8 : -1.3,
+      vx: (Math.random() - 0.5) * 0.4,
+      vy: isPlayer ? -1.1 : isBoss ? -1.2 : -1.25,
       rotation: 0,
-      vRot: (Math.random() - 0.5) * 0.05,
+      vRot: (Math.random() - 0.5) * 0.03,
       alpha: 1.0,
       color: elemData.color,
       avatar: unit.avatar,
-      scale: isBoss ? 1.4 : 1.0,
+      scale: isPlayer ? 1.7 : isBoss ? 1.6 : 1.45,
       isBoss,
+      isPlayer,
     });
 
-    // 4. Custom Elemental Death Explosions
+    // 5. Radial Elemental Energy Beams (8 Cardinal Directions)
+    for (let i = 0; i < 8; i++) {
+      const angle = (i * Math.PI * 2) / 8;
+      const dist = isPlayer ? 180 : isBoss ? 170 : 145;
+      const bx = x + Math.cos(angle) * dist;
+      const by = y + Math.sin(angle) * dist;
+      this.addBeam(x, y, bx, by, elemData.color, isPlayer ? 8 : 6.5, isPlayer ? 850 : 750);
+    }
+
+    // 6. Custom Elemental Death Explosions & Typography
     const elemName = elem.toString().toLowerCase();
 
-    if (isBoss) {
-      this.emit(x, y, '#fbbf24', 50, 6.0, 'star');
-      this.emit(x, y, '#ef4444', 40, 5.0, 'spark');
-      this.emit(x, y, '#ffffff', 20, 7.0, 'circle');
-      this.addFloatingText('👑 TITAN FELLED!', x, y - 35, '#fbbf24', 28);
-    } else if (elemName.includes('fire') || elemName.includes('magma') || elemName.includes('heat')) {
+    // Dense High-Impact Particle Burst
+    this.emit(x, y, elemData.color, isPlayer ? 55 : isBoss ? 50 : 45, 6.0, 'star');
+    this.emit(x, y, '#ffffff', 35, 5.0, 'spark');
+    this.emit(x, y, elemData.glowColor || '#ffd000', 30, 4.5, 'crystal');
+    this.emit(x, y, isBoss ? '#f59e0b' : isPlayer ? '#ef4444' : elemData.color, 25, 3.5, 'ring');
+
+    if (isPlayer) {
+      this.addFloatingText('💀 CHAMPION FALLEN!', x, y - 50, '#f43f5e', 32);
+      this.addFloatingText(`✨ ${elem.toUpperCase()} ESSENCE EXTINGUISHED`, x, y - 18, elemData.color, 20);
+    } else if (isBoss) {
+      this.addFloatingText('👑 TITAN FELLED!', x, y - 48, '#fbbf24', 30);
+      this.addFloatingText(`✨ ${elem.toUpperCase()} TITAN ESSENCE EXTRACTED`, x, y - 18, elemData.color, 20);
+    } else {
+      this.addFloatingText('💀 CPU OBLITERATED!', x, y - 48, '#fb7185', 28);
+      this.addFloatingText(`✨ ${elem.toUpperCase()} ESSENCE HARVESTED`, x, y - 18, elemData.color, 20);
+    }
+
+    // Elemental Specialization FX
+    if (elemName.includes('fire') || elemName.includes('magma') || elemName.includes('heat')) {
       this.emit(x, y, '#ff6b35', 35, 4.5, 'spark');
       this.emit(x, y, '#fbbf24', 20, 3.5, 'circle');
       this.emit(x, y, '#78716c', 15, 2.0, 'circle'); // Smoke embers
-      this.addFloatingText('🔥 INCINERATED!', x, y - 25, '#ff6b35', 22);
+      this.addFloatingText('🔥 INCINERATED!', x, y + 16, '#ff6b35', 22);
     } else if (elemName.includes('lightning') || elemName.includes('storm') || elemName.includes('electric') || elemName.includes('thunder')) {
       this.emit(x, y, '#ffd000', 40, 5.5, 'spark');
       this.emit(x, y, '#38bdf8', 25, 4.0, 'spark');
       // Cross lightning beams
       this.addBeam(x - 30, y - 30, x + 30, y + 30, '#ffd000', 4, 300);
       this.addBeam(x + 30, y - 30, x - 30, y + 30, '#38bdf8', 4, 300);
-      this.addFloatingText('⚡ VAPORIZED!', x, y - 25, '#ffd000', 22);
+      this.addFloatingText('⚡ VAPORIZED!', x, y + 16, '#ffd000', 22);
     } else if (elemName.includes('ice') || elemName.includes('cold') || elemName.includes('frost')) {
       this.emit(x, y, '#67e8f9', 45, 4.0, 'crystal');
       this.emit(x, y, '#e0f2fe', 20, 2.5, 'spark');
-      this.addFloatingText('❄️ SHATTERED!', x, y - 25, '#67e8f9', 22);
+      this.addFloatingText('❄️ SHATTERED!', x, y + 16, '#67e8f9', 22);
     } else if (elemName.includes('undead') || elemName.includes('death') || elemName.includes('dark') || elemName.includes('void')) {
       this.emit(x, y, '#a855f7', 35, 4.0, 'spark');
       this.emit(x, y, '#22c55e', 20, 3.0, 'skull');
       this.emit(x, y, '#1e1b4b', 20, 2.0, 'circle');
-      this.addFloatingText('💀 SOUL SHATTERED!', x, y - 25, '#c084fc', 22);
+      this.addFloatingText('💀 SOUL SHATTERED!', x, y + 16, '#c084fc', 22);
     } else if (elemName.includes('life') || elemName.includes('light') || elemName.includes('nature') || elemName.includes('love')) {
       this.emit(x, y, '#4ade80', 35, 4.0, 'star');
       this.emit(x, y, '#fef08a', 25, 3.5, 'circle');
       this.addBeam(x, y + 20, x, y - 60, '#fef08a', 8, 350);
-      this.addFloatingText('🌸 PURIFIED!', x, y - 25, '#4ade80', 22);
+      this.addFloatingText('🌸 PURIFIED!', x, y + 16, '#4ade80', 22);
     } else if (elemName.includes('earth') || elemName.includes('metal') || elemName.includes('force')) {
       this.emit(x, y, '#ca8a04', 35, 4.0, 'crystal');
       this.emit(x, y, '#94a3b8', 25, 3.0, 'spark');
-      this.addFloatingText('🪨 CRUSHED!', x, y - 25, '#ca8a04', 22);
-    } else {
-      this.emit(x, y, elemData.color, 30, 4.0, 'spark');
-      this.emit(x, y, '#ffffff', 15, 2.5, 'circle');
-      this.addFloatingText('☠️ DEFEATED!', x, y - 25, elemData.color, 22);
+      this.addFloatingText('🪨 CRUSHED!', x, y + 16, '#ca8a04', 22);
     }
   }
 
@@ -267,17 +299,28 @@ export class ParticleEngine {
       this.shakeElapsedMs += deltaTimeMs;
     }
 
+    // Fade screen flash and vignette
+    if (this.deathFlashAlpha > 0) {
+      this.deathFlashAlpha = Math.max(0, this.deathFlashAlpha - deltaTimeMs * 0.0014);
+    }
+    if (this.deathVignetteAlpha > 0) {
+      this.deathVignetteAlpha = Math.max(0, this.deathVignetteAlpha - deltaTimeMs * 0.0004);
+    }
+
     // Update ascending souls
     for (let i = this.ascendingSouls.length - 1; i >= 0; i--) {
       const soul = this.ascendingSouls[i];
       soul.x += soul.vx;
       soul.y += soul.vy;
       soul.rotation += soul.vRot;
-      soul.alpha -= 0.012;
+      soul.alpha -= 0.007;
 
-      // Emit subtle trailing spirit spark
-      if (Math.random() < 0.3) {
-        this.emit(soul.x, soul.y, soul.color, 1, 0.5, 'spark');
+      // Emit trailing spirit stardust for all souls
+      if (Math.random() < 0.65) {
+        this.emit(soul.x, soul.y + 10, soul.color, 2, 1.0, 'star');
+      }
+      if (Math.random() < 0.4) {
+        this.emit(soul.x, soul.y + 8, '#ffffff', 1, 0.6, 'spark');
       }
 
       if (soul.alpha <= 0) {
@@ -378,17 +421,25 @@ export class ParticleEngine {
 
       // Ethereal Aura
       ctx.shadowColor = soul.color;
-      ctx.shadowBlur = soul.isBoss ? 25 : 16;
-      ctx.font = `${soul.isBoss ? 36 : 28}px sans-serif`;
+      ctx.shadowBlur = soul.isPlayer ? 32 : soul.isBoss ? 28 : 24;
+      ctx.font = `${soul.isPlayer ? 42 : soul.isBoss ? 38 : 34}px sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(soul.avatar, 0, 0);
 
-      // Spirit crown for boss
-      if (soul.isBoss) {
-        ctx.font = '16px sans-serif';
-        ctx.fillText('👑', 0, -22);
-      }
+      // Celestial halo for player & CPUs, Spirit crown for boss
+      ctx.save();
+      ctx.strokeStyle = soul.isBoss ? '#f59e0b' : soul.isPlayer ? '#ffd000' : (soul.color || '#38bdf8');
+      ctx.lineWidth = 2.5;
+      ctx.shadowColor = soul.color;
+      ctx.shadowBlur = 16;
+      ctx.beginPath();
+      ctx.ellipse(0, -32, 22, 7, 0, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.font = '16px sans-serif';
+      ctx.fillText(soul.isBoss ? '👑' : soul.isPlayer ? '✨' : '⭐', 0, -33);
+      ctx.restore();
 
       ctx.restore();
     }
@@ -455,6 +506,27 @@ export class ParticleEngine {
       // Text fill
       ctx.fillStyle = ft.color;
       ctx.fillText(ft.text, ft.x, ft.y);
+      ctx.restore();
+    }
+
+    // 6. Fullscreen Death Flash & Vignette
+    if (this.deathFlashAlpha > 0) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, this.deathFlashAlpha);
+      ctx.fillStyle = this.deathFlashColor;
+      ctx.fillRect(-100, -100, 1000, 1000);
+      ctx.restore();
+    }
+
+    if (this.deathVignetteAlpha > 0) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, this.deathVignetteAlpha);
+      const grad = ctx.createRadialGradient(400, 400, 160, 400, 400, 520);
+      grad.addColorStop(0, 'rgba(0,0,0,0)');
+      grad.addColorStop(0.65, 'rgba(220, 38, 38, 0.4)');
+      grad.addColorStop(1.0, 'rgba(15, 23, 42, 0.92)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(-100, -100, 1000, 1000);
       ctx.restore();
     }
 

@@ -35,7 +35,14 @@ export class StatusEffectManager {
 
     for (const status of unit.statusEffects) {
       if (status.tickDamage && status.tickDamage > 0) {
-        const totalTick = status.tickDamage * status.stacks;
+        let totalTick = status.tickDamage * status.stacks;
+        if (unit.isZombie) {
+          const maxPerHit = Math.max(1, Math.floor(unit.stats.maxHp * 0.5));
+          totalTick = Math.min(totalTick, maxPerHit);
+          if (unit.stats.currentHp === unit.stats.maxHp && totalTick >= unit.stats.currentHp) {
+            totalTick = unit.stats.currentHp - 1;
+          }
+        }
         unit.stats.currentHp = Math.max(0, unit.stats.currentHp - totalTick);
         logs.push(`${unit.name} suffers ${totalTick} damage from ${status.type} (${status.stacks} stacks).`);
 
@@ -43,6 +50,10 @@ export class StatusEffectManager {
           unit.isDead = true;
           logs.push(`${unit.name} was slain by ${status.type}!`);
         }
+      }
+
+      if (status.type === 'Confused' && !unit.isDead) {
+        logs.push(`🌀 ${unit.name} is disoriented by Confusion!`);
       }
 
       status.duration -= 1;

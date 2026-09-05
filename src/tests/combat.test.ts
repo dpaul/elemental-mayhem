@@ -1,11 +1,11 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { CombatEngine } from '../engine/CombatEngine';
 import { TurnManager } from '../engine/TurnManager';
 import { EnemyAI } from '../engine/EnemyAI';
 import { Grid } from '../engine/Grid';
 import { TileHazardManager } from '../engine/TileHazardManager';
 import { Unit, Ability } from '../types';
-import { HERO_CLASSES } from '../constants/classes';
+import { HERO_CLASSES, createHeroForElement } from '../constants/classes';
 
 describe('CombatEngine & TurnManager (TDD Red -> Green)', () => {
   let grid: Grid;
@@ -468,6 +468,39 @@ describe('Necromancer Reanimation & Zombie Lifecycles (TDD Red -> Green)', () =>
     expect(grid.getTile({ x: 4, y: 4 })?.hazard.type).toBe('BonePile');
     expect(necromancer.stats.currentAp).toBe(5); // 2 + 3 = 5 AP
   });
+
+  it('should ensure nothing can 1-tap a zombie by capping single-hit damage to 50% max HP and preventing 1-shot from full HP', () => {
+    // Spawn an enemy zombie with 120 HP (30 * 4)
+    const enemyZombie = combatEngine.spawnZombie({ x: 5, y: 5 }, 30, 4, 'Enemy');
+    expect(enemyZombie.stats.currentHp).toBe(120);
+    expect(enemyZombie.stats.maxHp).toBe(120);
+
+    // Overpowered nuclear attack that would normally deal 999 damage (1-tap)
+    const megaNuke: Ability = {
+      id: 'mega_nuke',
+      name: 'Cataclysm Nuke',
+      element: 'Fire',
+      icon: '💥',
+      apCost: 1,
+      cooldown: 0,
+      currentCooldown: 0,
+      range: 10,
+      aoeRadius: 0,
+      targeting: 'SingleUnit',
+      baseDamage: 999,
+      description: 'Lethal 999 damage strike.',
+      level: 1,
+    };
+
+    // Attack the zombie with the 999-damage strike
+    const result = combatEngine.executeAbility(necromancer, megaNuke, { x: 5, y: 5 });
+    expect(result.success).toBe(true);
+
+    // Zombie must NOT be dead (impossible to 1-tap!)
+    expect(enemyZombie.isDead).toBe(false);
+    // Damage should have been capped to 50% max HP (60 damage max)
+    expect(enemyZombie.stats.currentHp).toBe(60); // 120 - 60 = 60 HP remaining
+  });
 });
 
 describe('Life Element Unzombify, Cascade Explosions & Being of Life (TDD Red -> Green)', () => {
@@ -618,5 +651,180 @@ describe('Life Element Unzombify, Cascade Explosions & Being of Life (TDD Red ->
     // 30 base damage - 35 absorbed = 0 damage taken!
     expect(target.stats.currentHp).toBe(initialHp);
     expect(target.isDead).toBe(false);
+  });
+
+  it('should ensure all created hero characters have 10 max AP and 10 current AP', () => {
+    const fireHero = createHeroForElement('Fire');
+    expect(fireHero.stats.maxAp).toBe(10);
+    expect(fireHero.stats.currentAp).toBe(10);
+
+    const waterHero = createHeroForElement('Water');
+    expect(waterHero.stats.maxAp).toBe(10);
+    expect(waterHero.stats.currentAp).toBe(10);
+
+    const timeHero = createHeroForElement('Time');
+    expect(timeHero.stats.maxAp).toBe(10);
+    expect(timeHero.stats.currentAp).toBe(10);
+  });
+
+  it('should verify every single element (all 44) has a dedicated Confusion move that applies Confused status', () => {
+    const elements = Object.keys(HERO_CLASSES) as any[];
+    expect(elements.length).toBe(44);
+
+    elements.forEach((elem) => {
+      const cls = HERO_CLASSES[elem as keyof typeof HERO_CLASSES];
+      const confusionMove = cls.abilities.find((a) => a.appliesStatus === 'Confused');
+      expect(confusionMove, `Element ${elem} is missing a Confusion move!`).toBeDefined();
+      expect(confusionMove!.appliesStatus).toBe('Confused');
+      expect(confusionMove!.statusDuration).toBe(2);
+      expect(confusionMove!.icon).toBe('🌀');
+    });
+  });
+
+  it('should apply Confused status effect to an enemy and cause confusion in combat', () => {
+    const heroUnit = createHeroForElement('Fire');
+    const confusionAbility = heroUnit.abilities.find((a) => a.appliesStatus === 'Confused')!;
+    expect(confusionAbility).toBeDefined();
+
+    const enemyUnit = combatEngine.spawnZombie({ x: 2, y: 1 }, 50, 4, 'Enemy');
+    expect(enemyUnit.statusEffects.length).toBe(0);
+
+    // Cast confusion ability
+    const result = combatEngine.executeAbility(heroUnit, confusionAbility, enemyUnit.coord);
+    expect(result.success).toBe(true);
+    expect(enemyUnit.statusEffects.some((s) => s.type === 'Confused')).toBe(true);
+
+    // Verify tick status effect handles confusion
+    const tickLogs = combatEngine.statusManager.tickStatusEffects(enemyUnit);
+    expect(tickLogs.some((l) => l.includes('Confusion'))).toBe(true);
+  });
+
+  it('should support multiple zombie classes with distinct avatars, stats, and abilities', () => {
+    const walker = combatEngine.spawnZombie({ x: 1, y: 1 }, 25, 4, 'Player', 'Walker');
+    expect(walker.zombieClass).toBe('Walker');
+    expect(walker.avatar).toBe('🧟');
+    expect(walker.abilities.some((a) => a.id === 'zombie_bite')).toBe(true);
+
+    const runner = combatEngine.spawnZombie({ x: 2, y: 1 }, 25, 4, 'Player', 'Runner');
+    expect(runner.zombieClass).toBe('Runner');
+    expect(runner.avatar).toBe('🧟⚡');
+    expect(runner.abilities.some((a) => a.id === 'runner_frenzied_pounce')).toBe(true);
+
+    const brute = combatEngine.spawnZombie({ x: 3, y: 1 }, 25, 4, 'Player', 'Brute');
+    expect(brute.zombieClass).toBe('Brute');
+    expect(brute.avatar).toBe('🧟🛡️');
+    expect(brute.stats.maxHp).toBe(25 * 4); // 100 (4x HP)
+    expect(brute.abilities.some((a) => a.id === 'brute_ground_slam')).toBe(true);
+
+    const spitter = combatEngine.spawnZombie({ x: 4, y: 1 }, 25, 4, 'Player', 'Spitter');
+    expect(spitter.zombieClass).toBe('Spitter');
+    expect(spitter.avatar).toBe('🧟🧪');
+    expect(spitter.abilities.some((a) => a.id === 'spitter_toxic_bile')).toBe(true);
+
+    const boomer = combatEngine.spawnZombie({ x: 5, y: 1 }, 25, 4, 'Player', 'Boomer');
+    expect(boomer.zombieClass).toBe('Boomer');
+    expect(boomer.avatar).toBe('🧟💣');
+    expect(boomer.stats.elementalAffinity).toBe('Fire');
+    expect(boomer.abilities.some((a) => a.id === 'boomer_detonation')).toBe(true);
+
+    const frostbite = combatEngine.spawnZombie({ x: 6, y: 1 }, 25, 4, 'Player', 'Frostbite');
+    expect(frostbite.zombieClass).toBe('Frostbite');
+    expect(frostbite.avatar).toBe('🧟❄️');
+    expect(frostbite.stats.elementalAffinity).toBe('Cold');
+    expect(frostbite.abilities.some((a) => a.id === 'frostbite_freeze')).toBe(true);
+
+    const deathKnight = combatEngine.spawnZombie({ x: 7, y: 1 }, 25, 4, 'Player', 'DeathKnight');
+    expect(deathKnight.zombieClass).toBe('DeathKnight');
+    expect(deathKnight.avatar).toBe('🧟⚔️');
+    expect(deathKnight.stats.elementalAffinity).toBe('Metal');
+    expect(deathKnight.abilities.some((a) => a.id === 'deathknight_cleave')).toBe(true);
+    expect(deathKnight.abilities.some((a) => a.id === 'deathknight_shield')).toBe(true);
+
+    const screamer = combatEngine.spawnZombie({ x: 8, y: 1 }, 25, 4, 'Player', 'Screamer');
+    expect(screamer.zombieClass).toBe('Screamer');
+    expect(screamer.avatar).toBe('🧟😱');
+    expect(screamer.stats.elementalAffinity).toBe('Sound');
+    expect(screamer.abilities.some((a) => a.id === 'screamer_wail')).toBe(true);
+
+    const plague = combatEngine.spawnZombie({ x: 9, y: 1 }, 25, 4, 'Player', 'PlagueBearer');
+    expect(plague.zombieClass).toBe('PlagueBearer');
+    expect(plague.avatar).toBe('🧟🦠');
+    expect(plague.stats.elementalAffinity).toBe('Poison');
+    expect(plague.abilities.some((a) => a.id === 'plague_contagion')).toBe(true);
+
+    const electro = combatEngine.spawnZombie({ x: 10, y: 1 }, 25, 4, 'Player', 'Electro');
+    expect(electro.zombieClass).toBe('Electro');
+    expect(electro.avatar).toBe('🧟⚡');
+    expect(electro.stats.elementalAffinity).toBe('Lightning');
+    expect(electro.abilities.some((a) => a.id === 'electro_shock')).toBe(true);
+  });
+
+  it('should spawn a legendary Wizard Zombie that can attack from afar and bind target to the spot', () => {
+    const wizard = combatEngine.spawnZombie({ x: 1, y: 2 }, 30, 4, 'Player', 'Wizard');
+    expect(wizard.zombieClass).toBe('Wizard');
+    expect(wizard.name).toBe('Wizard Zombie');
+    expect(wizard.avatar).toBe('🧟🧙‍♂️');
+    expect(wizard.stats.maxAp).toBe(6);
+
+    // Can attack from afar: Range 7 Necrotic Shadow Bolt
+    const shadowBolt = wizard.abilities.find((a) => a.id === 'wizard_zombie_shadow_bolt')!;
+    expect(shadowBolt).toBeDefined();
+    expect(shadowBolt.range).toBe(7);
+    expect(shadowBolt.baseDamage).toBe(36);
+
+    // Can bind someone to the spot so they cannot run away: Range 6 Grave Binding
+    const graveBind = wizard.abilities.find((a) => a.id === 'wizard_zombie_grave_bind')!;
+    expect(graveBind).toBeDefined();
+    expect(graveBind.range).toBe(6);
+    expect(graveBind.appliesStatus).toBe('Rooted');
+    expect(graveBind.statusDuration).toBe(3);
+
+    // Spawn an enemy 5 tiles away (from afar)
+    const enemyTarget = combatEngine.spawnZombie({ x: 6, y: 2 }, 30, 4, 'Enemy', 'Walker');
+    expect(enemyTarget.statusEffects.length).toBe(0);
+
+    // Cast Grave Binding from afar
+    const bindResult = combatEngine.executeAbility(wizard, graveBind, enemyTarget.coord);
+    expect(bindResult.success).toBe(true);
+    expect(enemyTarget.statusEffects.some((s) => s.type === 'Rooted')).toBe(true);
+
+    // Verify target is now bound to the spot and cannot move
+    const moveResult = combatEngine.moveUnit(enemyTarget, { x: 6, y: 3 });
+    expect(moveResult).toBe(false); // Move blocked by Rooted!
+  });
+
+  it('should verify natural spawn uses 1 out of 10,000 probability for Wizard Zombie', () => {
+    // Test random roll logic: when Math.random() < 0.0001 it rolls Wizard
+    const randomSpy = vi.spyOn(Math, 'random');
+    
+    // Simulate rolling < 0.0001 (1 out of 10,000)
+    randomSpy.mockReturnValueOnce(0.00005);
+    const rolledWizard = combatEngine.spawnZombie({ x: 2, y: 3 }, 25, 4, 'Player');
+    expect(rolledWizard.zombieClass).toBe('Wizard');
+    expect(rolledWizard.avatar).toBe('🧟🧙‍♂️');
+
+    // Simulate rolling standard (> 0.0001)
+    randomSpy.mockReturnValueOnce(0.5);
+    const standardZombie = combatEngine.spawnZombie({ x: 3, y: 3 }, 25, 4, 'Player');
+    expect(standardZombie.zombieClass).not.toBe('Wizard');
+
+    randomSpy.mockRestore();
+  });
+
+  it('should support spawning an apocalyptic legion of 1000 Wizard Zombies', () => {
+    const initialCount = combatEngine.zombies.length;
+    const toSpawn = 1000;
+
+    for (let i = 0; i < toSpawn; i++) {
+      combatEngine.spawnZombie({ x: i % 10, y: Math.floor(i / 10) % 10 }, 70, 6, 'Player', 'Wizard');
+    }
+
+    expect(combatEngine.zombies.length).toBe(initialCount + 1000);
+    const sampleWizard = combatEngine.zombies[combatEngine.zombies.length - 1];
+    expect(sampleWizard.zombieClass).toBe('Wizard');
+    expect(sampleWizard.avatar).toBe('🧟🧙‍♂️');
+    expect(sampleWizard.stats.maxAp).toBe(6);
+    expect(sampleWizard.abilities.some((a) => a.id === 'wizard_zombie_shadow_bolt')).toBe(true);
+    expect(sampleWizard.abilities.some((a) => a.id === 'wizard_zombie_grave_bind')).toBe(true);
   });
 });

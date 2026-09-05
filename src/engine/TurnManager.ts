@@ -62,4 +62,8 @@ export class TurnManager {
   public setPhase(phase: TurnPhase): void {
     this.phase = phase;
   }
+
+  public getPhase(): TurnPhase {
+    return this.phase;
+  }
 }

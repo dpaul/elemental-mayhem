@@ -17,7 +17,7 @@
       <div class="header-left">
         <button id="nav-home-btn" class="btn-text header-nav-btn" title="Return to Main Menu">🏠 Home</button>
         <h1 class="game-title">ELEMENTAL <span class="accent-text">MAYHEM</span></h1>
-        <div class="round-badge" id="round-indicator">ROUND 1 / 15</div>
+        <div class="round-badge" id="round-indicator">ROUND 1 / 10000000000000000000000000000000000000000000000000</div>
       </div>
       <div class="turn-phase-banner" id="turn-banner">
         <span class="phase-label" id="phase-text">PLAYER TURN</span>
@@ -25,6 +25,7 @@
       <div class="header-right">
         <button id="nav-admin-btn" class="btn-primary" style="background: linear-gradient(135deg, #f59e0b, #ec4899); border: 1px solid #fde68a; color: #000; font-weight: 800; padding: 6px 14px; border-radius: 8px; box-shadow: 0 0 16px rgba(245, 158, 11, 0.6); cursor: pointer;" title="Open Admin God Command Console">👑 Admin</button>
         <button id="nav-multiplayer-btn" class="btn-text header-nav-btn" style="background: rgba(239, 68, 68, 0.25); border: 1px solid rgba(239, 68, 68, 0.5); color: #fca5a5; font-weight: 700;">⚔️ Multiplayer</button>
+        <button id="nav-sound-btn" class="btn-text header-nav-btn" style="background: rgba(56, 189, 248, 0.2); border: 1px solid rgba(56, 189, 248, 0.4); color: #7dd3fc; font-weight: 700;" title="Toggle Sounds & Screams">🔊 Sound ON</button>
         <button id="nav-codex-btn" class="btn-text header-nav-btn" title="Elemental Codex">📖 Codex</button>
         <button id="nav-guide-btn" class="btn-text header-nav-btn" title="How to Play Guide">📜 Guide</button>
         <div class="currency-pill">
@@ -129,18 +130,19 @@
       <div class="home-container glass-card">
         <!-- Hero Header -->
         <div class="home-header">
-          <div class="home-orb-ring">
-            <span class="home-orb orb-fire" title="Fire">🔥</span>
-            <span class="home-orb orb-water" title="Water">💧</span>
-            <span class="home-orb orb-lightning" title="Lightning">⚡</span>
-            <span class="home-orb orb-earth" title="Earth">🪨</span>
-            <span class="home-orb orb-undead" title="Undead">💀</span>
-            <span class="home-orb orb-life" title="Life">🌱</span>
-            <span class="home-orb orb-void" title="Void">🌌</span>
-            <span class="home-orb orb-ice" title="Ice">❄️</span>
-            <span class="home-orb orb-wind" title="Wind">🌪️</span>
-            <span class="home-orb orb-light" title="Light">☀️</span>
+          <div class="home-orb-ring" id="home-orb-ring">
+            <span class="home-orb orb-fire" title="Fire - Click to Fight CPUs as Pyromancer" data-element="Fire">🔥</span>
+            <span class="home-orb orb-water" title="Water - Click to Fight CPUs as Hydromancer" data-element="Water">💧</span>
+            <span class="home-orb orb-lightning" title="Lightning - Click to Fight CPUs as Electromancer" data-element="Lightning">⚡</span>
+            <span class="home-orb orb-earth" title="Earth - Click to Fight CPUs as Terramancer" data-element="Earth">🪨</span>
+            <span class="home-orb orb-undead" title="Undead - Click to Fight CPUs as Necromancer" data-element="Undead">💀</span>
+            <span class="home-orb orb-life" title="Life - Click to Fight CPUs as Biomancer" data-element="Life">🌱</span>
+            <span class="home-orb orb-void" title="Void - Click to Fight CPUs as Voidmancer" data-element="Void">🌌</span>
+            <span class="home-orb orb-ice" title="Ice - Click to Fight CPUs as Cryomancer" data-element="Ice">❄️</span>
+            <span class="home-orb orb-wind" title="Wind - Click to Fight CPUs as Aeromancer" data-element="Wind">🌪️</span>
+            <span class="home-orb orb-light" title="Light - Click to Fight CPUs as Solarmancer" data-element="Light">☀️</span>
           </div>
+          <p class="orb-hint-text" style="font-size: 0.85rem; color: #93c5fd; margin: -6px 0 2px 0; font-weight: 600; text-shadow: 0 0 10px rgba(59, 130, 246, 0.5);">✨ Click any elemental orb above to battle CPUs instantly, or choose from all 42 champions below</p>
           <h1 class="home-title">ELEMENTAL <span class="home-title-glow">MAYHEM</span></h1>
           <p class="home-subtitle">Master 42 Elemental Forces • Cascade Reactions • Reanimate Undead • Ascend the Gauntlet</p>
           <div class="home-pill-row">
@@ -174,7 +176,7 @@
             <div class="card-icon">🛡️</div>
             <h3 class="card-title">SOLO CAMPAIGN</h3>
             <p class="card-desc">
-              Battle through 15 rounds of escalating elemental hazards, elite bosses, and unlock all 42 elemental masteries.
+              Battle through 10000000000000000000000000000000000000000000000000 rounds of escalating elemental hazards, elite bosses, and unlock all 42 elemental masteries.
             </p>
             <button class="btn-primary card-action-btn">Launch Campaign</button>
           </div>
@@ -364,71 +366,141 @@
       <div class="modal-content glass-card admin-modal-content">
         <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center;">
           <div>
-            <h2 style="color: #fde68a;">👑 ADMIN GOD POWERS CONSOLE</h2>
+            <h2 id="admin-modal-title" style="color: #fde68a;">👑 ADMIN GOD POWERS CONSOLE</h2>
             <p class="modal-subtitle">Direct battlefield manipulation and omnipotent admin commands.</p>
           </div>
           <button id="close-admin-btn" class="btn-primary" style="padding: 6px 16px;">✕ Close</button>
         </div>
-        <div class="admin-powers-grid">
-          <!-- Power 1: Infinite AP -->
-          <button class="admin-power-btn" id="admin-btn-ap">
-            <div class="admin-btn-header">⚡ Set 99 AP</div>
-            <div class="admin-btn-desc">Instantly refills and expands current Action Points to 99 for infinite movement & spellcasting.</div>
-          </button>
 
-          <!-- Power 2: God HP -->
-          <button class="admin-power-btn" id="admin-btn-hp">
-            <div class="admin-btn-header">💖 God Mode HP (9999 HP)</div>
-            <div class="admin-btn-desc">Fully heals hero and sets maximum health to 9999 HP.</div>
-          </button>
+        <!-- Security Gate: Passcode Required -->
+        <div id="admin-auth-gate" class="admin-auth-container">
+          <div class="admin-auth-box">
+            <div class="admin-auth-icon">🔒</div>
+            <h3 style="color: #fde68a; margin-bottom: 8px; font-size: 1.3rem;">Restricted Creator Access</h3>
+            <p style="color: #94a3b8; font-size: 0.92rem; margin-bottom: 20px; line-height: 1.5;">
+              Omnipotent admin commands and god mode are strictly restricted to the creator (<strong style="color: #fde68a;">DavePaul</strong>). Enter your Master Passcode to unlock admin powers.
+            </p>
+            <form id="admin-auth-form" style="display: flex; gap: 10px; width: 100%; max-width: 420px; margin: 0 auto;">
+              <input type="password" id="admin-passcode-input" placeholder="Enter Master Passcode..." style="flex: 1; padding: 12px 16px; background: rgba(15, 23, 42, 0.85); border: 1px solid #f59e0b; border-radius: 8px; color: #fff; font-size: 1rem; outline: none; box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);" autocomplete="off" />
+              <button type="submit" id="admin-auth-submit-btn" class="btn-primary" style="background: linear-gradient(135deg, #f59e0b, #ec4899); border: 1px solid #fde68a; font-weight: 800; padding: 12px 20px; cursor: pointer;">Unlock ⚡</button>
+            </form>
+            <div id="admin-auth-msg" style="margin-top: 14px; font-size: 0.9rem; min-height: 24px; font-weight: 600;"></div>
+          </div>
+        </div>
 
-          <!-- Power 3: Admin Smite -->
-          <button class="admin-power-btn" id="admin-btn-smite">
-            <div class="admin-btn-header">☠️ Admin Smite (Kill All Enemies)</div>
-            <div class="admin-btn-desc">Calls down catastrophic lightning & supernova smiting every enemy instantly!</div>
-          </button>
+        <!-- Authorized Admin Powers Panel -->
+        <div id="admin-powers-container" class="hidden">
+          <div class="admin-auth-status-bar">
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: #86efac;">
+              <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 8px #22c55e;"></span>
+              <span>Authenticated: <strong style="color: #fde68a;">Creator / DavePaul</strong> (Omnipotent Host)</span>
+            </div>
+            <button id="admin-logout-btn" class="btn-secondary" style="font-size: 0.82rem; padding: 6px 14px; background: rgba(239, 68, 68, 0.25); border: 1px solid #ef4444; color: #fca5a5; border-radius: 6px; cursor: pointer; font-weight: 600;">🔒 Lock Console</button>
+          </div>
 
-          <!-- Power 4: Spawn Undead Legion -->
-          <button class="admin-power-btn" id="admin-btn-spawn-zombies">
-            <div class="admin-btn-header">🧟 Summon 8 Undead Legion</div>
-            <div class="admin-btn-desc">Rises a massive ring of 8 reanimated zombies under your command.</div>
-          </button>
+          <div class="admin-powers-grid">
+            <!-- Power 1: Infinite AP -->
+            <button class="admin-power-btn" id="admin-btn-ap">
+              <div class="admin-btn-header">⚡ Set 99 AP</div>
+              <div class="admin-btn-desc">Instantly refills and expands current Action Points to 99 for infinite movement & spellcasting.</div>
+            </button>
 
-          <!-- Power 5: Spawn Seraphim Legion -->
-          <button class="admin-power-btn" id="admin-btn-spawn-life">
-            <div class="admin-btn-header">🧚 Summon 4 Beings of Life</div>
-            <div class="admin-btn-desc">Spawns 4 Beings of Life with 3x Speed and Touch of Life transmute.</div>
-          </button>
+            <!-- Power 2: God HP -->
+            <button class="admin-power-btn" id="admin-btn-hp">
+              <div class="admin-btn-header">💖 God Mode HP (9999 HP)</div>
+              <div class="admin-btn-desc">Fully heals hero and sets maximum health to 9999 HP.</div>
+            </button>
 
-          <!-- Power 6: Cleanse Hazards -->
-          <button class="admin-power-btn" id="admin-btn-cleanse">
-            <div class="admin-btn-header">🧹 Cleanse All Board Hazards</div>
-            <div class="admin-btn-desc">Removes all ground hazards (Lava, Mire, Rift, Acid) across the battlefield.</div>
-          </button>
+            <!-- Power 3: Admin Smite -->
+            <button class="admin-power-btn" id="admin-btn-smite">
+              <div class="admin-btn-header">☠️ Admin Smite (Kill All Enemies)</div>
+              <div class="admin-btn-desc">Calls down catastrophic lightning & supernova smiting every enemy instantly!</div>
+            </button>
 
-          <!-- Power 7: Add Resources -->
-          <button class="admin-power-btn" id="admin-btn-resources">
-            <div class="admin-btn-header">✨ +9999 Essence & XP</div>
-            <div class="admin-btn-desc">Instantly grants max currency to buy all armory upgrades and relics.</div>
-          </button>
+            <!-- Power 4: Spawn Undead Legion -->
+            <button class="admin-power-btn" id="admin-btn-spawn-zombies">
+              <div class="admin-btn-header">🧟 Summon 8 Undead Legion</div>
+              <div class="admin-btn-desc">Rises a massive ring of 8 reanimated zombies under your command.</div>
+            </button>
 
-          <!-- Power 8: Next Boss Skip -->
-          <button class="admin-power-btn" id="admin-btn-next-round">
-            <div class="admin-btn-header">⏩ Jump to Next Round</div>
-            <div class="admin-btn-desc">Instantly completes current combat round and advances to next encounter.</div>
-          </button>
+            <!-- Power 4b: Spawn Rare Wizard Zombie -->
+            <button class="admin-power-btn" id="admin-btn-spawn-wizard-zombie">
+              <div class="admin-btn-header">🧟🧙‍♂️ Summon Wizard Zombie (1/10,000 Rare)</div>
+              <div class="admin-btn-desc">Summons the legendary Wizard Zombie with long-range Doom Bolt & Grave Binding (Root)!</div>
+            </button>
 
-          <!-- Power 9: Mega Round Warp -->
-          <button class="admin-power-btn" id="admin-btn-jump-1000">
-            <div class="admin-btn-header">🌌 Warp +1,000 Rounds</div>
-            <div class="admin-btn-desc">Instantly teleports 1,000 rounds deeper into the gauntlet!</div>
-          </button>
+            <!-- Power 4c: Summon All 11 Zombie Classes -->
+            <button class="admin-power-btn" id="admin-btn-spawn-all-zombies">
+              <div class="admin-btn-header">🧟🎪 Summon All 11 Zombie Classes</div>
+              <div class="admin-btn-desc">Spawns all 11 classes: Walker, Runner, Brute, Spitter, Wizard, Boomer, Frostbite, DeathKnight, Screamer, PlagueBearer & Electro!</div>
+            </button>
 
-          <!-- Power 10: Cosmic 1,000,000 Round Warp -->
-          <button class="admin-power-btn" id="admin-btn-jump-1000000">
-            <div class="admin-btn-header">🚀 Warp +1,000,000 Rounds</div>
-            <div class="admin-btn-desc">Instantly teleports 1,000,000 rounds forward into the 150 Trillion Odyssey!</div>
-          </button>
+            <!-- Power 4d: Summon 1,000 Wizard Zombies -->
+            <button class="admin-power-btn" id="admin-btn-spawn-1000-wizards">
+              <div class="admin-btn-header">🧟🧙‍♂️⚡ Summon 1,000 Wizard Zombies</div>
+              <div class="admin-btn-desc">Raises an insurmountable legion of 1,000 legendary Wizard Zombies with Range 7 Doom Bolts & Grave Binding!</div>
+            </button>
+
+            <!-- Power 5: Spawn Seraphim Legion -->
+            <button class="admin-power-btn" id="admin-btn-spawn-life">
+              <div class="admin-btn-header">🧚 Summon 4 Beings of Life</div>
+              <div class="admin-btn-desc">Spawns 4 Beings of Life with 3x Speed and Touch of Life transmute.</div>
+            </button>
+
+            <!-- Power 6: Cleanse Hazards -->
+            <button class="admin-power-btn" id="admin-btn-cleanse">
+              <div class="admin-btn-header">🧹 Cleanse All Board Hazards</div>
+              <div class="admin-btn-desc">Removes all ground hazards (Lava, Mire, Rift, Acid) across the battlefield.</div>
+            </button>
+
+            <!-- Power 7: Add Resources -->
+            <button class="admin-power-btn" id="admin-btn-resources">
+              <div class="admin-btn-header">✨ +9999 Essence & XP</div>
+              <div class="admin-btn-desc">Instantly grants max currency to buy all armory upgrades and relics.</div>
+            </button>
+
+            <!-- Power 8: Next Boss Skip -->
+            <button class="admin-power-btn" id="admin-btn-next-round">
+              <div class="admin-btn-header">⏩ Jump to Next Round</div>
+              <div class="admin-btn-desc">Instantly completes current combat round and advances to next encounter.</div>
+            </button>
+
+            <!-- Power 9: Mega Round Warp -->
+            <button class="admin-power-btn" id="admin-btn-jump-1000">
+              <div class="admin-btn-header">🌌 Warp +1,000 Rounds</div>
+              <div class="admin-btn-desc">Instantly teleports 1,000 rounds deeper into the gauntlet!</div>
+            </button>
+
+            <!-- Power 10: Cosmic 1,000,000 Round Warp -->
+            <button class="admin-power-btn" id="admin-btn-jump-1000000">
+              <div class="admin-btn-header">🚀 Warp +1,000,000 Rounds</div>
+              <div class="admin-btn-desc">Instantly teleports 1,000,000 rounds forward into the 10000000000000000000000000000000000000000000000000 Round Odyssey!</div>
+            </button>
+
+            <!-- Power 10b: Astronomical Warp -->
+            <button class="admin-power-btn" id="admin-btn-jump-billion">
+              <div class="admin-btn-header">🪐 Warp +1,000,000,000 Rounds</div>
+              <div class="admin-btn-desc">Warp 1 Billion rounds forward into the 10000000000000000000000000000000000000000000000000 Round Odyssey!</div>
+            </button>
+
+            <!-- Power 11: Test Epic Death Animation -->
+            <button class="admin-power-btn" id="admin-btn-hero-death">
+              <div class="admin-btn-header">💀 Trigger Player Death (FX Test)</div>
+              <div class="admin-btn-desc">Instantly triggers the epic player death animation sequence to test visual effects.</div>
+            </button>
+
+            <!-- Power 12: Test Epic CPU Death Animation -->
+            <button class="admin-power-btn" id="admin-btn-cpu-death">
+              <div class="admin-btn-header">💥 Trigger CPU Death (FX Test)</div>
+              <div class="admin-btn-desc">Instantly triggers the epic CPU death animation sequence on active enemy.</div>
+            </button>
+
+            <!-- Power 13: Test Zombie Screams & Combat SFX -->
+            <button class="admin-power-btn" id="admin-btn-test-scream">
+              <div class="admin-btn-header">🧟😱 Play Zombie Scream & Banshee Wail</div>
+              <div class="admin-btn-desc">Synthesizes terrifying guttural undead screams, banshee ultrasound wails, and crunching bites.</div>
+            </button>
+          </div>
         </div>
       </div>
     </div>

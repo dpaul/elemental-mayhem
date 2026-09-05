@@ -1797,9 +1797,12 @@ export class EscalationManager {
         break;
 
       default:
-        // Procedural generation for round > 15
+        // Procedural generation for round > 15 up to 10000000000000000000000000000000000000000000000000 rounds
         const isBossRound = round % 5 === 0;
-        const tierMultiplier = 1 + (round - 15) * 0.08;
+        const tierMultiplier = Math.min(
+          60,
+          1 + Math.min(25, (round - 15) * 0.08) + Math.log10(Math.max(1, round)) * 1.5
+        );
 
         if (isBossRound) {
           const bossHp = Math.floor(350 * tierMultiplier);

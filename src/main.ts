@@ -8,9 +8,11 @@ import { PerformanceScorer } from './engine/PerformanceScorer';
 import { UpgradeManager } from './engine/UpgradeManager';
 import { EscalationManager } from './engine/EscalationManager';
 import { UnlockManager } from './engine/UnlockManager';
+import { AdminManager } from './engine/AdminManager';
 import { BattlefieldRenderer } from './renderer/BattlefieldRenderer';
 import { HUDManager } from './ui/HUDManager';
-import { ElementType, Unit, Ability, GridCoord } from './types';
+import { SoundEngine } from './audio/SoundEngine';
+import { ElementType, Unit, Ability, GridCoord, ZombieClass } from './types';
 import { CORE_ELEMENTS } from './constants/elements';
 import { HERO_CLASSES, createHeroForElement } from './constants/classes';
 
@@ -38,13 +40,17 @@ export class GameApp {
   private upgradeManager: UpgradeManager;
   private escalationManager: EscalationManager;
   private unlockManager: UnlockManager;
+  public adminManager: AdminManager;
   private renderer: BattlefieldRenderer;
   private hud: HUDManager;
+  public soundEngine: SoundEngine;
 
   private hero: Unit;
   private enemies: Unit[];
   private currentRound: number = 1;
-  private maxRounds: number = 150_000_000_000_000;
+  private maxRounds: number = 1e49;
+  public static readonly MAX_ROUNDS_STR: string = '10000000000000000000000000000000000000000000000000';
+  private maxRoundsStr: string = GameApp.MAX_ROUNDS_STR;
   private selectedElement: ElementType = 'Fire';
   private selectedClassCategory: string = 'All';
 
@@ -57,6 +63,8 @@ export class GameApp {
   private targetableTiles: GridCoord[] = [];
 
   private isBusy: boolean = false;
+  private isHeroDeathAnimating: boolean = false;
+  private isRoundVictoryAnimating: boolean = false;
   private focusedUnitId: string | null = null;
   private lastFrameTime: number = performance.now();
   private deadUnitIds: Set<string> = new Set();
@@ -118,6 +126,7 @@ export class GameApp {
     this.upgradeManager = new UpgradeManager();
     this.escalationManager = new EscalationManager();
     this.unlockManager = new UnlockManager();
+    this.adminManager = new AdminManager();
 
     // Home Screen Elements
     this.homeScreen = document.getElementById('home-screen')!;
@@ -168,6 +177,11 @@ export class GameApp {
     this.enemies = this.escalationManager.generateRoundEnemies(1);
 
     this.combatEngine = new CombatEngine(this.grid, this.hazardManager, this.hero, this.enemies);
+    this.soundEngine = new SoundEngine();
+    this.combatEngine.onZombieSpawn = () => {
+      this.soundEngine.playZombieSpawn();
+      this.soundEngine.playZombieScream();
+    };
     this.enemyAI = new EnemyAI(this.combatEngine);
     this.renderer = new BattlefieldRenderer(canvas, this.combatEngine);
     this.hud = new HUDManager();
@@ -176,6 +190,7 @@ export class GameApp {
     this.setupCodexTabs();
     this.setupObstacles();
     this.setupEventListeners(canvas);
+    this.updateAdminUI();
     this.updateReachableTiles();
     this.updateHUD();
 
@@ -240,6 +255,7 @@ export class GameApp {
 
   public showHomeScreen(): void {
     this.homeScreen.classList.remove('hidden');
+    this.homeScreen.style.display = 'flex';
     this.characterSelectModal.classList.add('hidden');
     this.hotseatSelectModal.classList.add('hidden');
     this.codexModal.classList.add('hidden');
@@ -250,6 +266,7 @@ export class GameApp {
 
   public hideHomeScreen(): void {
     this.homeScreen.classList.add('hidden');
+    this.homeScreen.style.display = 'none';
   }
 
   private setupCategoryTabs(): void {
@@ -299,8 +316,69 @@ export class GameApp {
     this.guideModal.classList.add('hidden');
   }
 
+  public updateAdminUI(): void {
+    const isAuth = this.adminManager.isAuthenticated();
+    const navBtn = document.getElementById('nav-admin-btn');
+    const modalTitle = document.getElementById('admin-modal-title');
+    const authGate = document.getElementById('admin-auth-gate');
+    const powersContainer = document.getElementById('admin-powers-container');
+
+    if (this.isHotseatMode && this.hotseatCurrentPlayer === 2) {
+      if (navBtn) {
+        navBtn.textContent = '🚫 Admin (P1 Only)';
+        navBtn.title = 'Admin commands are strictly restricted to Player 1 (Creator)';
+        navBtn.style.background = 'linear-gradient(135deg, #475569, #334155)';
+        navBtn.style.color = '#94a3b8';
+        navBtn.style.borderColor = '#64748b';
+        navBtn.style.boxShadow = 'none';
+        navBtn.style.opacity = '0.65';
+      }
+      return;
+    }
+
+    if (navBtn) {
+      navBtn.style.opacity = '1';
+      navBtn.textContent = isAuth ? '👑 Admin (Creator)' : '🔒 Admin';
+      navBtn.title = isAuth ? 'Creator Admin God Command Console (Unlocked)' : 'Restricted Admin Console (Creator Passcode Required)';
+      navBtn.style.background = isAuth
+        ? 'linear-gradient(135deg, #f59e0b, #ec4899)'
+        : 'linear-gradient(135deg, #334155, #1e293b)';
+      navBtn.style.color = isAuth ? '#000' : '#cbd5e1';
+      navBtn.style.borderColor = isAuth ? '#fde68a' : '#475569';
+      navBtn.style.boxShadow = isAuth ? '0 0 16px rgba(245, 158, 11, 0.6)' : 'none';
+    }
+
+    if (modalTitle) {
+      modalTitle.textContent = isAuth ? '👑 ADMIN GOD POWERS CONSOLE' : '🔒 RESTRICTED CREATOR ACCESS';
+    }
+
+    if (isAuth) {
+      authGate?.classList.add('hidden');
+      powersContainer?.classList.remove('hidden');
+    } else {
+      authGate?.classList.remove('hidden');
+      powersContainer?.classList.add('hidden');
+      const msgEl = document.getElementById('admin-auth-msg');
+      if (msgEl) msgEl.textContent = '';
+    }
+  }
+
   public openAdminPanel(): void {
+    if (this.isHotseatMode && this.hotseatCurrentPlayer === 2) {
+      this.combatEngine.addLog('system', '🚫 ACCESS DENIED: Admin commands are strictly restricted to Player 1 (Creator)!');
+      this.renderer.particleEngine.triggerScreenShake(6, 200);
+      const pos = this.renderer.gridToScreen(this.enemies[0].coord);
+      this.renderer.particleEngine.addFloatingText('🚫 RESTRICTED TO CREATOR', pos.x, pos.y - 30, '#ef4444', 22);
+      return;
+    }
+
+    this.updateAdminUI();
     document.getElementById('admin-panel-modal')?.classList.remove('hidden');
+    if (!this.adminManager.isAuthenticated()) {
+      setTimeout(() => {
+        (document.getElementById('admin-passcode-input') as HTMLInputElement)?.focus();
+      }, 50);
+    }
   }
 
   public closeAdminPanel(): void {
@@ -400,6 +478,24 @@ export class GameApp {
           <div class="synergy-weak">🛡️ Weak vs: ${weakList}</div>
         </div>
       `;
+
+      const isUnlocked = this.unlockManager.isElementUnlocked(elem);
+      if (isUnlocked && heroClass) {
+        const playBtn = document.createElement('button');
+        playBtn.className = 'btn-primary';
+        playBtn.style.cssText = `margin-top: 10px; padding: 6px 14px; font-size: 0.8rem; background: ${data.glowColor || 'rgba(56, 189, 248, 0.2)'}; border: 1px solid ${data.color}; color: #fff; border-radius: 6px; cursor: pointer; width: 100%; font-weight: 700; transition: transform 0.15s ease;`;
+        playBtn.textContent = `⚔️ Battle CPUs as ${heroClass.className}`;
+        playBtn.onclick = (e) => {
+          e.stopPropagation();
+          this.closeCodex();
+          this.hideHomeScreen();
+          this.selectedElement = elem;
+          this.restartGame(elem);
+          this.combatEngine.addLog('system', `⚔️ Selected ${heroClass.className} (${elem})! Entering the arena to fight CPU forces!`);
+        };
+        card.appendChild(playBtn);
+      }
+
       this.codexGridContainer.appendChild(card);
     });
   }
@@ -463,11 +559,19 @@ export class GameApp {
       `;
 
       if (isUnlocked) {
-        card.onclick = () => {
+        card.style.cursor = 'pointer';
+        const selectHandler = (e: Event) => {
+          e.preventDefault();
+          e.stopPropagation();
           this.selectedElement = elem;
           this.characterSelectModal.classList.add('hidden');
+          this.hideHomeScreen();
           this.restartGame(elem);
+          this.combatEngine.addLog('system', `⚔️ Selected ${config.className} (${elem})! Entering the arena to fight CPU forces!`);
         };
+        card.onclick = selectHandler;
+        const btn = card.querySelector('.class-select-btn') as HTMLElement;
+        if (btn) btn.onclick = selectHandler;
       }
 
       this.classSelectContainer.appendChild(card);
@@ -592,6 +696,28 @@ export class GameApp {
   }
 
   private setupEventListeners(canvas: HTMLCanvasElement): void {
+    // Clickable Elemental Orbs on Home Screen
+    document.querySelectorAll('.home-orb').forEach((orb) => {
+      orb.addEventListener('click', () => {
+        const elem = orb.getAttribute('data-element') as ElementType;
+        if (!elem) return;
+
+        if (this.unlockManager.isElementUnlocked(elem)) {
+          this.selectedElement = elem;
+          this.characterSelectModal.classList.add('hidden');
+          this.hideHomeScreen();
+          this.restartGame(elem);
+          const config = HERO_CLASSES[elem];
+          const className = config ? config.className : elem;
+          this.combatEngine.addLog('system', `⚔️ Selected ${className} (${elem})! Entering the arena to fight CPU forces!`);
+        } else {
+          this.hideHomeScreen();
+          this.renderCharacterSelectModal();
+          this.characterSelectModal.classList.remove('hidden');
+        }
+      });
+    });
+
     // Home Screen Actions
     document.getElementById('home-btn-choose-element')?.addEventListener('click', () => {
       this.hideHomeScreen();
@@ -680,39 +806,102 @@ export class GameApp {
       this.showHomeScreen();
     });
 
-    // Admin God Panel Controls
+    // Global User Gesture to unlock AudioContext
+    window.addEventListener('pointerdown', () => this.soundEngine.unlockAudio(), { once: true });
+    window.addEventListener('keydown', () => this.soundEngine.unlockAudio(), { once: true });
+
+    // Sound Toggle Button in Header
+    const soundBtn = document.getElementById('nav-sound-btn');
+    soundBtn?.addEventListener('click', () => {
+      this.soundEngine.unlockAudio();
+      const isMuted = this.soundEngine.toggleMute();
+      soundBtn.textContent = isMuted ? '🔇 Sound OFF' : '🔊 Sound ON';
+      soundBtn.style.color = isMuted ? '#f87171' : '#7dd3fc';
+      soundBtn.style.borderColor = isMuted ? 'rgba(239, 68, 68, 0.4)' : 'rgba(56, 189, 248, 0.4)';
+      this.soundEngine.playClick();
+    });
+
+    // Admin God Panel Controls & Creator Passcode Authentication
     document.getElementById('nav-admin-btn')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
       this.openAdminPanel();
     });
 
     document.getElementById('close-admin-btn')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
       this.closeAdminPanel();
     });
 
+    document.getElementById('admin-auth-form')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const input = document.getElementById('admin-passcode-input') as HTMLInputElement;
+      const msgEl = document.getElementById('admin-auth-msg');
+      if (!input) return;
+
+      const success = this.adminManager.authenticate(input.value);
+      if (success) {
+        if (msgEl) {
+          msgEl.style.color = '#86efac';
+          msgEl.textContent = '✅ Access Granted! Welcome, Creator DavePaul.';
+        }
+        input.value = '';
+        this.renderer.particleEngine.triggerScreenShake(8, 250);
+        const pos = this.renderer.gridToScreen(this.hero.coord);
+        this.renderer.particleEngine.addFloatingText('👑 CREATOR AUTHENTICATED!', pos.x, pos.y - 40, '#fde68a', 26);
+        this.combatEngine.addLog('system', '👑 ADMIN: Creator master passcode verified. Welcome back, DavePaul!');
+        setTimeout(() => {
+          this.updateAdminUI();
+        }, 300);
+      } else {
+        if (msgEl) {
+          msgEl.style.color = '#f87171';
+          msgEl.textContent = '❌ Access Denied: Invalid Creator Passcode!';
+        }
+        this.renderer.particleEngine.triggerScreenShake(6, 200);
+        input.select();
+      }
+    });
+
+    document.getElementById('admin-logout-btn')?.addEventListener('click', () => {
+      this.adminManager.logout();
+      this.updateAdminUI();
+      this.combatEngine.addLog('system', '🔒 ADMIN: Console locked and creator signed out.');
+    });
+
     document.getElementById('admin-btn-ap')?.addEventListener('click', () => {
-      const activeUnit = this.getActivePlayerUnit();
-      activeUnit.stats.maxAp = 99;
-      activeUnit.stats.currentAp = 99;
+      if (!this.adminManager.canUseAdminCommands(this.isHotseatMode, this.hotseatCurrentPlayer)) {
+        this.openAdminPanel();
+        return;
+      }
+      this.hero.stats.maxAp = 99;
+      this.hero.stats.currentAp = 99;
       this.renderer.particleEngine.triggerScreenShake(8, 250);
-      const pos = this.renderer.gridToScreen(activeUnit.coord);
+      const pos = this.renderer.gridToScreen(this.hero.coord);
       this.renderer.particleEngine.addFloatingText('⚡ 99 AP GOD POWER!', pos.x, pos.y - 30, '#fde68a', 26);
-      this.combatEngine.addLog('system', '👑 ADMIN: Granted 99 AP to active champion!');
+      this.combatEngine.addLog('system', '👑 ADMIN: Granted 99 AP to Creator champion!');
       this.updateReachableTiles();
       this.updateHUD();
     });
 
     document.getElementById('admin-btn-hp')?.addEventListener('click', () => {
-      const activeUnit = this.getActivePlayerUnit();
-      activeUnit.stats.maxHp = 9999;
-      activeUnit.stats.currentHp = 9999;
+      if (!this.adminManager.canUseAdminCommands(this.isHotseatMode, this.hotseatCurrentPlayer)) {
+        this.openAdminPanel();
+        return;
+      }
+      this.hero.stats.maxHp = 9999;
+      this.hero.stats.currentHp = 9999;
       this.renderer.particleEngine.triggerScreenShake(8, 250);
-      const pos = this.renderer.gridToScreen(activeUnit.coord);
+      const pos = this.renderer.gridToScreen(this.hero.coord);
       this.renderer.particleEngine.addFloatingText('💖 9999 HP GOD MODE!', pos.x, pos.y - 30, '#4ade80', 26);
-      this.combatEngine.addLog('system', '👑 ADMIN: Set champion HP to 9999 (Invincibility)!');
+      this.combatEngine.addLog('system', '👑 ADMIN: Set Creator HP to 9999 (Invincibility)!');
       this.updateHUD();
     });
 
     document.getElementById('admin-btn-smite')?.addEventListener('click', () => {
+      if (!this.adminManager.canUseAdminCommands(this.isHotseatMode, this.hotseatCurrentPlayer)) {
+        this.openAdminPanel();
+        return;
+      }
       this.renderer.particleEngine.triggerScreenShake(20, 600);
       this.combatEngine.addLog('system', '👑 ADMIN SMITE: Obliterated all enemies!');
       for (const enemy of this.enemies) {
@@ -728,6 +917,10 @@ export class GameApp {
     });
 
     document.getElementById('admin-btn-spawn-zombies')?.addEventListener('click', () => {
+      if (!this.adminManager.canUseAdminCommands(this.isHotseatMode, this.hotseatCurrentPlayer)) {
+        this.openAdminPanel();
+        return;
+      }
       let count = 0;
       for (let x = 0; x < this.grid.size && count < 8; x++) {
         for (let y = 0; y < this.grid.size && count < 8; y++) {
@@ -744,7 +937,106 @@ export class GameApp {
       this.updateHUD();
     });
 
+    document.getElementById('admin-btn-spawn-wizard-zombie')?.addEventListener('click', () => {
+      if (!this.adminManager.canUseAdminCommands(this.isHotseatMode, this.hotseatCurrentPlayer)) {
+        this.openAdminPanel();
+        return;
+      }
+      for (let x = 0; x < this.grid.size; x++) {
+        for (let y = 0; y < this.grid.size; y++) {
+          const coord = { x, y };
+          if (this.grid.isWalkable(coord) && !this.combatEngine.getUnitAt(coord)) {
+            const wiz = this.combatEngine.spawnZombie(coord, 70, 6, 'Player', 'Wizard');
+            this.combatEngine.addLog('system', `👑 ADMIN: Summoned Legendary ${wiz.name} (1 in 10,000 Rare)!`);
+            this.renderer.particleEngine.triggerScreenShake(12, 400);
+            this.closeAdminPanel();
+            this.updateHUD();
+            return;
+          }
+        }
+      }
+    });
+
+    document.getElementById('admin-btn-spawn-all-zombies')?.addEventListener('click', () => {
+      if (!this.adminManager.canUseAdminCommands(this.isHotseatMode, this.hotseatCurrentPlayer)) {
+        this.openAdminPanel();
+        return;
+      }
+      const allClasses: ZombieClass[] = [
+        'Walker',
+        'Runner',
+        'Brute',
+        'Spitter',
+        'Wizard',
+        'Boomer',
+        'Frostbite',
+        'DeathKnight',
+        'Screamer',
+        'PlagueBearer',
+        'Electro',
+      ];
+      let spawned = 0;
+      for (const zc of allClasses) {
+        let placed = false;
+        for (let x = 0; x < this.grid.size && !placed; x++) {
+          for (let y = 0; y < this.grid.size && !placed; y++) {
+            const coord = { x, y };
+            if (this.grid.isWalkable(coord) && !this.combatEngine.getUnitAt(coord)) {
+              this.combatEngine.spawnZombie(coord, 60, 4, 'Player', zc);
+              spawned++;
+              placed = true;
+            }
+          }
+        }
+      }
+      this.combatEngine.addLog(
+        'system',
+        `👑 ADMIN: Summoned all ${spawned} Specialized Zombie Classes (Walker, Runner, Brute, Spitter, Wizard, Boomer, Frostbite, DeathKnight, Screamer, PlagueBearer, Electro)!`
+      );
+      this.renderer.particleEngine.triggerScreenShake(14, 500);
+      this.closeAdminPanel();
+      this.updateHUD();
+    });
+
+    document.getElementById('admin-btn-spawn-1000-wizards')?.addEventListener('click', () => {
+      if (!this.adminManager.canUseAdminCommands(this.isHotseatMode, this.hotseatCurrentPlayer)) {
+        this.openAdminPanel();
+        return;
+      }
+      this.soundEngine.unlockAudio();
+      this.soundEngine.playZombieSpawn();
+      setTimeout(() => this.soundEngine.playZombieScream(), 150);
+
+      const walkableCoords: GridCoord[] = [];
+      for (let x = 0; x < this.grid.size; x++) {
+        for (let y = 0; y < this.grid.size; y++) {
+          const c = { x, y };
+          if (this.grid.isWalkable(c)) {
+            walkableCoords.push(c);
+          }
+        }
+      }
+
+      const totalToSpawn = 1000;
+      for (let i = 0; i < totalToSpawn; i++) {
+        const coord = walkableCoords[i % walkableCoords.length] || { x: i % 10, y: Math.floor(i / 10) % 10 };
+        this.combatEngine.spawnZombie(coord, 70, 6, 'Player', 'Wizard');
+      }
+
+      this.combatEngine.addLog(
+        'system',
+        `👑 ADMIN: Summoned an apocalyptic legion of 1,000 Wizard Zombies! (${this.combatEngine.zombies.length} Undead Active)`
+      );
+      this.renderer.particleEngine.triggerScreenShake(18, 700);
+      this.closeAdminPanel();
+      this.updateHUD();
+    });
+
     document.getElementById('admin-btn-spawn-life')?.addEventListener('click', () => {
+      if (!this.adminManager.canUseAdminCommands(this.isHotseatMode, this.hotseatCurrentPlayer)) {
+        this.openAdminPanel();
+        return;
+      }
       let count = 0;
       for (let x = 0; x < this.grid.size && count < 4; x++) {
         for (let y = 0; y < this.grid.size && count < 4; y++) {
@@ -762,6 +1054,10 @@ export class GameApp {
     });
 
     document.getElementById('admin-btn-cleanse')?.addEventListener('click', () => {
+      if (!this.adminManager.canUseAdminCommands(this.isHotseatMode, this.hotseatCurrentPlayer)) {
+        this.openAdminPanel();
+        return;
+      }
       for (let x = 0; x < this.grid.size; x++) {
         for (let y = 0; y < this.grid.size; y++) {
           const tile = this.grid.getTile({ x, y });
@@ -776,19 +1072,31 @@ export class GameApp {
     });
 
     document.getElementById('admin-btn-resources')?.addEventListener('click', () => {
+      if (!this.adminManager.canUseAdminCommands(this.isHotseatMode, this.hotseatCurrentPlayer)) {
+        this.openAdminPanel();
+        return;
+      }
       this.totalEssence += 9999;
       this.totalXp += 9999;
       this.updateHUD();
-      this.combatEngine.addLog('system', '👑 ADMIN: Granted +9999 Essence and +9999 XP!');
+      this.combatEngine.addLog('system', '👑 ADMIN: Granted +9999 Essence and +9999 XP to Creator!');
     });
 
     document.getElementById('admin-btn-next-round')?.addEventListener('click', () => {
+      if (!this.adminManager.canUseAdminCommands(this.isHotseatMode, this.hotseatCurrentPlayer)) {
+        this.openAdminPanel();
+        return;
+      }
       this.closeAdminPanel();
       this.enemies.forEach((e) => { e.isDead = true; e.stats.currentHp = 0; });
       this.checkCombatState();
     });
 
     document.getElementById('admin-btn-jump-1000')?.addEventListener('click', () => {
+      if (!this.adminManager.canUseAdminCommands(this.isHotseatMode, this.hotseatCurrentPlayer)) {
+        this.openAdminPanel();
+        return;
+      }
       this.closeAdminPanel();
       this.currentRound += 999;
       this.advanceToNextRound();
@@ -796,10 +1104,62 @@ export class GameApp {
     });
 
     document.getElementById('admin-btn-jump-1000000')?.addEventListener('click', () => {
+      if (!this.adminManager.canUseAdminCommands(this.isHotseatMode, this.hotseatCurrentPlayer)) {
+        this.openAdminPanel();
+        return;
+      }
       this.closeAdminPanel();
       this.currentRound += 999999;
       this.advanceToNextRound();
       this.combatEngine.addLog('system', `👑 ADMIN: Warped 1,000,000 rounds forward to Round ${this.currentRound.toLocaleString()}!`);
+    });
+
+    document.getElementById('admin-btn-jump-billion')?.addEventListener('click', () => {
+      if (!this.adminManager.canUseAdminCommands(this.isHotseatMode, this.hotseatCurrentPlayer)) {
+        this.openAdminPanel();
+        return;
+      }
+      this.closeAdminPanel();
+      this.currentRound += 999999999;
+      this.advanceToNextRound();
+      this.combatEngine.addLog('system', `👑 ADMIN: Warped 1,000,000,000 rounds forward to Round ${this.currentRound.toLocaleString()}!`);
+    });
+
+    document.getElementById('admin-btn-hero-death')?.addEventListener('click', () => {
+      if (!this.adminManager.canUseAdminCommands(this.isHotseatMode, this.hotseatCurrentPlayer)) {
+        this.openAdminPanel();
+        return;
+      }
+      this.closeAdminPanel();
+      this.hero.stats.currentHp = 0;
+      this.hero.isDead = true;
+      this.checkCombatState();
+    });
+
+    document.getElementById('admin-btn-cpu-death')?.addEventListener('click', () => {
+      if (!this.adminManager.canUseAdminCommands(this.isHotseatMode, this.hotseatCurrentPlayer)) {
+        this.openAdminPanel();
+        return;
+      }
+      this.closeAdminPanel();
+      const targetEnemy = this.enemies.find((e) => !e.isDead) || this.enemies[0];
+      if (targetEnemy) {
+        targetEnemy.stats.currentHp = 0;
+        targetEnemy.isDead = true;
+        this.deadUnitIds.add(targetEnemy.id);
+        this.renderer.triggerDeathAnimation(targetEnemy, 'Darkness');
+        this.combatEngine.addLog('system', `👑 ADMIN: Executed CPU Death FX Test on ${targetEnemy.name}!`);
+        this.checkCombatState();
+      }
+    });
+
+    document.getElementById('admin-btn-test-scream')?.addEventListener('click', () => {
+      this.soundEngine.unlockAudio();
+      this.soundEngine.playZombieScream();
+      setTimeout(() => this.soundEngine.playScreamerWail(), 450);
+      setTimeout(() => this.soundEngine.playZombieBite(), 900);
+      this.renderer.particleEngine.triggerScreenShake(8, 300);
+      this.combatEngine.addLog('system', '👑 ADMIN: Synthesized Bloodcurdling Zombie Screams & Banshee Wails!');
     });
 
     // Canvas Interactions
@@ -919,8 +1279,52 @@ export class GameApp {
 
   private async handlePlayerMove(targetCoord: GridCoord): Promise<void> {
     const activeUnit = this.getActivePlayerUnit();
+    if (this.combatEngine.statusManager.hasStatus(activeUnit, 'Rooted')) {
+      const screenPos = this.renderer.gridToScreen(activeUnit.coord);
+      this.renderer.particleEngine.addFloatingText(
+        '⛓️ BOUND TO SPOT! (Rooted)',
+        screenPos.x,
+        screenPos.y - 25,
+        '#c084fc',
+        22
+      );
+      this.combatEngine.addLog('system', `⛓️ ${activeUnit.name} is Rooted and bound to the spot! Cannot run away!`);
+      return;
+    }
+
     const isReachable = this.reachableTiles.some((c) => c.x === targetCoord.x && c.y === targetCoord.y);
     if (!isReachable) return;
+
+    // Check if player unit is Confused
+    if (activeUnit.statusEffects.some((s) => s.type === 'Confused')) {
+      if (Math.random() < 0.35) {
+        const selfDmg = 10;
+        activeUnit.stats.currentHp = Math.max(0, activeUnit.stats.currentHp - selfDmg);
+        activeUnit.stats.currentAp = Math.max(0, activeUnit.stats.currentAp - 1);
+        const screenPos = this.renderer.gridToScreen(activeUnit.coord);
+        this.renderer.particleEngine.addFloatingText(
+          `🌀 Stumbled in Confusion! -${selfDmg}`,
+          screenPos.x,
+          screenPos.y - 20,
+          '#f59e0b',
+          20
+        );
+        this.renderer.particleEngine.emit(screenPos.x, screenPos.y, '#f59e0b', 16, 2.5);
+        this.renderer.particleEngine.triggerScreenShake(4, 200);
+        this.combatEngine.addLog(
+          'system',
+          `🌀 ${activeUnit.name} is confused and stumbled, taking ${selfDmg} damage!`
+        );
+        if (activeUnit.stats.currentHp <= 0) {
+          activeUnit.isDead = true;
+          this.checkAndTriggerDeaths(activeUnit.stats.elementalAffinity);
+        }
+        this.updateReachableTiles();
+        this.updateHUD();
+        this.checkCombatState();
+        return;
+      }
+    }
 
     const path = this.grid.findPath(activeUnit.coord, targetCoord);
     if (!path || path.length === 0) return;
@@ -955,7 +1359,29 @@ export class GameApp {
       if (unit.isDead && !this.deadUnitIds.has(unit.id)) {
         this.deadUnitIds.add(unit.id);
         this.renderer.triggerDeathAnimation(unit, killerElement || unit.stats.elementalAffinity);
+        if (unit.isZombie) {
+          this.soundEngine.playZombieDeathScream();
+        } else if (unit.faction === 'Player') {
+          this.soundEngine.playHeroDeathScream();
+        } else {
+          this.soundEngine.playEnemyDeathScream();
+        }
       }
+    }
+  }
+
+  private playAbilitySounds(ability: Ability): void {
+    if (ability.id === 'screamer_wail') {
+      this.soundEngine.playScreamerWail();
+      this.soundEngine.playZombieScream();
+    } else if (ability.id === 'zombie_bite') {
+      this.soundEngine.playZombieBite();
+    } else if (ability.id === 'boomer_detonation') {
+      this.soundEngine.playExplosion();
+    } else if (ability.appliesStatus === 'Rooted') {
+      this.soundEngine.playRoot();
+    } else {
+      this.soundEngine.playSpellCast(ability.element);
     }
   }
 
@@ -963,6 +1389,40 @@ export class GameApp {
     const activeUnit = this.getActivePlayerUnit();
     const isTargetable = this.targetableTiles.some((c) => c.x === targetCoord.x && c.y === targetCoord.y);
     if (!isTargetable) return;
+
+    // Check if player unit is Confused
+    if (activeUnit.statusEffects.some((s) => s.type === 'Confused')) {
+      if (Math.random() < 0.45) {
+        const selfDmg = 15;
+        activeUnit.stats.currentHp = Math.max(0, activeUnit.stats.currentHp - selfDmg);
+        activeUnit.stats.currentAp = Math.max(0, activeUnit.stats.currentAp - 1);
+        const screenPos = this.renderer.gridToScreen(activeUnit.coord);
+        this.renderer.particleEngine.addFloatingText(
+          `🌀 Hurt in Confusion! -${selfDmg}`,
+          screenPos.x,
+          screenPos.y - 20,
+          '#f59e0b',
+          22
+        );
+        this.renderer.particleEngine.emit(screenPos.x, screenPos.y, '#f59e0b', 20, 3);
+        this.renderer.particleEngine.triggerScreenShake(6, 250);
+        this.soundEngine.playHit();
+        this.combatEngine.addLog(
+          'system',
+          `🌀 ${activeUnit.name} is confused and hurt itself for ${selfDmg} damage!`
+        );
+        if (activeUnit.stats.currentHp <= 0) {
+          activeUnit.isDead = true;
+          this.checkAndTriggerDeaths(activeUnit.stats.elementalAffinity);
+        }
+        this.selectedAbility = null;
+        this.targetableTiles = [];
+        this.updateReachableTiles();
+        this.updateHUD();
+        this.checkCombatState();
+        return;
+      }
+    }
 
     this.isBusy = true;
     this.selectedAbility = null;
@@ -974,6 +1434,8 @@ export class GameApp {
     const targetPos = this.renderer.gridToScreen(targetCoord);
     const elemData = CORE_ELEMENTS[ability.element];
     const color = elemData ? elemData.color : '#ffd000';
+
+    this.playAbilitySounds(ability);
 
     const isBeam = ability.name.toLowerCase().includes('beam') ||
       ability.name.toLowerCase().includes('ray') ||
@@ -997,6 +1459,7 @@ export class GameApp {
         const reactionLog = newLogs.find((l) => l.type === 'reaction');
 
         if (ability.baseDamage > 0) {
+          this.soundEngine.playHit();
           this.renderer.particleEngine.addFloatingText(
             `-${ability.baseDamage}`,
             targetPos.x,
@@ -1004,6 +1467,10 @@ export class GameApp {
             color,
             22
           );
+        }
+
+        if (ability.appliesStatus === 'Rooted') {
+          this.soundEngine.playRoot();
         }
 
         if (reactionLog) {
@@ -1073,8 +1540,19 @@ export class GameApp {
       const p1 = this.hero;
       const p2 = this.enemies[0];
       if (p1.isDead || p2.isDead) {
-        this.showHotseatVictoryModal(p1.isDead ? 'PLAYER 2' : 'PLAYER 1');
-        this.isBusy = false;
+        if (!this.isHeroDeathAnimating) {
+          this.isHeroDeathAnimating = true;
+          this.isBusy = true;
+          const loser = p1.isDead ? p1 : p2;
+          const winnerName = p1.isDead ? 'PLAYER 2' : 'PLAYER 1';
+          this.deadUnitIds.add(loser.id);
+          this.renderer.triggerDeathAnimation(loser, loser.stats.elementalAffinity);
+          setTimeout(() => {
+            this.showHotseatVictoryModal(winnerName);
+            this.isBusy = false;
+            this.isHeroDeathAnimating = false;
+          }, 2400);
+        }
         return;
       }
 
@@ -1085,6 +1563,7 @@ export class GameApp {
 
       if (this.hotseatCurrentPlayer === 1) {
         this.hotseatCurrentPlayer = 2;
+        this.closeAdminPanel();
         p2.stats.currentAp = p2.stats.maxAp;
         p2.abilities.forEach((a) => {
           if (a.currentCooldown > 0) a.currentCooldown--;
@@ -1102,6 +1581,7 @@ export class GameApp {
       }
 
       this.isBusy = false;
+      this.updateAdminUI();
       this.updateReachableTiles();
       this.updateHUD();
       return;
@@ -1156,17 +1636,20 @@ export class GameApp {
           const startPos = this.renderer.gridToScreen(minion.coord);
           const targetPos = this.renderer.gridToScreen(step.targetCoord);
 
+          this.playAbilitySounds(step.ability);
+          const projDuration = alliedMinions.length > 50 ? 50 : 200;
           await new Promise<void>((resolve) => {
             this.renderer.projManager.spawnProjectile(
               startPos,
               targetPos,
               step.ability.element,
               minion.isLifeBeing ? '#4ade80' : '#84cc16',
-              200,
+              projDuration,
               () => {
                 this.combatEngine.executeAbility(minion, step.ability, step.targetCoord);
                 this.renderer.triggerSpellImpact(step.targetCoord, step.ability.element, false);
                 if (step.ability.baseDamage > 0) {
+                  this.soundEngine.playHit();
                   this.renderer.particleEngine.addFloatingText(
                     `-${step.ability.baseDamage}`,
                     targetPos.x,
@@ -1175,6 +1658,9 @@ export class GameApp {
                     22
                   );
                 }
+                if (step.ability.appliesStatus === 'Rooted') {
+                  this.soundEngine.playRoot();
+                }
                 this.checkAndTriggerDeaths(minion.isLifeBeing ? 'Life' : 'Undead');
                 resolve();
               }
@@ -1182,7 +1668,7 @@ export class GameApp {
           });
 
           this.updateHUD();
-          await delay(250);
+          await delay(alliedMinions.length > 50 ? 30 : 250);
         }
       }
       this.focusedUnitId = null;
@@ -1226,6 +1712,8 @@ export class GameApp {
           const elemData = CORE_ELEMENTS[step.ability.element];
           const color = elemData ? elemData.color : '#ef4444';
 
+          this.playAbilitySounds(step.ability);
+
           const isBeam = step.ability.name.toLowerCase().includes('beam') ||
             step.ability.name.toLowerCase().includes('ray') ||
             step.ability.name.toLowerCase().includes('lance');
@@ -1242,16 +1730,23 @@ export class GameApp {
               const isAoE = step.ability.aoeRadius > 0;
               this.renderer.triggerSpellImpact(step.targetCoord, step.ability.element, isAoE);
 
+              if (step.ability.baseDamage > 0) {
+                this.soundEngine.playHit();
+                this.renderer.particleEngine.addFloatingText(
+                  `-${step.ability.baseDamage}`,
+                  targetPos.x,
+                  targetPos.y - 15,
+                  color,
+                  22
+                );
+              }
+
+              if (step.ability.appliesStatus === 'Rooted') {
+                this.soundEngine.playRoot();
+              }
+
               const newLogs = this.combatEngine.logs.slice(logCountBefore);
               const reactionLog = newLogs.find((l) => l.type === 'reaction');
-
-              this.renderer.particleEngine.addFloatingText(
-                `-${step.ability.baseDamage}`,
-                targetPos.x,
-                targetPos.y - 15,
-                color,
-                22
-              );
 
               if (reactionLog) {
                 this.renderer.particleEngine.addFloatingText(
@@ -1309,18 +1804,34 @@ export class GameApp {
     if (this.isHotseatMode) return;
 
     if (this.hero.isDead) {
-      this.combatEngine.addLog('system', '💀 You have fallen in combat! Game Over.');
-      this.turnManager.setPhase('GAME_OVER');
-      this.showDefeatModal();
+      if (!this.isHeroDeathAnimating) {
+        this.isHeroDeathAnimating = true;
+        this.isBusy = true;
+        this.deadUnitIds.add(this.hero.id);
+        this.combatEngine.addLog('system', `💀 ${this.hero.name} has fallen in combat! Game Over.`);
+        this.renderer.triggerDeathAnimation(this.hero, this.hero.stats.elementalAffinity);
+        setTimeout(() => {
+          this.turnManager.setPhase('GAME_OVER');
+          this.showDefeatModal();
+          this.isHeroDeathAnimating = false;
+        }, 2400);
+      }
       return;
     }
 
     if (this.combatEngine.areAllEnemiesDead()) {
-      if (this.currentRound >= this.maxRounds) {
-        this.showVictoryModal();
-      } else {
-        this.openUpgradeModal();
-      }
+      if (this.isRoundVictoryAnimating) return;
+      this.isRoundVictoryAnimating = true;
+      this.isBusy = true;
+      setTimeout(() => {
+        this.isRoundVictoryAnimating = false;
+        this.isBusy = false;
+        if (this.currentRound >= this.maxRounds) {
+          this.showVictoryModal();
+        } else {
+          this.openUpgradeModal();
+        }
+      }, 1800);
     }
   }
 
@@ -1403,7 +1914,7 @@ export class GameApp {
     const roundBadge = document.getElementById('round-indicator');
     if (roundBadge) {
       const isBoss = this.currentRound % 5 === 0;
-      roundBadge.textContent = isBoss ? `👑 BOSS ROUND ${this.currentRound.toLocaleString()}` : `ROUND ${this.currentRound.toLocaleString()} / ${this.maxRounds.toLocaleString()}`;
+      roundBadge.textContent = isBoss ? `👑 BOSS ROUND ${this.currentRound.toLocaleString()} / ${this.maxRoundsStr}` : `ROUND ${this.currentRound.toLocaleString()} / ${this.maxRoundsStr}`;
       roundBadge.style.color = isBoss ? '#fbbf24' : '#38bdf8';
     }
 
@@ -1414,9 +1925,10 @@ export class GameApp {
   }
 
   private showVictoryModal(): void {
+    this.soundEngine.playVictoryFanfare();
     this.turnManager.setPhase('VICTORY');
     this.outcomeTitle.textContent = 'GAUNTLET CONQUERED!';
-    this.outcomeSubtitle.textContent = `You have mastered all ${this.maxRounds.toLocaleString()} rounds of the Elemental Mayhem!`;
+    this.outcomeSubtitle.textContent = `You have mastered all ${this.maxRoundsStr} rounds of the Elemental Mayhem!`;
     this.renderOutcomeStats();
     this.gameOverModal.classList.remove('hidden');
   }
@@ -1430,10 +1942,12 @@ export class GameApp {
   }
 
   private renderOutcomeStats(): void {
+    const isVictory = this.turnManager.getPhase() === 'VICTORY';
+    const completed = isVictory ? this.currentRound : Math.max(0, this.currentRound - 1);
     this.outcomeStatsList.innerHTML = `
       <div class="stat-row">
         <span>Rounds Completed:</span>
-        <strong>${(this.currentRound - 1).toLocaleString()} / ${this.maxRounds.toLocaleString()}</strong>
+        <strong style="${isVictory ? 'color: #4ade80;' : ''}">${completed.toLocaleString()} / ${this.maxRoundsStr}</strong>
       </div>
       <div class="stat-row">
         <span>Total Essence:</span>
@@ -1448,12 +1962,20 @@ export class GameApp {
 
   private restartGame(element: ElementType): void {
     this.hideHomeScreen();
+    this.characterSelectModal.classList.add('hidden');
+    this.hotseatSelectModal.classList.add('hidden');
+    this.codexModal.classList.add('hidden');
+    this.guideModal.classList.add('hidden');
     this.gameOverModal.classList.add('hidden');
+    this.upgradeModal.classList.add('hidden');
     this.currentRound = 1;
     this.totalEssence = 0;
     this.totalXp = 0;
     this.selectedElement = element;
     this.isHotseatMode = false;
+    this.isHeroDeathAnimating = false;
+    this.isRoundVictoryAnimating = false;
+    this.deadUnitIds.clear();
 
     this.hero = this.createHero(element);
     this.enemies = this.escalationManager.generateRoundEnemies(1);
@@ -1463,13 +1985,17 @@ export class GameApp {
     this.setupObstacles();
 
     this.combatEngine = new CombatEngine(this.grid, this.hazardManager, this.hero, this.enemies);
+    this.combatEngine.onZombieSpawn = () => {
+      this.soundEngine.playZombieSpawn();
+      this.soundEngine.playZombieScream();
+    };
     const canvas = document.getElementById('battlefield-canvas') as HTMLCanvasElement;
     this.renderer = new BattlefieldRenderer(canvas, this.combatEngine);
     this.enemyAI = new EnemyAI(this.combatEngine);
 
     const roundBadge = document.getElementById('round-indicator');
     if (roundBadge) {
-      roundBadge.textContent = `ROUND 1 / ${this.maxRounds.toLocaleString()}`;
+      roundBadge.textContent = `ROUND 1 / ${this.maxRoundsStr}`;
       roundBadge.style.color = '#38bdf8';
     }
 
@@ -1482,6 +2008,9 @@ export class GameApp {
   private updateReachableTiles(): void {
     const activeUnit = this.getActivePlayerUnit();
     this.reachableTiles = [];
+    if (this.combatEngine.statusManager.hasStatus(activeUnit, 'Rooted')) {
+      return; // Bound to the spot! Cannot run away!
+    }
     const maxSteps = Math.floor(activeUnit.stats.currentAp / activeUnit.stats.moveCostPerTile);
     if (maxSteps <= 0) return;
 

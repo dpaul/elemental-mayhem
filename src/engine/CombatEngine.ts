@@ -12,6 +12,8 @@ import {
   PerformanceStats,
   PendingReanimation,
   UnitFaction,
+  ZombieClass,
+  ElementType,
 } from '../types';
 
 export class CombatEngine {
@@ -27,6 +29,7 @@ export class CombatEngine {
   public pendingReanimations: PendingReanimation[] = [];
   public logs: CombatLogEntry[];
   public performance: PerformanceStats;
+  public onZombieSpawn?: (zombie: Unit) => void;
 
   constructor(grid: Grid, hazardManager: TileHazardManager, hero: Unit, enemies: Unit[]) {
     this.grid = grid;
@@ -82,25 +85,75 @@ export class CombatEngine {
     ];
   }
 
-  public spawnZombie(coord: GridCoord, baseHp: number, baseAp: number, faction: UnitFaction = 'Player'): Unit {
-    const maxHp = baseHp * 4; // Quadruple health
-    const maxAp = Math.max(2, Math.floor(baseAp * 0.5)); // Half speed
+  public spawnZombie(
+    coord: GridCoord,
+    baseHp: number,
+    baseAp: number,
+    faction: UnitFaction = 'Player',
+    forcedClass?: ZombieClass
+  ): Unit {
+    let zClass: ZombieClass = forcedClass || 'Walker';
 
-    const zombie: Unit = {
-      id: `zombie_${Date.now()}_${Math.random()}`,
-      name: 'Reanimated Zombie',
-      faction,
-      avatar: '🧟',
-      coord: { ...coord },
-      stats: {
-        maxHp,
-        currentHp: maxHp,
-        maxAp,
-        currentAp: maxAp,
-        moveCostPerTile: 1,
-        elementalAffinity: 'Undead',
+    if (!forcedClass) {
+      // 1 out of 10,000 to be a Wizard Zombie!
+      const roll = Math.random();
+      if (roll < 0.0001) {
+        zClass = 'Wizard';
+      } else {
+        const subRoll = Math.random();
+        if (subRoll < 0.18) {
+          zClass = 'Runner';
+        } else if (subRoll < 0.30) {
+          zClass = 'Brute';
+        } else if (subRoll < 0.40) {
+          zClass = 'Spitter';
+        } else if (subRoll < 0.50) {
+          zClass = 'Boomer';
+        } else if (subRoll < 0.60) {
+          zClass = 'Frostbite';
+        } else if (subRoll < 0.70) {
+          zClass = 'DeathKnight';
+        } else if (subRoll < 0.80) {
+          zClass = 'Screamer';
+        } else if (subRoll < 0.90) {
+          zClass = 'PlagueBearer';
+        } else if (subRoll < 0.96) {
+          zClass = 'Electro';
+        } else {
+          zClass = 'Walker';
+        }
+      }
+    }
+
+    let name = 'Reanimated Zombie';
+    let avatar = '🧟';
+    let affinity: ElementType = 'Undead';
+    const maxHp = baseHp * 4; // Quadruple health for all zombies
+    let maxAp = Math.max(2, Math.floor(baseAp * 0.5)); // Half speed
+    let abilities: Ability[] = [
+      {
+        id: 'zombie_bite',
+        name: 'Zombie Bite',
+        element: 'Undead',
+        icon: '🧟',
+        apCost: 1,
+        cooldown: 0,
+        currentCooldown: 0,
+        range: 1,
+        aoeRadius: 0,
+        targeting: 'SingleUnit',
+        baseDamage: 28,
+        description: 'Lethal melee bite that infects target to rise in 1 turn or immediately upon death.',
+        level: 1,
       },
-      abilities: [
+    ];
+
+    if (zClass === 'Wizard') {
+      name = 'Wizard Zombie';
+      avatar = '🧟🧙‍♂️';
+      affinity = 'Undead';
+      maxAp = 6;
+      abilities = [
         {
           id: 'zombie_bite',
           name: 'Zombie Bite',
@@ -109,21 +162,429 @@ export class CombatEngine {
           apCost: 1,
           cooldown: 0,
           currentCooldown: 0,
-          range: 1, // Only attacks when adjacent
+          range: 1,
           aoeRadius: 0,
           targeting: 'SingleUnit',
           baseDamage: 28,
           description: 'Lethal melee bite that infects target to rise in 1 turn or immediately upon death.',
           level: 1,
         },
-      ],
+        {
+          id: 'wizard_zombie_shadow_bolt',
+          name: 'Necrotic Shadow Bolt',
+          element: 'Undead',
+          icon: '🔮',
+          apCost: 2,
+          cooldown: 0,
+          currentCooldown: 0,
+          range: 7, // Attacks from afar!
+          aoeRadius: 0,
+          targeting: 'SingleUnit',
+          baseDamage: 36,
+          description: 'Hurls an undulating orb of ancient necrotic sorcery from afar, dealing heavy dark damage.',
+          level: 1,
+        },
+        {
+          id: 'wizard_zombie_grave_bind',
+          name: 'Grave Binding (Root)',
+          element: 'Undead',
+          icon: '⛓️',
+          apCost: 2,
+          cooldown: 1,
+          currentCooldown: 0,
+          range: 6, // Ranged binding!
+          aoeRadius: 0,
+          targeting: 'SingleUnit',
+          baseDamage: 22,
+          appliesStatus: 'Rooted',
+          statusDuration: 3,
+          description: 'Summons grasping skeletal arms from the underworld that bind the target to the spot so they cannot run away!',
+          level: 1,
+        },
+      ];
+    } else if (zClass === 'Runner') {
+      name = 'Runner Zombie';
+      avatar = '🧟⚡';
+      affinity = 'Undead';
+      abilities = [
+        {
+          id: 'zombie_bite',
+          name: 'Zombie Bite',
+          element: 'Undead',
+          icon: '🧟',
+          apCost: 1,
+          cooldown: 0,
+          currentCooldown: 0,
+          range: 1,
+          aoeRadius: 0,
+          targeting: 'SingleUnit',
+          baseDamage: 28,
+          description: 'Lethal melee bite that infects target to rise in 1 turn or immediately upon death.',
+          level: 1,
+        },
+        {
+          id: 'runner_frenzied_pounce',
+          name: 'Frenzied Pounce',
+          element: 'Undead',
+          icon: '⚡',
+          apCost: 2,
+          cooldown: 1,
+          currentCooldown: 0,
+          range: 3,
+          aoeRadius: 0,
+          targeting: 'SingleUnit',
+          baseDamage: 22,
+          description: 'Pounces rapidly upon the target with frantic feral momentum.',
+          level: 1,
+        },
+      ];
+    } else if (zClass === 'Brute') {
+      name = 'Brute Zombie';
+      avatar = '🧟🛡️';
+      affinity = 'Earth';
+      abilities = [
+        {
+          id: 'zombie_bite',
+          name: 'Zombie Bite',
+          element: 'Undead',
+          icon: '🧟',
+          apCost: 1,
+          cooldown: 0,
+          currentCooldown: 0,
+          range: 1,
+          aoeRadius: 0,
+          targeting: 'SingleUnit',
+          baseDamage: 28,
+          description: 'Lethal melee bite that infects target to rise in 1 turn or immediately upon death.',
+          level: 1,
+        },
+        {
+          id: 'brute_ground_slam',
+          name: 'Ground Slam',
+          element: 'Earth',
+          icon: '💥',
+          apCost: 2,
+          cooldown: 1,
+          currentCooldown: 0,
+          range: 1,
+          aoeRadius: 1,
+          targeting: 'SingleUnit',
+          baseDamage: 35,
+          description: 'Slams the ground with colossal force, shattering enemies in an area.',
+          level: 1,
+        },
+      ];
+    } else if (zClass === 'Spitter') {
+      name = 'Spitter Zombie';
+      avatar = '🧟🧪';
+      affinity = 'Poison';
+      abilities = [
+        {
+          id: 'zombie_bite',
+          name: 'Zombie Bite',
+          element: 'Undead',
+          icon: '🧟',
+          apCost: 1,
+          cooldown: 0,
+          currentCooldown: 0,
+          range: 1,
+          aoeRadius: 0,
+          targeting: 'SingleUnit',
+          baseDamage: 28,
+          description: 'Lethal melee bite that infects target to rise in 1 turn or immediately upon death.',
+          level: 1,
+        },
+        {
+          id: 'spitter_toxic_bile',
+          name: 'Caustic Bile Spit',
+          element: 'Poison',
+          icon: '🧪',
+          apCost: 2,
+          cooldown: 0,
+          currentCooldown: 0,
+          range: 4,
+          aoeRadius: 0,
+          targeting: 'SingleUnit',
+          baseDamage: 22,
+          appliesStatus: 'Poisoned',
+          statusDuration: 3,
+          description: 'Spits corrosive toxic bile from range, inflicting Poison.',
+          level: 1,
+        },
+      ];
+    } else if (zClass === 'Boomer') {
+      name = 'Boomer Zombie';
+      avatar = '🧟💣';
+      affinity = 'Fire';
+      abilities = [
+        {
+          id: 'zombie_bite',
+          name: 'Zombie Bite',
+          element: 'Undead',
+          icon: '🧟',
+          apCost: 1,
+          cooldown: 0,
+          currentCooldown: 0,
+          range: 1,
+          aoeRadius: 0,
+          targeting: 'SingleUnit',
+          baseDamage: 28,
+          description: 'Lethal melee bite that infects target to rise in 1 turn or immediately upon death.',
+          level: 1,
+        },
+        {
+          id: 'boomer_detonation',
+          name: 'Putrid Self-Destruct',
+          element: 'Fire',
+          icon: '💣',
+          apCost: 2,
+          cooldown: 1,
+          currentCooldown: 0,
+          range: 2,
+          aoeRadius: 1,
+          targeting: 'SingleUnit',
+          baseDamage: 40,
+          createsHazard: 'LavaPool',
+          hazardDuration: 2,
+          description: 'Detonates volatile necrotic corpse gases into a searing 3x3 fiery explosion.',
+          level: 1,
+        },
+      ];
+    } else if (zClass === 'Frostbite') {
+      name = 'Frostbite Zombie';
+      avatar = '🧟❄️';
+      affinity = 'Cold';
+      abilities = [
+        {
+          id: 'zombie_bite',
+          name: 'Zombie Bite',
+          element: 'Undead',
+          icon: '🧟',
+          apCost: 1,
+          cooldown: 0,
+          currentCooldown: 0,
+          range: 1,
+          aoeRadius: 0,
+          targeting: 'SingleUnit',
+          baseDamage: 28,
+          description: 'Lethal melee bite that infects target to rise in 1 turn or immediately upon death.',
+          level: 1,
+        },
+        {
+          id: 'frostbite_freeze',
+          name: 'Subzero Chill',
+          element: 'Cold',
+          icon: '❄️',
+          apCost: 2,
+          cooldown: 1,
+          currentCooldown: 0,
+          range: 3,
+          aoeRadius: 0,
+          targeting: 'SingleUnit',
+          baseDamage: 24,
+          appliesStatus: 'Frozen',
+          statusDuration: 2,
+          description: 'Exhales a freezing subzero wind that encases the target solid in ice.',
+          level: 1,
+        },
+      ];
+    } else if (zClass === 'DeathKnight') {
+      name = 'Death Knight Zombie';
+      avatar = '🧟⚔️';
+      affinity = 'Metal';
+      abilities = [
+        {
+          id: 'zombie_bite',
+          name: 'Zombie Bite',
+          element: 'Undead',
+          icon: '🧟',
+          apCost: 1,
+          cooldown: 0,
+          currentCooldown: 0,
+          range: 1,
+          aoeRadius: 0,
+          targeting: 'SingleUnit',
+          baseDamage: 28,
+          description: 'Lethal melee bite that infects target to rise in 1 turn or immediately upon death.',
+          level: 1,
+        },
+        {
+          id: 'deathknight_cleave',
+          name: 'Rusted Cleave',
+          element: 'Metal',
+          icon: '⚔️',
+          apCost: 2,
+          cooldown: 1,
+          currentCooldown: 0,
+          range: 1,
+          aoeRadius: 1,
+          targeting: 'SingleUnit',
+          baseDamage: 36,
+          appliesStatus: 'Bleeding',
+          statusDuration: 2,
+          description: 'Swings an ancient corrupted greatsword in a wide arc, inflicting Bleeding.',
+          level: 1,
+        },
+        {
+          id: 'deathknight_shield',
+          name: 'Bone Aegis',
+          element: 'Metal',
+          icon: '🛡️',
+          apCost: 1,
+          cooldown: 2,
+          currentCooldown: 0,
+          range: 1,
+          aoeRadius: 0,
+          targeting: 'Self',
+          baseDamage: 0,
+          appliesStatus: 'Shielded',
+          statusDuration: 3,
+          description: 'Hardens decayed bone plates to absorb up to 35 damage.',
+          level: 1,
+        },
+      ];
+    } else if (zClass === 'Screamer') {
+      name = 'Screamer Zombie';
+      avatar = '🧟😱';
+      affinity = 'Sound';
+      abilities = [
+        {
+          id: 'zombie_bite',
+          name: 'Zombie Bite',
+          element: 'Undead',
+          icon: '🧟',
+          apCost: 1,
+          cooldown: 0,
+          currentCooldown: 0,
+          range: 1,
+          aoeRadius: 0,
+          targeting: 'SingleUnit',
+          baseDamage: 28,
+          description: 'Lethal melee bite that infects target to rise in 1 turn or immediately upon death.',
+          level: 1,
+        },
+        {
+          id: 'screamer_wail',
+          name: 'Banshee Shriek',
+          element: 'Sound',
+          icon: '🔊',
+          apCost: 2,
+          cooldown: 1,
+          currentCooldown: 0,
+          range: 4,
+          aoeRadius: 1,
+          targeting: 'SingleUnit',
+          baseDamage: 22,
+          appliesStatus: 'Confused',
+          statusDuration: 2,
+          description: 'Emits a piercing necrotic shriek that reverberates across the field, Confusing nearby targets.',
+          level: 1,
+        },
+      ];
+    } else if (zClass === 'PlagueBearer') {
+      name = 'Plague Bearer Zombie';
+      avatar = '🧟🦠';
+      affinity = 'Poison';
+      abilities = [
+        {
+          id: 'zombie_bite',
+          name: 'Zombie Bite',
+          element: 'Undead',
+          icon: '🧟',
+          apCost: 1,
+          cooldown: 0,
+          currentCooldown: 0,
+          range: 1,
+          aoeRadius: 0,
+          targeting: 'SingleUnit',
+          baseDamage: 28,
+          description: 'Lethal melee bite that infects target to rise in 1 turn or immediately upon death.',
+          level: 1,
+        },
+        {
+          id: 'plague_contagion',
+          name: 'Contagion Outburst',
+          element: 'Poison',
+          icon: '🦠',
+          apCost: 2,
+          cooldown: 1,
+          currentCooldown: 0,
+          range: 3,
+          aoeRadius: 1,
+          targeting: 'SingleUnit',
+          baseDamage: 20,
+          appliesStatus: 'Poisoned',
+          statusDuration: 3,
+          createsHazard: 'ToxicMire',
+          hazardDuration: 3,
+          description: 'Ruptures infectious pestilence nodes, drenching the ground in toxic mire and poisoning victims.',
+          level: 1,
+        },
+      ];
+    } else if (zClass === 'Electro') {
+      name = 'Electro Zombie';
+      avatar = '🧟⚡';
+      affinity = 'Lightning';
+      abilities = [
+        {
+          id: 'zombie_bite',
+          name: 'Zombie Bite',
+          element: 'Undead',
+          icon: '🧟',
+          apCost: 1,
+          cooldown: 0,
+          currentCooldown: 0,
+          range: 1,
+          aoeRadius: 0,
+          targeting: 'SingleUnit',
+          baseDamage: 28,
+          description: 'Lethal melee bite that infects target to rise in 1 turn or immediately upon death.',
+          level: 1,
+        },
+        {
+          id: 'electro_shock',
+          name: 'Galvanic Arc',
+          element: 'Lightning',
+          icon: '⚡',
+          apCost: 2,
+          cooldown: 0,
+          currentCooldown: 0,
+          range: 5,
+          aoeRadius: 0,
+          targeting: 'SingleUnit',
+          baseDamage: 30,
+          appliesStatus: 'Shocked',
+          statusDuration: 2,
+          description: 'Channels high-voltage undead static that jolts the target, inflicting Shocked.',
+          level: 1,
+        },
+      ];
+    }
+
+    const zombie: Unit = {
+      id: `zombie_${Date.now()}_${Math.random()}`,
+      name,
+      faction,
+      avatar,
+      coord: { ...coord },
+      stats: {
+        maxHp,
+        currentHp: maxHp,
+        maxAp,
+        currentAp: maxAp,
+        moveCostPerTile: 1,
+        elementalAffinity: affinity,
+      },
+      abilities,
       statusEffects: [],
       isDead: false,
       isZombie: true,
-      zombieLifetime: 4, // Only lasts 4 turns
+      zombieClass: zClass,
+      zombieLifetime: 4,
     };
 
     this.zombies.push(zombie);
+    this.onZombieSpawn?.(zombie);
     return zombie;
   }
 
@@ -270,13 +731,21 @@ export class CombatEngine {
     // Check if stepping into hazard
     const tile = this.grid.getTile(targetCoord);
     if (tile && tile.hazard.type !== 'None' && tile.hazard.damagePerTurn > 0) {
-      unit.stats.currentHp = Math.max(0, unit.stats.currentHp - tile.hazard.damagePerTurn);
+      let hazardDmg = tile.hazard.damagePerTurn;
+      if (unit.isZombie) {
+        const maxPerHit = Math.max(1, Math.floor(unit.stats.maxHp * 0.5));
+        hazardDmg = Math.min(hazardDmg, maxPerHit);
+        if (unit.stats.currentHp === unit.stats.maxHp && hazardDmg >= unit.stats.currentHp) {
+          hazardDmg = unit.stats.currentHp - 1;
+        }
+      }
+      unit.stats.currentHp = Math.max(0, unit.stats.currentHp - hazardDmg);
       this.addLog(
         'hazard',
-        `${unit.name} stepped into ${tile.hazard.type} taking ${tile.hazard.damagePerTurn} hazard damage!`
+        `${unit.name} stepped into ${tile.hazard.type} taking ${hazardDmg} hazard damage!`
       );
       if (unit.faction === 'Player') {
-        this.performance.damageTaken += tile.hazard.damagePerTurn;
+        this.performance.damageTaken += hazardDmg;
         this.performance.flawlessBonus = false;
       }
       if (unit.stats.currentHp === 0) {
@@ -503,6 +972,28 @@ export class CombatEngine {
           this.addLog('system', `🛡️ ${targetUnit.name}'s Elemental Shield absorbed ${absorbed} damage!`);
         }
 
+        // UNDEAD TENACITY: Nothing can 1-tap a zombie!
+        if (targetUnit.isZombie) {
+          // Rule 1: A single hit cannot deal more than 50% of the zombie's max HP
+          const maxAllowedDamage = Math.max(1, Math.floor(targetUnit.stats.maxHp * 0.5));
+          if (finalDamage > maxAllowedDamage) {
+            finalDamage = maxAllowedDamage;
+            this.addLog(
+              'system',
+              `🧟 UNDEAD RESILIENCE: ${targetUnit.name}'s necrotic flesh absorbed the lethal blow! (Damage capped to ${finalDamage} - Nothing can 1-tap a zombie!)`
+            );
+          }
+
+          // Rule 2: If the zombie is at full HP, no single hit can reduce it to 0 HP
+          if (targetUnit.stats.currentHp === targetUnit.stats.maxHp && finalDamage >= targetUnit.stats.currentHp) {
+            finalDamage = targetUnit.stats.currentHp - 1;
+            this.addLog(
+              'system',
+              `🧟 UNDEAD TENACITY: ${targetUnit.name} endured a fatal strike with 1 HP remaining!`
+            );
+          }
+        }
+
         // Apply direct damage
         targetUnit.stats.currentHp = Math.max(0, targetUnit.stats.currentHp - finalDamage);
 
@@ -524,29 +1015,33 @@ export class CombatEngine {
             type: ability.appliesStatus,
             stacks: 1,
             duration: ability.statusDuration || 2,
-            tickDamage: 10,
+            tickDamage: ability.appliesStatus === 'Confused' ? 0 : 10,
             element: ability.element,
           });
         }
 
-        // 1 in 5 (20%) chance the target panics and flees when attacked by a Zombie
+        // 1 in 5 (20%) chance the target panics and flees when attacked by a Zombie (unless Rooted to the spot!)
         if (caster.isZombie && targetUnit.faction !== caster.faction && !targetUnit.isDead) {
-          const fleeRoll = Math.random();
-          if (fleeRoll < 0.2) {
-            // Find free neighboring tile further away from zombie
-            const fleeNeighbors = this.grid.getNeighbors(targetUnit.coord).filter(
-              (n) =>
-                !this.grid.getTile(n)?.isObstacle &&
-                this.getUnitAt(n) === null &&
-                this.grid.manhattanDistance(n, caster.coord) > this.grid.manhattanDistance(targetUnit.coord, caster.coord)
-            );
-            if (fleeNeighbors.length > 0) {
-              targetUnit.coord = { ...fleeNeighbors[0] };
-              enemyFledFlag = true;
-              this.addLog(
-                'system',
-                `😱 ${targetUnit.name} panicked and fled in terror from the Zombie! The Zombie focuses on another target.`
+          if (this.statusManager.hasStatus(targetUnit, 'Rooted')) {
+            this.addLog('system', `⛓️ ${targetUnit.name} is Rooted to the spot and cannot run away!`);
+          } else {
+            const fleeRoll = Math.random();
+            if (fleeRoll < 0.2) {
+              // Find free neighboring tile further away from zombie
+              const fleeNeighbors = this.grid.getNeighbors(targetUnit.coord).filter(
+                (n) =>
+                  !this.grid.getTile(n)?.isObstacle &&
+                  this.getUnitAt(n) === null &&
+                  this.grid.manhattanDistance(n, caster.coord) > this.grid.manhattanDistance(targetUnit.coord, caster.coord)
               );
+              if (fleeNeighbors.length > 0) {
+                targetUnit.coord = { ...fleeNeighbors[0] };
+                enemyFledFlag = true;
+                this.addLog(
+                  'system',
+                  `😱 ${targetUnit.name} panicked and fled in terror from the Zombie! The Zombie focuses on another target.`
+                );
+              }
             }
           }
         }

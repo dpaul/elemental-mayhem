@@ -100,15 +100,24 @@ export class HUDManager {
     }
   }
 
-  public updateCurrencies(essence: number, xp: number, round: number, maxRounds: number = 15): void {
+  public updateCurrencies(
+    essence: number,
+    xp: number,
+    round: number,
+    maxRounds: number | string = '10000000000000000000000000000000000000000000000000'
+  ): void {
     this.essenceCounter.textContent = `${essence}`;
     this.xpCounter.textContent = `${xp}`;
     const isBoss = round % 5 === 0;
+    const maxRoundsStr =
+      typeof maxRounds === 'number' && maxRounds > 1e15
+        ? '10000000000000000000000000000000000000000000000000'
+        : maxRounds.toString();
     if (isBoss) {
-      this.roundIndicator.textContent = `ROUND ${round} / ${maxRounds} 👑 BOSS`;
+      this.roundIndicator.textContent = `ROUND ${round.toLocaleString()} / ${maxRoundsStr} 👑 BOSS`;
       this.roundIndicator.classList.add('boss-round');
     } else {
-      this.roundIndicator.textContent = `ROUND ${round} / ${maxRounds}`;
+      this.roundIndicator.textContent = `ROUND ${round.toLocaleString()} / ${maxRoundsStr}`;
       this.roundIndicator.classList.remove('boss-round');
     }
   }

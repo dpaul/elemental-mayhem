@@ -53,23 +53,37 @@ export class EnemyAI {
     const steps: AIStep[] = [];
     if (enemy.isDead || target.isDead) return steps;
 
+    // Confusion mechanic: high chance to target allied CPUs, or stumble/target self!
+    let effectiveTarget = target;
+    const isConfused = enemy.statusEffects.some((s) => s.type === 'Confused');
+    if (isConfused) {
+      const allies = this.combatEngine.enemies.filter(
+        (u) => !u.isDead && u.id !== enemy.id
+      );
+      if (allies.length > 0 && Math.random() < 0.65) {
+        effectiveTarget = allies[Math.floor(Math.random() * allies.length)];
+      } else if (Math.random() < 0.5) {
+        effectiveTarget = enemy; // Target self!
+      }
+    }
+
     let simulatedAp = enemy.stats.currentAp;
     let simulatedCoord = { ...enemy.coord };
 
     let attempts = 0;
     while (simulatedAp > 0 && attempts < 6) {
       attempts++;
-      const dist = this.combatEngine.grid.manhattanDistance(simulatedCoord, target.coord);
+      const dist = this.combatEngine.grid.manhattanDistance(simulatedCoord, effectiveTarget.coord);
 
       // Find all usable abilities right now
       const usableAbilities = enemy.abilities.filter(
         (a) => a.apCost <= simulatedAp && a.currentCooldown === 0 && dist <= a.range
       );
 
-      if (usableAbilities.length > 0 && this.combatEngine.grid.hasLineOfSight(simulatedCoord, target.coord)) {
+      if (usableAbilities.length > 0 && this.combatEngine.grid.hasLineOfSight(simulatedCoord, effectiveTarget.coord)) {
         // Pick best ability based on tactical score
         usableAbilities.sort((a, b) => {
-          return this.scoreAbility(b, target) - this.scoreAbility(a, target);
+          return this.scoreAbility(b, effectiveTarget) - this.scoreAbility(a, effectiveTarget);
         });
 
         const chosenAbility = usableAbilities[0];
@@ -77,18 +91,23 @@ export class EnemyAI {
           type: 'cast',
           unit: enemy,
           ability: chosenAbility,
-          targetCoord: { ...target.coord },
+          targetCoord: { ...effectiveTarget.coord },
         });
         simulatedAp -= chosenAbility.apCost;
       } else {
+        // If Rooted, unit is bound to the spot and cannot move!
+        if (this.combatEngine.statusManager.hasStatus(enemy, 'Rooted')) {
+          break;
+        }
+
         // Find best ability we would LIKE to cast if we get in range
         const potentialAbilities = enemy.abilities
           .filter((a) => a.currentCooldown === 0 && a.apCost <= simulatedAp)
-          .sort((a, b) => this.scoreAbility(b, target) - this.scoreAbility(a, target));
+          .sort((a, b) => this.scoreAbility(b, effectiveTarget) - this.scoreAbility(a, effectiveTarget));
 
         const targetAbility = potentialAbilities[0];
 
-        const fullPath = this.combatEngine.grid.findPath(simulatedCoord, target.coord);
+        const fullPath = this.combatEngine.grid.findPath(simulatedCoord, effectiveTarget.coord);
         if (fullPath && fullPath.length > 1) {
           let desiredWalkDistance = fullPath.length - 1;
 
@@ -131,6 +150,11 @@ export class EnemyAI {
 
   public takeTurn(enemy: Unit, target: Unit): string[] {
     const actionsTaken: string[] = [];
+    const isConfused = enemy.statusEffects.some((s) => s.type === 'Confused');
+    if (isConfused) {
+      actionsTaken.push(`🌀 ${enemy.name} is disoriented by Confusion!`);
+    }
+
     const steps = this.planTurnSteps(enemy, target);
 
     for (const step of steps) {
@@ -139,9 +163,16 @@ export class EnemyAI {
           actionsTaken.push(`${enemy.name} moved towards (${step.destination.x}, ${step.destination.y})`);
         }
       } else if (step.type === 'cast') {
+        const targetUnit = this.combatEngine.getUnitAt(step.targetCoord);
         const result = this.combatEngine.executeAbility(enemy, step.ability, step.targetCoord);
         if (result.success) {
-          actionsTaken.push(`${enemy.name} used ${step.ability.name}`);
+          if (isConfused && targetUnit && targetUnit.faction === enemy.faction && targetUnit.id !== enemy.id) {
+            actionsTaken.push(`🌀 ${enemy.name} attacked fellow CPU ${targetUnit.name} in Confusion!`);
+          } else if (isConfused && targetUnit && targetUnit.id === enemy.id) {
+            actionsTaken.push(`🌀 ${enemy.name} attacked itself in Confusion!`);
+          } else {
+            actionsTaken.push(`${enemy.name} used ${step.ability.name}`);
+          }
         }
       }
     }

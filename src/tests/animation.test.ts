@@ -91,6 +91,9 @@ describe('ParticleEngine & Visual FX (TDD Red -> Green)', () => {
     };
 
     particleEngine.triggerDeathAnimation(mockUnit, 200, 200, 'Water');
+    expect(particleEngine.deathFlashAlpha).toBeGreaterThan(0);
+    expect(particleEngine.deathVignetteAlpha).toBeGreaterThan(0);
+
     particleEngine.update(16);
 
     // Should have triggered screen shake
@@ -98,7 +101,7 @@ describe('ParticleEngine & Visual FX (TDD Red -> Green)', () => {
     expect(Math.abs(shake.x) + Math.abs(shake.y)).toBeGreaterThanOrEqual(0);
   });
 
-  it('should trigger cataclysmic boss death animation with titan shockwaves', () => {
+  it('should trigger cataclysmic boss death animation with titan shockwaves and screen flash', () => {
     const mockBoss: import('../types').Unit = {
       id: 'boss_titan',
       name: 'Solar Overlord',
@@ -124,5 +127,40 @@ describe('ParticleEngine & Visual FX (TDD Red -> Green)', () => {
 
     const shake = particleEngine.getScreenShakeOffset();
     expect(shake).toBeDefined();
+  });
+
+  it('should trigger epic player death animation with screen flash, vignette, radial beams, and ascending celestial soul', () => {
+    const mockHero: import('../types').Unit = {
+      id: 'hero',
+      name: 'Pyromancer',
+      faction: 'Player',
+      avatar: '🔥',
+      coord: { x: 3, y: 3 },
+      stats: {
+        maxHp: 100,
+        currentHp: 0,
+        maxAp: 6,
+        currentAp: 0,
+        moveCostPerTile: 1,
+        elementalAffinity: 'Fire',
+      },
+      abilities: [],
+      statusEffects: [],
+      isDead: true,
+    };
+
+    particleEngine.triggerDeathAnimation(mockHero, 250, 250, 'Water');
+
+    // Should have activated death flash and death vignette
+    expect(particleEngine.deathFlashAlpha).toBeGreaterThan(0);
+    expect(particleEngine.deathVignetteAlpha).toBeGreaterThan(0);
+
+    // Screen shake should be high intensity
+    const shake = particleEngine.getScreenShakeOffset();
+    expect(Math.abs(shake.x) + Math.abs(shake.y)).toBeGreaterThanOrEqual(0);
+
+    // Update time
+    particleEngine.update(100);
+    expect(particleEngine.deathFlashAlpha).toBeLessThan(0.9);
   });
 });

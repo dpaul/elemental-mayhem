@@ -385,11 +385,72 @@ export class BattlefieldRenderer {
       // Glowing Elemental Aura or Boss Aura or Focused Ring
       const elemData = CORE_ELEMENTS[unit.stats.elementalAffinity];
       const auraPulse = Math.sin(this.elapsedTotalTimeMs * 0.004) * 4;
+      const isWizardZombie = isZombie && unit.zombieClass === 'Wizard';
+      const isRooted = unit.statusEffects.some((s) => s.type === 'Rooted');
+
+      let zombieGlow = '#84cc16';
+      let zombieBorder = '#84cc16';
+      let zombieBg = '#14280f';
+
+      if (isZombie) {
+        switch (unit.zombieClass) {
+          case 'Wizard':
+            zombieGlow = '#c084fc';
+            zombieBorder = '#c084fc';
+            zombieBg = '#2e1065';
+            break;
+          case 'Boomer':
+            zombieGlow = '#f97316';
+            zombieBorder = '#fb923c';
+            zombieBg = '#431407';
+            break;
+          case 'Frostbite':
+            zombieGlow = '#38bdf8';
+            zombieBorder = '#7dd3fc';
+            zombieBg = '#082f49';
+            break;
+          case 'DeathKnight':
+            zombieGlow = '#ef4444';
+            zombieBorder = '#f87171';
+            zombieBg = '#450a0a';
+            break;
+          case 'Screamer':
+            zombieGlow = '#f472b6';
+            zombieBorder = '#f472b6';
+            zombieBg = '#500724';
+            break;
+          case 'PlagueBearer':
+            zombieGlow = '#84cc16';
+            zombieBorder = '#a3e635';
+            zombieBg = '#14532d';
+            break;
+          case 'Electro':
+            zombieGlow = '#eab308';
+            zombieBorder = '#fde047';
+            zombieBg = '#422006';
+            break;
+          case 'Brute':
+            zombieGlow = '#d97706';
+            zombieBorder = '#fbbf24';
+            zombieBg = '#292524';
+            break;
+          case 'Runner':
+            zombieGlow = '#84cc16';
+            zombieBorder = '#bef264';
+            zombieBg = '#14280f';
+            break;
+          case 'Spitter':
+            zombieGlow = '#10b981';
+            zombieBorder = '#34d399';
+            zombieBg = '#064e3b';
+            break;
+        }
+      }
 
       ctx.shadowColor = isBoss
         ? '#f59e0b'
         : isZombie
-        ? '#84cc16'
+        ? zombieGlow
         : isLifeBeing
         ? '#4ade80'
         : isFocused
@@ -397,17 +458,18 @@ export class BattlefieldRenderer {
         : elemData
         ? elemData.glowColor
         : 'rgba(255,255,255,0.3)';
-      ctx.shadowBlur = (isBoss ? 26 : isZombie || isLifeBeing ? 20 : isFocused ? 22 : 14) + auraPulse;
+      ctx.shadowBlur = (isBoss || isWizardZombie ? 26 : isZombie || isLifeBeing ? 20 : isFocused ? 22 : 14) + auraPulse;
 
-      // Boss Orbital Runic Particles
-      if (isBoss) {
-        const orbitAngle = this.elapsedTotalTimeMs * 0.002;
-        const orbitRadius = radius + 8;
-        for (let i = 0; i < 3; i++) {
-          const angle = orbitAngle + (i * Math.PI * 2) / 3;
+      // Boss or Wizard Zombie Orbital Runic Particles
+      if (isBoss || isWizardZombie) {
+        const orbitAngle = this.elapsedTotalTimeMs * (isWizardZombie ? 0.003 : 0.002);
+        const orbitRadius = radius + (isWizardZombie ? 6 : 8);
+        const count = isWizardZombie ? 4 : 3;
+        for (let i = 0; i < count; i++) {
+          const angle = orbitAngle + (i * Math.PI * 2) / count;
           const ox = screenPos.x + Math.cos(angle) * orbitRadius;
           const oy = screenPos.y + Math.sin(angle) * orbitRadius;
-          ctx.fillStyle = '#fbbf24';
+          ctx.fillStyle = isWizardZombie ? '#d8b4fe' : '#fbbf24';
           ctx.beginPath();
           ctx.arc(ox, oy, 3, 0, Math.PI * 2);
           ctx.fill();
@@ -418,7 +480,7 @@ export class BattlefieldRenderer {
       ctx.fillStyle = isPlayerHero
         ? '#0f172a'
         : isZombie
-        ? '#14280f'
+        ? zombieBg
         : isLifeBeing
         ? '#064e3b'
         : isBoss
@@ -432,17 +494,15 @@ export class BattlefieldRenderer {
       ctx.strokeStyle = isBoss
         ? '#fbbf24'
         : isZombie
-        ? '#84cc16'
+        ? zombieBorder
         : isLifeBeing
         ? '#4ade80'
         : isFocused
         ? '#fef08a'
         : isPlayerHero
         ? '#38bdf8'
-        : elemData
-        ? elemData.color
-        : '#ef4444';
-      ctx.lineWidth = isBoss ? 5 : isZombie || isLifeBeing ? 3.5 : isFocused ? 4 : 3;
+        : '#818cf8';
+      ctx.lineWidth = isBoss || isWizardZombie ? 4.5 : isZombie || isLifeBeing ? 3.5 : isFocused ? 4 : 3;
       ctx.stroke();
 
       // Avatar Icon
@@ -463,8 +523,10 @@ export class BattlefieldRenderer {
       ctx.fillRect(hpX, hpY, hpWidth, hpHeight);
       ctx.fillStyle = isPlayerHero || isLifeBeing
         ? '#22c55e'
+        : isWizardZombie
+        ? '#c084fc'
         : isZombie
-        ? '#84cc16'
+        ? zombieBorder
         : isBoss
         ? '#f59e0b'
         : '#ef4444';
@@ -481,10 +543,59 @@ export class BattlefieldRenderer {
       }
 
       // Unit Special Indicator
-      if (isZombie && unit.zombieLifetime !== undefined) {
+      if (isRooted) {
+        ctx.font = 'bold 10px "Fira Code", monospace';
+        ctx.fillStyle = '#c084fc';
+        ctx.fillText('[⛓️ ROOTED]', screenPos.x, hpY - (isBoss ? 18 : 6));
+      } else if (isZombie && unit.zombieLifetime !== undefined) {
         ctx.font = 'bold 11px "Fira Code", monospace';
-        ctx.fillStyle = '#a3e635';
-        ctx.fillText(`[🧟 ${unit.zombieLifetime}t]`, screenPos.x, hpY - 6);
+        let label = `[🧟 Walker ${unit.zombieLifetime}t]`;
+        let labelColor = '#a3e635';
+
+        switch (unit.zombieClass) {
+          case 'Wizard':
+            label = `[🧙‍♂️ Wizard ${unit.zombieLifetime}t]`;
+            labelColor = '#d8b4fe';
+            break;
+          case 'Brute':
+            label = `[🛡️ Brute ${unit.zombieLifetime}t]`;
+            labelColor = '#fbbf24';
+            break;
+          case 'Runner':
+            label = `[⚡ Runner ${unit.zombieLifetime}t]`;
+            labelColor = '#bef264';
+            break;
+          case 'Spitter':
+            label = `[🧪 Spitter ${unit.zombieLifetime}t]`;
+            labelColor = '#34d399';
+            break;
+          case 'Boomer':
+            label = `[💣 Boomer ${unit.zombieLifetime}t]`;
+            labelColor = '#fdba74';
+            break;
+          case 'Frostbite':
+            label = `[❄️ Frostbite ${unit.zombieLifetime}t]`;
+            labelColor = '#7dd3fc';
+            break;
+          case 'DeathKnight':
+            label = `[⚔️ Knight ${unit.zombieLifetime}t]`;
+            labelColor = '#fca5a5';
+            break;
+          case 'Screamer':
+            label = `[😱 Screamer ${unit.zombieLifetime}t]`;
+            labelColor = '#f472b6';
+            break;
+          case 'PlagueBearer':
+            label = `[🦠 Plague ${unit.zombieLifetime}t]`;
+            labelColor = '#86efac';
+            break;
+          case 'Electro':
+            label = `[⚡ Electro ${unit.zombieLifetime}t]`;
+            labelColor = '#fde047';
+            break;
+        }
+        ctx.fillStyle = labelColor;
+        ctx.fillText(label, screenPos.x, hpY - 6);
       } else if (isLifeBeing) {
         ctx.font = 'bold 10px "Fira Code", monospace';
         ctx.fillStyle = '#86efac';
