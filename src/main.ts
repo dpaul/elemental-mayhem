@@ -20,7 +20,24 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-interface HomeParticle {
+interface HomeStar {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  baseVx: number;
+  baseVy: number;
+  size: number;
+  color: string;
+  glowColor: string;
+  alpha: number;
+  baseAlpha: number;
+  pulseSpeed: number;
+  pulsePhase: number;
+  layer: number;
+}
+
+interface StardustSpark {
   x: number;
   y: number;
   vx: number;
@@ -28,6 +45,7 @@ interface HomeParticle {
   size: number;
   color: string;
   alpha: number;
+  life: number;
 }
 
 export class GameApp {
@@ -69,15 +87,22 @@ export class GameApp {
   private lastFrameTime: number = performance.now();
   private deadUnitIds: Set<string> = new Set();
 
-  // Home Screen & Particle Background
+  // Home Screen & Starfield Background
   private homeScreen: HTMLElement;
   private homeParticlesCanvas: HTMLCanvasElement;
   private homeParticlesCtx: CanvasRenderingContext2D | null = null;
-  private homeParticles: HomeParticle[] = [];
+  private homeStars: HomeStar[] = [];
+  private stardustSparks: StardustSpark[] = [];
   private homeBtnCampaign: HTMLElement;
   private homeBtnHotseat: HTMLElement;
   private homeBtnCodex: HTMLElement;
   private homeBtnGuide: HTMLElement;
+  private homeMouseX: number = -9999;
+  private homeMouseY: number = -9999;
+  private homeLastMouseX: number = -9999;
+  private homeLastMouseY: number = -9999;
+  private homeParallaxX: number = 0;
+  private homeParallaxY: number = 0;
 
   // Header Nav Controls
   private navHomeBtn: HTMLElement | null;
@@ -211,18 +236,95 @@ export class GameApp {
       }
     });
 
-    const colors = ['#ff6b35', '#00d2ff', '#ffd000', '#22c55e', '#d946ef', '#38bdf8', '#8b5cf6'];
-    this.homeParticles = [];
+    // Window-wide pointer tracking for ultra-responsive mouse reaction
+    window.addEventListener('pointermove', (e) => {
+      if (this.homeLastMouseX > -500) {
+        const dx = e.clientX - this.homeLastMouseX;
+        const dy = e.clientY - this.homeLastMouseY;
+        const speed = Math.hypot(dx, dy);
 
-    for (let i = 0; i < 65; i++) {
-      this.homeParticles.push({
+        // Spawn sparkling stardust trail on movement
+        if (speed > 3 && this.stardustSparks.length < 90) {
+          const sparkPalette = ['#38bdf8', '#ffd000', '#f43f5e', '#a855f7', '#ffffff', '#22c55e', '#ff6b35'];
+          const count = Math.min(3, Math.floor(speed / 8) + 1);
+          for (let s = 0; s < count; s++) {
+            this.stardustSparks.push({
+              x: e.clientX + (Math.random() - 0.5) * 12,
+              y: e.clientY + (Math.random() - 0.5) * 12,
+              vx: (Math.random() - 0.5) * 3 - dx * 0.12,
+              vy: (Math.random() - 0.5) * 3 - dy * 0.12,
+              size: Math.random() * 2.8 + 1.2,
+              color: sparkPalette[Math.floor(Math.random() * sparkPalette.length)],
+              alpha: 0.95,
+              life: 1.0,
+            });
+          }
+        }
+      }
+      this.homeLastMouseX = this.homeMouseX;
+      this.homeLastMouseY = this.homeMouseY;
+      this.homeMouseX = e.clientX;
+      this.homeMouseY = e.clientY;
+    });
+
+    window.addEventListener('pointerleave', () => {
+      this.homeMouseX = -9999;
+      this.homeMouseY = -9999;
+      this.homeLastMouseX = -9999;
+      this.homeLastMouseY = -9999;
+    });
+
+    const starColors = [
+      { color: '#ffffff', glow: 'rgba(255, 255, 255, 0.85)' }, // Starlight White
+      { color: '#93c5fd', glow: 'rgba(147, 197, 253, 0.85)' }, // Celestial Blue
+      { color: '#38bdf8', glow: 'rgba(56, 189, 248, 0.85)' },  // Primal Cyan
+      { color: '#fde047', glow: 'rgba(253, 224, 71, 0.85)' },  // Solar Gold
+      { color: '#ffd000', glow: 'rgba(255, 208, 0, 0.85)' },   // Lightning Amber
+      { color: '#ff7849', glow: 'rgba(255, 120, 73, 0.85)' },  // Pyromancer Fire
+      { color: '#c084fc', glow: 'rgba(192, 132, 252, 0.85)' }, // Void Amethyst
+      { color: '#f43f5e', glow: 'rgba(244, 63, 94, 0.85)' },   // Crimson War
+      { color: '#4ade80', glow: 'rgba(74, 222, 128, 0.85)' },  // Nature Emerald
+    ];
+
+    this.homeStars = [];
+    const totalStars = 160;
+
+    for (let i = 0; i < totalStars; i++) {
+      // 3 depth layers: 1 = distant background, 2 = midground elemental, 3 = foreground radiant
+      let layer = 1;
+      let size = Math.random() * 1.5 + 1.0;
+      let baseAlpha = Math.random() * 0.35 + 0.35;
+      let baseSpeed = 0.2;
+
+      if (i >= 80 && i < 135) {
+        layer = 2;
+        size = Math.random() * 2.2 + 2.2;
+        baseAlpha = Math.random() * 0.4 + 0.55;
+        baseSpeed = 0.35;
+      } else if (i >= 135) {
+        layer = 3;
+        size = Math.random() * 3.0 + 4.2;
+        baseAlpha = Math.random() * 0.3 + 0.7;
+        baseSpeed = 0.5;
+      }
+
+      const c = starColors[Math.floor(Math.random() * starColors.length)];
+
+      this.homeStars.push({
         x: Math.random() * window.innerWidth,
         y: Math.random() * window.innerHeight,
-        vx: (Math.random() - 0.5) * 0.8,
-        vy: (Math.random() - 0.5) * 0.8,
-        size: Math.random() * 3.5 + 1.5,
-        color: colors[Math.floor(Math.random() * colors.length)],
-        alpha: Math.random() * 0.6 + 0.3,
+        vx: (Math.random() - 0.5) * 0.5,
+        vy: (Math.random() - 0.5) * 0.5,
+        baseVx: (Math.random() - 0.5) * baseSpeed,
+        baseVy: (Math.random() - 0.5) * baseSpeed,
+        size: size,
+        color: c.color,
+        glowColor: c.glow,
+        alpha: baseAlpha,
+        baseAlpha: baseAlpha,
+        pulseSpeed: Math.random() * 0.035 + 0.015,
+        pulsePhase: Math.random() * Math.PI * 2,
+        layer: layer,
       });
     }
   }
@@ -230,24 +332,202 @@ export class GameApp {
   private updateAndRenderHomeParticles(): void {
     if (!this.homeParticlesCtx || !this.homeParticlesCanvas) return;
     const ctx = this.homeParticlesCtx;
-    ctx.clearRect(0, 0, this.homeParticlesCanvas.width, this.homeParticlesCanvas.height);
+    const w = this.homeParticlesCanvas.width;
+    const h = this.homeParticlesCanvas.height;
+    ctx.clearRect(0, 0, w, h);
 
-    for (const p of this.homeParticles) {
-      p.x += p.vx;
-      p.y += p.vy;
+    const centerX = w / 2;
+    const centerY = h / 2;
+    const hasMouse = this.homeMouseX > -500;
 
-      if (p.x < 0) p.x = this.homeParticlesCanvas.width;
-      if (p.x > this.homeParticlesCanvas.width) p.x = 0;
-      if (p.y < 0) p.y = this.homeParticlesCanvas.height;
-      if (p.y > this.homeParticlesCanvas.height) p.y = 0;
+    // Smooth 3D Parallax offset based on cursor position
+    const targetParallaxX = hasMouse ? (this.homeMouseX - centerX) * 0.045 : 0;
+    const targetParallaxY = hasMouse ? (this.homeMouseY - centerY) * 0.045 : 0;
+    this.homeParallaxX += (targetParallaxX - this.homeParallaxX) * 0.08;
+    this.homeParallaxY += (targetParallaxY - this.homeParallaxY) * 0.08;
+
+    // Soft cosmic central nebula glow
+    const grad = ctx.createRadialGradient(centerX, centerY, 20, centerX, centerY, Math.max(w, h) * 0.7);
+    grad.addColorStop(0, 'rgba(56, 189, 248, 0.09)');
+    grad.addColorStop(0.35, 'rgba(139, 92, 246, 0.06)');
+    grad.addColorStop(0.7, 'rgba(15, 23, 42, 0.02)');
+    grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+
+    const len = this.homeStars.length;
+
+    // 1. Constellation links between close stars
+    for (let i = 0; i < len; i++) {
+      const s1 = this.homeStars[i];
+      const pMult1 = s1.layer === 1 ? 0.35 : (s1.layer === 2 ? 0.85 : 1.6);
+      const x1 = s1.x + this.homeParallaxX * pMult1;
+      const y1 = s1.y + this.homeParallaxY * pMult1;
+
+      for (let j = i + 1; j < len; j++) {
+        const s2 = this.homeStars[j];
+        const pMult2 = s2.layer === 1 ? 0.35 : (s2.layer === 2 ? 0.85 : 1.6);
+        const x2 = s2.x + this.homeParallaxX * pMult2;
+        const y2 = s2.y + this.homeParallaxY * pMult2;
+
+        const dx = x1 - x2;
+        const dy = y1 - y2;
+        const distSq = dx * dx + dy * dy;
+        const maxDist = 90;
+        if (distSq < maxDist * maxDist) {
+          const dist = Math.sqrt(distSq);
+          const lineAlpha = (1 - dist / maxDist) * 0.16;
+          ctx.strokeStyle = s1.color;
+          ctx.globalAlpha = lineAlpha;
+          ctx.lineWidth = 0.8;
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // 2. Direct Interactive Constellation Lasers to Mouse Cursor
+    if (hasMouse) {
+      for (const star of this.homeStars) {
+        const pMult = star.layer === 1 ? 0.35 : (star.layer === 2 ? 0.85 : 1.6);
+        const drawX = star.x + this.homeParallaxX * pMult;
+        const drawY = star.y + this.homeParallaxY * pMult;
+        const dx = drawX - this.homeMouseX;
+        const dy = drawY - this.homeMouseY;
+        const dist = Math.hypot(dx, dy);
+        const mouseConnectRadius = 175;
+
+        if (dist < mouseConnectRadius) {
+          const lineAlpha = Math.pow(1 - dist / mouseConnectRadius, 1.25) * 0.75;
+          ctx.save();
+          ctx.strokeStyle = star.color;
+          ctx.globalAlpha = lineAlpha;
+          ctx.lineWidth = star.layer === 3 ? 1.6 : 1.0;
+          ctx.shadowColor = star.glowColor;
+          ctx.shadowBlur = 10;
+          ctx.beginPath();
+          ctx.moveTo(this.homeMouseX, this.homeMouseY);
+          ctx.lineTo(drawX, drawY);
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+    }
+
+    // 3. Update star positions with dynamic mouse repulsion and render
+    for (const star of this.homeStars) {
+      const pMult = star.layer === 1 ? 0.35 : (star.layer === 2 ? 0.85 : 1.6);
+      const drawX = star.x + this.homeParallaxX * pMult;
+      const drawY = star.y + this.homeParallaxY * pMult;
+
+      // Mouse interactive repulsion wave
+      if (hasMouse) {
+        const mdx = drawX - this.homeMouseX;
+        const mdy = drawY - this.homeMouseY;
+        const dist = Math.hypot(mdx, mdy);
+        const reactRadius = star.layer === 3 ? 200 : (star.layer === 2 ? 160 : 120);
+
+        if (dist < reactRadius && dist > 0.1) {
+          const factor = Math.pow(1 - dist / reactRadius, 2);
+          const force = factor * (star.layer * 6.5);
+          star.vx += (mdx / dist) * force;
+          star.vy += (mdy / dist) * force;
+        }
+      }
+
+      // Smooth velocity decay and natural drift
+      star.vx *= 0.90;
+      star.vy *= 0.90;
+      star.x += star.vx + star.baseVx;
+      star.y += star.vy + star.baseVy;
+
+      // Screen edge wrapping
+      if (star.x < -30) star.x = w + 30;
+      if (star.x > w + 30) star.x = -30;
+      if (star.y < -30) star.y = h + 30;
+      if (star.y > h + 30) star.y = -30;
+
+      // Twinkle pulsation & cursor proximity flare
+      star.pulsePhase += star.pulseSpeed;
+      let currentAlpha = star.baseAlpha + Math.sin(star.pulsePhase) * 0.25;
+      let currentSize = star.size;
+
+      // Brighten and flare star when mouse is nearby
+      if (hasMouse) {
+        const distToMouse = Math.hypot(drawX - this.homeMouseX, drawY - this.homeMouseY);
+        if (distToMouse < 210) {
+          const proximity = 1 - distToMouse / 210;
+          currentAlpha = Math.min(1.0, currentAlpha + proximity * 0.55);
+          currentSize = star.size * (1 + proximity * 0.75);
+        }
+      }
+
+      // Draw star body and outer glow
+      ctx.save();
+      ctx.globalAlpha = Math.max(0.1, Math.min(1.0, currentAlpha));
+      ctx.fillStyle = star.color;
+      ctx.shadowColor = star.glowColor;
+      ctx.shadowBlur = star.layer === 3 ? 20 : (star.layer === 2 ? 12 : 5);
+      ctx.beginPath();
+      ctx.arc(drawX, drawY, Math.max(0.6, currentSize), 0, Math.PI * 2);
+      ctx.fill();
+
+      // Bright incandescent core for larger stars
+      if (star.layer >= 2) {
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(drawX, drawY, Math.max(0.5, currentSize * 0.45), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // 4. Stardust Sparkle Trails from Mouse Movement
+    for (let i = this.stardustSparks.length - 1; i >= 0; i--) {
+      const spark = this.stardustSparks[i];
+      spark.x += spark.vx;
+      spark.y += spark.vy;
+      spark.vx *= 0.93;
+      spark.vy *= 0.93;
+      spark.life -= 0.028;
+
+      if (spark.life <= 0) {
+        this.stardustSparks.splice(i, 1);
+        continue;
+      }
 
       ctx.save();
-      ctx.globalAlpha = p.alpha;
-      ctx.fillStyle = p.color;
-      ctx.shadowColor = p.color;
+      ctx.globalAlpha = Math.max(0, spark.life * spark.alpha);
+      ctx.fillStyle = spark.color;
+      ctx.shadowColor = spark.color;
       ctx.shadowBlur = 10;
       ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.arc(spark.x, spark.y, spark.size * spark.life, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // 5. Mouse Gravity Reticle & Celestial Aura
+    if (hasMouse) {
+      ctx.save();
+      const cursorGlow = ctx.createRadialGradient(this.homeMouseX, this.homeMouseY, 0, this.homeMouseX, this.homeMouseY, 32);
+      cursorGlow.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
+      cursorGlow.addColorStop(0.3, 'rgba(56, 189, 248, 0.45)');
+      cursorGlow.addColorStop(0.7, 'rgba(168, 85, 247, 0.2)');
+      cursorGlow.addColorStop(1, 'rgba(56, 189, 248, 0)');
+      ctx.fillStyle = cursorGlow;
+      ctx.beginPath();
+      ctx.arc(this.homeMouseX, this.homeMouseY, 32, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Sharp sparkling core
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = '#38bdf8';
+      ctx.shadowBlur = 14;
+      ctx.beginPath();
+      ctx.arc(this.homeMouseX, this.homeMouseY, 3.2, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
     }
@@ -696,12 +976,53 @@ export class GameApp {
   }
 
   private setupEventListeners(canvas: HTMLCanvasElement): void {
-    // Clickable Elemental Orbs on Home Screen
+    // Interactive Elemental Catalyst Orbs on Home Screen with dynamic live preview & sound
+    const previewBox = document.getElementById('home-orb-preview-box');
+    const previewIcon = document.getElementById('home-orb-preview-icon');
+    const previewTitle = document.getElementById('home-orb-preview-title');
+    const previewDesc = document.getElementById('home-orb-preview-desc');
+
     document.querySelectorAll('.home-orb').forEach((orb) => {
+      orb.addEventListener('mouseenter', () => {
+        const elem = orb.getAttribute('data-element') as ElementType;
+        if (!elem) return;
+        const config = HERO_CLASSES[elem];
+        const elemData = CORE_ELEMENTS[elem];
+        const className = config ? config.className : `${elem}mancer`;
+        const title = `${className} (${elem})`;
+        const desc = elemData ? elemData.description : (config ? config.description : 'Master of raw elemental forces.');
+
+        if (previewIcon) previewIcon.textContent = orb.textContent || '✨';
+        if (previewTitle) {
+          previewTitle.textContent = title;
+          previewTitle.style.color = elemData ? elemData.color : '#38bdf8';
+        }
+        if (previewDesc) previewDesc.textContent = desc;
+        if (previewBox && elemData) {
+          previewBox.style.borderColor = elemData.color;
+          previewBox.style.boxShadow = `0 0 25px ${elemData.glowColor}, inset 0 0 12px ${elemData.glowColor}`;
+        }
+        this.soundEngine.playClick();
+      });
+
+      orb.addEventListener('mouseleave', () => {
+        if (previewIcon) previewIcon.textContent = '✨';
+        if (previewTitle) {
+          previewTitle.textContent = 'Choose Your Affinity';
+          previewTitle.style.color = '#f8fafc';
+        }
+        if (previewDesc) previewDesc.textContent = 'Hover over any catalyst orb to preview powers, or click to battle CPUs immediately!';
+        if (previewBox) {
+          previewBox.style.borderColor = 'rgba(56, 189, 248, 0.35)';
+          previewBox.style.boxShadow = '0 0 20px rgba(0, 0, 0, 0.5), inset 0 0 12px rgba(56, 189, 248, 0.1)';
+        }
+      });
+
       orb.addEventListener('click', () => {
         const elem = orb.getAttribute('data-element') as ElementType;
         if (!elem) return;
 
+        this.soundEngine.playSpellCast(elem);
         if (this.unlockManager.isElementUnlocked(elem)) {
           this.selectedElement = elem;
           this.characterSelectModal.classList.add('hidden');
@@ -718,57 +1039,99 @@ export class GameApp {
       });
     });
 
+    // Quick Play Hero Action Button
+    document.getElementById('home-btn-quick-play')?.addEventListener('click', () => {
+      this.soundEngine.playSpellCast(this.selectedElement || 'Fire');
+      this.hideHomeScreen();
+      this.restartGame(this.selectedElement || 'Fire');
+      const config = HERO_CLASSES[this.selectedElement || 'Fire'];
+      const className = config ? config.className : 'Pyromancer';
+      this.combatEngine.addLog('system', `🔥 Quick Battle Started! Entering the gauntlet as ${className}!`);
+    });
+
+    // Home Quick Utility Buttons (Top Bar)
+    const quickSoundBtn = document.getElementById('home-quick-sound-btn');
+    if (quickSoundBtn) {
+      quickSoundBtn.addEventListener('click', () => {
+        this.soundEngine.unlockAudio();
+        const isMuted = this.soundEngine.toggleMute();
+        quickSoundBtn.innerHTML = isMuted ? '<span class="util-icon">🔇</span> Sound OFF' : '<span class="util-icon">🔊</span> Sound ON';
+        const navSound = document.getElementById('nav-sound-btn');
+        if (navSound) {
+          navSound.textContent = isMuted ? '🔇 Sound OFF' : '🔊 Sound ON';
+          navSound.style.color = isMuted ? '#f87171' : '#7dd3fc';
+        }
+        this.soundEngine.playClick();
+      });
+    }
+
+    document.getElementById('home-quick-admin-btn')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      this.openAdminPanel();
+    });
+
     // Home Screen Actions
     document.getElementById('home-btn-choose-element')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
       this.hideHomeScreen();
       this.renderCharacterSelectModal();
       this.characterSelectModal.classList.remove('hidden');
     });
 
     document.getElementById('home-btn-element-card')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
       this.hideHomeScreen();
       this.renderCharacterSelectModal();
       this.characterSelectModal.classList.remove('hidden');
     });
 
     this.homeBtnCampaign?.addEventListener('click', () => {
+      this.soundEngine.playClick();
       this.hideHomeScreen();
       this.renderCharacterSelectModal();
       this.characterSelectModal.classList.remove('hidden');
     });
 
     document.getElementById('home-btn-multiplayer')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
       this.openHotseatSelection();
     });
 
     document.getElementById('nav-multiplayer-btn')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
       this.openHotseatSelection();
     });
 
     document.getElementById('pvp-arena-btn')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
       this.openHotseatSelection();
     });
 
     document.getElementById('char-select-multiplayer-btn')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
       this.characterSelectModal.classList.add('hidden');
       this.openHotseatSelection();
     });
 
     document.getElementById('char-select-unlock-all-btn')?.addEventListener('click', () => {
+      this.soundEngine.playUnlock();
       this.unlockManager.unlockAllElements(true);
       this.renderCharacterSelectModal();
-      this.combatEngine.addLog('system', '✨ All 42 Elemental Powers & Omnipotent Avatar have been unlocked for everyone!');
+      this.combatEngine.addLog('system', '✨ All 50 Elemental Powers & Omnipotent Avatar have been unlocked for everyone!');
     });
 
     this.homeBtnHotseat?.addEventListener('click', () => {
+      this.soundEngine.playClick();
       this.openHotseatSelection();
     });
 
     this.homeBtnCodex?.addEventListener('click', () => {
+      this.soundEngine.playClick();
       this.openCodex();
     });
 
     this.homeBtnGuide?.addEventListener('click', () => {
+      this.soundEngine.playClick();
       this.openGuide();
     });
 

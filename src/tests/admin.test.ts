@@ -22,8 +22,8 @@ describe('AdminManager Security & Privileges', () => {
     expect(adminManager.isAuthenticated()).toBe(false);
   });
 
-  it('should authenticate successfully with password 5423118', () => {
-    expect(adminManager.authenticate('5423118')).toBe(true);
+  it('should authenticate successfully with password 190846214', () => {
+    expect(adminManager.authenticate('190846214')).toBe(true);
     expect(adminManager.isAuthenticated()).toBe(true);
 
     adminManager.logout();
@@ -32,19 +32,20 @@ describe('AdminManager Security & Privileges', () => {
     // Old or default passwords should now be rejected
     expect(adminManager.authenticate('admin')).toBe(false);
     expect(adminManager.authenticate('dave')).toBe(false);
+    expect(adminManager.authenticate('5423118')).toBe(false);
   });
 
-  it('should allow admin commands only when authenticated with 5423118', () => {
+  it('should allow admin commands only when authenticated with 190846214', () => {
     // Unauthenticated: cannot use commands
     expect(adminManager.canUseAdminCommands(false, 1)).toBe(false);
 
     // Authenticated in single player mode: allowed
-    adminManager.authenticate('5423118');
+    adminManager.authenticate('190846214');
     expect(adminManager.canUseAdminCommands(false, 1)).toBe(true);
   });
 
   it('should restrict admin commands in Hotseat mode so only Player 1 (Creator) can use them', () => {
-    adminManager.authenticate('5423118');
+    adminManager.authenticate('190846214');
 
     // Player 1 in Hotseat: allowed
     expect(adminManager.canUseAdminCommands(true, 1)).toBe(true);
@@ -54,7 +55,7 @@ describe('AdminManager Security & Privileges', () => {
   });
 
   it('should allow logging out to re-lock admin commands', () => {
-    adminManager.authenticate('5423118');
+    adminManager.authenticate('190846214');
     expect(adminManager.isAuthenticated()).toBe(true);
 
     adminManager.logout();

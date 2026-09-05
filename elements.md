@@ -40,3 +40,11 @@
 40. Magma
 41. Glass
 42. Crystal
+43. Iron
+44. War
+45. Rage
+46. Titan
+47. Blast
+48. Plasma
+49. Obsidian
+50. Brimstone

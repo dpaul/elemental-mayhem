@@ -128,57 +128,88 @@
     <div id="home-screen" class="home-screen-overlay">
       <canvas id="home-particles-canvas" class="home-particles-canvas"></canvas>
       <div class="home-container glass-card">
+        <!-- Top Utilities Bar -->
+        <div class="home-top-bar">
+          <div class="home-status-tag">
+            <span class="live-dot"></span>
+            <span class="status-tag-text">50 ELEMENTAL REALMS ACTIVE • v0.50 EXPANSION</span>
+          </div>
+          <div class="home-quick-actions">
+            <button id="home-quick-sound-btn" class="home-util-btn" title="Toggle Sound Engine">
+              <span class="util-icon">🔊</span> Sound ON
+            </button>
+            <button id="home-quick-admin-btn" class="home-util-btn btn-admin-gold" title="Open Creator Admin Console">
+              <span class="util-icon">👑</span> Creator Console
+            </button>
+          </div>
+        </div>
+
         <!-- Hero Header -->
         <div class="home-header">
-          <div class="home-orb-ring" id="home-orb-ring">
-            <span class="home-orb orb-fire" title="Fire - Click to Fight CPUs as Pyromancer" data-element="Fire">🔥</span>
-            <span class="home-orb orb-water" title="Water - Click to Fight CPUs as Hydromancer" data-element="Water">💧</span>
-            <span class="home-orb orb-lightning" title="Lightning - Click to Fight CPUs as Electromancer" data-element="Lightning">⚡</span>
-            <span class="home-orb orb-earth" title="Earth - Click to Fight CPUs as Terramancer" data-element="Earth">🪨</span>
-            <span class="home-orb orb-undead" title="Undead - Click to Fight CPUs as Necromancer" data-element="Undead">💀</span>
-            <span class="home-orb orb-life" title="Life - Click to Fight CPUs as Biomancer" data-element="Life">🌱</span>
-            <span class="home-orb orb-void" title="Void - Click to Fight CPUs as Voidmancer" data-element="Void">🌌</span>
-            <span class="home-orb orb-ice" title="Ice - Click to Fight CPUs as Cryomancer" data-element="Ice">❄️</span>
-            <span class="home-orb orb-wind" title="Wind - Click to Fight CPUs as Aeromancer" data-element="Wind">🌪️</span>
-            <span class="home-orb orb-light" title="Light - Click to Fight CPUs as Solarmancer" data-element="Light">☀️</span>
+          <div class="home-super-badge">
+            <span class="badge-sparkle">⚔️</span> TACTICAL TURN-BASED ARENA <span class="badge-sparkle">✨</span>
           </div>
-          <p class="orb-hint-text" style="font-size: 0.85rem; color: #93c5fd; margin: -6px 0 2px 0; font-weight: 600; text-shadow: 0 0 10px rgba(59, 130, 246, 0.5);">✨ Click any elemental orb above to battle CPUs instantly, or choose from all 42 champions below</p>
+
           <h1 class="home-title">ELEMENTAL <span class="home-title-glow">MAYHEM</span></h1>
-          <p class="home-subtitle">Master 42 Elemental Forces • Cascade Reactions • Reanimate Undead • Ascend the Gauntlet</p>
+          <p class="home-subtitle">Wield 50 Primal, Cosmic & Martial Forces • Cascade Dynamic Chain Reactions • Reanimate Armies • Ascend the Infinite Gauntlet</p>
+
           <div class="home-pill-row">
-            <span class="home-pill">🌟 42 Elements</span>
+            <span class="home-pill">🌟 50 Elemental Powers</span>
             <span class="home-pill">⚔️ 1v1 Hot Seat PvP</span>
-            <span class="home-pill">👑 15 Boss Gauntlets</span>
+            <span class="home-pill">👑 15 Titan Bosses</span>
             <span class="home-pill">⚡ Chain Reactions</span>
+            <span class="home-pill">🧟 11 Zombie Classes</span>
           </div>
-          <div style="display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-top: 12px;">
-            <button id="home-btn-multiplayer" class="btn-primary" style="background: linear-gradient(135deg, #ef4444, #f43f5e, #8b5cf6); border: 1px solid #fda4af; font-size: 1.1rem; font-weight: 800; padding: 12px 36px; border-radius: 9999px; box-shadow: 0 0 30px rgba(239, 68, 68, 0.6); cursor: pointer; transition: all 0.25s ease;">⚔️ PLAY MULTIPLAYER (1v1 PvP)</button>
-            <button id="home-btn-choose-element" class="btn-primary" style="background: linear-gradient(135deg, #3b82f6, #8b5cf6, #ec4899); border: 1px solid #c084fc; font-size: 1.1rem; font-weight: 800; padding: 12px 36px; border-radius: 9999px; box-shadow: 0 0 30px rgba(139, 92, 246, 0.6); cursor: pointer; transition: all 0.25s ease;">🧙 PICK YOUR ELEMENT MASTER</button>
+
+          <!-- Interactive Elemental Catalyst Wheel -->
+          <div class="home-orb-ring-wrapper">
+            <div class="home-orb-ring" id="home-orb-ring">
+              <span class="home-orb orb-fire" title="Fire - Pyromancer" data-element="Fire">🔥</span>
+              <span class="home-orb orb-water" title="Water - Hydromancer" data-element="Water">💧</span>
+              <span class="home-orb orb-lightning" title="Lightning - Electromancer" data-element="Lightning">⚡</span>
+              <span class="home-orb orb-earth" title="Earth - Terramancer" data-element="Earth">🪨</span>
+              <span class="home-orb orb-undead" title="Undead - Necromancer" data-element="Undead">💀</span>
+              <span class="home-orb orb-void" title="Void - Voidmancer" data-element="Void">🌌</span>
+              <span class="home-orb orb-ice" title="Ice - Cryomancer" data-element="Ice">❄️</span>
+              <span class="home-orb orb-wind" title="Wind - Aeromancer" data-element="Wind">🌪️</span>
+              <span class="home-orb orb-blood" title="Blood - Hemomancer" data-element="Blood">🩸</span>
+              <span class="home-orb orb-light" title="Light - Solarmancer" data-element="Light">☀️</span>
+              <span class="home-orb orb-metal" title="Metal - Ironclad" data-element="Metal">🛡️</span>
+              <span class="home-orb orb-force" title="Force - Titan" data-element="Force">💥</span>
+            </div>
+            <!-- Dynamic Interactive Orb Preview Box -->
+            <div id="home-orb-preview-box" class="home-orb-preview-box">
+              <span class="home-orb-preview-icon" id="home-orb-preview-icon">✨</span>
+              <span class="home-orb-preview-title" id="home-orb-preview-title">Choose Your Affinity</span>
+              <span class="home-orb-preview-desc" id="home-orb-preview-desc">Hover over any catalyst orb to preview powers, or click to battle CPUs immediately!</span>
+            </div>
+          </div>
+
+          <!-- Primary Hero Actions -->
+          <div class="home-cta-row">
+            <button id="home-btn-multiplayer" class="btn-hero-action btn-hero-pvp">
+              <span>⚔️</span> PLAY MULTIPLAYER (1v1 PvP)
+            </button>
+            <button id="home-btn-quick-play" class="btn-hero-action btn-hero-quick">
+              <span>🔥</span> INSTANT BATTLE (Pyromancer)
+            </button>
+            <button id="home-btn-choose-element" class="btn-hero-action btn-hero-roster">
+              <span>🧙</span> 50 CHAMPIONS ROSTER
+            </button>
           </div>
         </div>
 
         <!-- Mode Cards Grid -->
         <div class="home-modes-grid">
-          <!-- Pick Element Card -->
-          <div class="home-mode-card card-element" id="home-btn-element-card">
-            <div class="card-badge" style="background: rgba(168, 85, 247, 0.2); color: #c084fc; border-color: rgba(168, 85, 247, 0.4);">Champion Select</div>
-            <div class="card-icon">🧙‍♂️</div>
-            <h3 class="card-title">PICK YOUR ELEMENT</h3>
-            <p class="card-desc">
-              Browse and choose from all 42 elemental champions (Pyromancer, Biomancer, Necromancer, Chronomancer, etc.).
-            </p>
-            <button class="btn-primary card-action-btn" style="background: linear-gradient(135deg, #8b5cf6, #ec4899); border-color: #f472b6;">Pick Element</button>
-          </div>
-
           <!-- Campaign Card -->
           <div class="home-mode-card card-campaign" id="home-btn-campaign">
             <div class="card-badge">Single Player</div>
             <div class="card-icon">🛡️</div>
-            <h3 class="card-title">SOLO CAMPAIGN</h3>
+            <h3 class="card-title">SOLO GAUNTLET</h3>
             <p class="card-desc">
-              Battle through 10000000000000000000000000000000000000000000000000 rounds of escalating elemental hazards, elite bosses, and unlock all 42 elemental masteries.
+              Battle through infinite escalating rounds, survive cataclysmic titan bosses, and master the full spectrum of elements.
             </p>
-            <button class="btn-primary card-action-btn">Launch Campaign</button>
+            <button class="btn-primary card-action-btn">Launch Gauntlet →</button>
           </div>
 
           <!-- Hot Seat PvP Card -->
@@ -187,9 +218,20 @@
             <div class="card-icon">⚔️</div>
             <h3 class="card-title">HOT SEAT ARENA</h3>
             <p class="card-desc">
-              Duel a friend locally on this device. Draft your elemental champions and wage war in tactical turn-based combat.
+              Duel a friend locally on this device. Draft your elemental champions and wage tactical turn-based war.
             </p>
-            <button class="btn-primary card-action-btn btn-pvp">Enter 1v1 Arena</button>
+            <button class="btn-primary card-action-btn btn-pvp">Enter 1v1 Arena →</button>
+          </div>
+
+          <!-- Pick Element Card -->
+          <div class="home-mode-card card-element" id="home-btn-element-card">
+            <div class="card-badge" style="background: rgba(168, 85, 247, 0.2); color: #c084fc; border-color: rgba(168, 85, 247, 0.4);">50 Champions</div>
+            <div class="card-icon">🧙‍♂️</div>
+            <h3 class="card-title">CHAMPION ROSTER</h3>
+            <p class="card-desc">
+              Select from all 50 elemental masters with customized 10-spell loadouts, shields, and playstyles.
+            </p>
+            <button class="btn-primary card-action-btn" style="background: linear-gradient(135deg, #8b5cf6, #ec4899); border-color: #f472b6;">Pick Champion →</button>
           </div>
 
           <!-- Codex Card -->
@@ -198,25 +240,25 @@
             <div class="card-icon">📖</div>
             <h3 class="card-title">ELEMENTAL CODEX</h3>
             <p class="card-desc">
-              Explore all 42 elements, spell kits, strengths, weaknesses, reactions (Steam, Holy Smite, Necrosis), and lore.
+              Study element affinities, strengths, weaknesses, and legendary reactions like Steam, Holy Smite, and Necrosis.
             </p>
-            <button class="btn-primary card-action-btn btn-codex">Browse Codex</button>
+            <button class="btn-primary card-action-btn btn-codex">Open Codex →</button>
           </div>
 
           <!-- Guide Card -->
           <div class="home-mode-card card-guide" id="home-btn-guide">
             <div class="card-badge badge-guide">Tactics & Rules</div>
             <div class="card-icon">📜</div>
-            <h3 class="card-title">HOW TO PLAY</h3>
+            <h3 class="card-title">WAR ROOM GUIDE</h3>
             <p class="card-desc">
-              Master Action Points (AP), Line of Sight, Tile Hazards, Necromancer zombie swarms, and Life unzombify explosions.
+              Master AP economy, Line of Sight positioning, battlefield hazards, and zombie horde mechanics.
             </p>
-            <button class="btn-primary card-action-btn btn-guide">Read Guide</button>
+            <button class="btn-primary card-action-btn btn-guide">Read Guide →</button>
           </div>
         </div>
 
         <div class="home-footer-text">
-          <span>✨ Elemental Mayhem Tactical Engine • Built with HTML5 Canvas & TypeScript</span>
+          <span>✨ Elemental Mayhem Tactical Arena • Powered by Web Audio, Canvas & TypeScript</span>
         </div>
       </div>
     </div>

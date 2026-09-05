@@ -3,9 +3,9 @@
 export class AdminManager {
   private authenticated: boolean = false;
   private readonly storageKey = 'elemental_mayhem_admin_auth';
-  public static readonly MASTER_PASSCODE: string = '5423118';
+  public static readonly MASTER_PASSCODE: string = '190846214';
   private readonly validPasscodes = new Set<string>([
-    '5423118',
+    '190846214',
   ]);
 
   constructor() {
