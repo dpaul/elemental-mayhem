@@ -17,6 +17,8 @@ export class BattlefieldRenderer {
   public gridOffsetX: number = 40;
   public gridOffsetY: number = 40;
   public elapsedTotalTimeMs: number = 0;
+  public partnerHoverCoord: GridCoord | null = null;
+  public activePings: { coord: GridCoord; label: string; playerNum: 1 | 2; age: number; maxAge: number }[] = [];
 
   constructor(canvas: HTMLCanvasElement, combatEngine: CombatEngine) {
     this.canvas = canvas;
@@ -98,6 +100,14 @@ export class BattlefieldRenderer {
     // Emit elemental tail particles for active projectiles
     for (const proj of this.projManager.getActiveProjectiles()) {
       this.particleEngine.emit(proj.currentX, proj.currentY, proj.color, 3, 1.2, 'spark');
+    }
+
+    // Update active tactical pings
+    for (let i = this.activePings.length - 1; i >= 0; i--) {
+      this.activePings[i].age += deltaTimeMs;
+      if (this.activePings[i].age >= this.activePings[i].maxAge) {
+        this.activePings.splice(i, 1);
+      }
     }
 
     this.particleEngine.update(deltaTimeMs);
@@ -200,6 +210,53 @@ export class BattlefieldRenderer {
       ctx.shadowColor = '#38bdf8';
       ctx.shadowBlur = 8;
       ctx.strokeRect(hx + 1, hy + 1, tileSize - 2, tileSize - 2);
+    }
+
+    // 5b. Draw Partner Ghost Hover Reticle (Co-op)
+    if (this.partnerHoverCoord) {
+      const phx = gridOffsetX + this.partnerHoverCoord.x * tileSize;
+      const phy = gridOffsetY + this.partnerHoverCoord.y * tileSize;
+      ctx.save();
+      ctx.strokeStyle = '#c084fc';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 4]);
+      ctx.shadowColor = '#a855f7';
+      ctx.shadowBlur = 10;
+      ctx.strokeRect(phx + 2, phy + 2, tileSize - 4, tileSize - 4);
+      ctx.font = 'bold 9px "Fira Code", monospace';
+      ctx.fillStyle = '#f3e8ff';
+      ctx.textAlign = 'right';
+      ctx.fillText('ALLY', phx + tileSize - 4, phy + 12);
+      ctx.restore();
+    }
+
+    // 5c. Draw Tactical Pings
+    for (const ping of this.activePings) {
+      const px = gridOffsetX + ping.coord.x * tileSize + tileSize / 2;
+      const py = gridOffsetY + ping.coord.y * tileSize + tileSize / 2;
+      const progress = ping.age / ping.maxAge;
+      const pingRadius = (tileSize / 2) * (0.4 + progress * 0.9);
+      const alpha = Math.max(0, 1 - progress);
+
+      ctx.save();
+      ctx.strokeStyle = ping.playerNum === 1 ? `rgba(56, 189, 248, ${alpha})` : `rgba(168, 85, 247, ${alpha})`;
+      ctx.lineWidth = 2.5;
+      ctx.shadowColor = ping.playerNum === 1 ? '#38bdf8' : '#c084fc';
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.arc(px, py, pingRadius, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.font = 'bold 13px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('📍', px, py - 6);
+      if (ping.label) {
+        ctx.font = 'bold 10px "Fira Code", monospace';
+        ctx.fillStyle = '#fef08a';
+        ctx.fillText(ping.label, px, py + 12);
+      }
+      ctx.restore();
     }
     ctx.restore();
 
@@ -332,6 +389,7 @@ export class BattlefieldRenderer {
   private renderUnits(ctx: CanvasRenderingContext2D, focusedUnitId: string | null): void {
     const allUnits = [
       this.combatEngine.hero,
+      ...(this.combatEngine.coopHero ? [this.combatEngine.coopHero] : []),
       ...this.combatEngine.zombies,
       ...this.combatEngine.lifeBeings,
       ...this.combatEngine.enemies,
@@ -532,7 +590,7 @@ export class BattlefieldRenderer {
         : '#ef4444';
       ctx.fillRect(hpX, hpY, hpWidth * hpPct, hpHeight);
 
-      if (isBoss) {
+        if (isBoss) {
         ctx.strokeStyle = '#fbbf24';
         ctx.lineWidth = 1.5;
         ctx.strokeRect(hpX, hpY, hpWidth, hpHeight);
@@ -540,6 +598,19 @@ export class BattlefieldRenderer {
         // Boss Crown indicator
         ctx.font = '12px sans-serif';
         ctx.fillText('👑', screenPos.x, hpY - 8);
+      }
+
+      // Co-op P1 / P2 Indicator
+      if (this.combatEngine.coopHero) {
+        if (unit.id === this.combatEngine.hero.id) {
+          ctx.font = 'bold 10px "Fira Code", monospace';
+          ctx.fillStyle = '#38bdf8';
+          ctx.fillText('P1 🧙', screenPos.x, hpY - 7);
+        } else if (unit.id === this.combatEngine.coopHero.id) {
+          ctx.font = 'bold 10px "Fira Code", monospace';
+          ctx.fillStyle = '#c084fc';
+          ctx.fillText('P2 🧙', screenPos.x, hpY - 7);
+        }
       }
 
       // Unit Special Indicator

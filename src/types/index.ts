@@ -213,7 +213,9 @@ export type TurnPhase =
   | 'GAME_OVER'
   | 'HOTSEAT_P1_TURN'
   | 'HOTSEAT_P2_TURN'
-  | 'HOTSEAT_VICTORY';
+  | 'HOTSEAT_VICTORY'
+  | 'COOP_P1_TURN'
+  | 'COOP_P2_TURN';
 
 export interface ReactionResult {
   reactionName: string;

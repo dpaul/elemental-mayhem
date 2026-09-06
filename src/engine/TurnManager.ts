@@ -66,4 +66,16 @@ export class TurnManager {
   public getPhase(): TurnPhase {
     return this.phase;
   }
+
+  public startCoopTurn(playerNum: 1 | 2, unit: Unit): void {
+    this.phase = playerNum === 1 ? 'COOP_P1_TURN' : 'COOP_P2_TURN';
+    if (!unit.isDead) {
+      unit.stats.currentAp = unit.stats.maxAp;
+      unit.abilities.forEach((ability) => {
+        if (ability.currentCooldown > 0) {
+          ability.currentCooldown -= 1;
+        }
+      });
+    }
+  }
 }

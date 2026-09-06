@@ -16,6 +16,8 @@ import { SaveManager, GameSaveData, SavedHazardTile } from './engine/SaveManager
 import { ElementType, Unit, Ability, GridCoord, ZombieClass, TileHazardType } from './types';
 import { CORE_ELEMENTS } from './constants/elements';
 import { HERO_CLASSES, createHeroForElement } from './constants/classes';
+import { NetworkManager } from './network/NetworkManager';
+import { NetworkMessage } from './network/NetworkMessages';
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -204,6 +206,37 @@ export class GameApp {
   private hotseatClassSelectContainer: HTMLElement;
   private pvpArenaBtn: HTMLElement | null;
 
+  // Online Co-op Mode
+  private networkManager: NetworkManager;
+  private isCoopMode: boolean = false;
+  private coopLocalPlayer: 1 | 2 = 1;
+  private coopP1Element: ElementType = 'Fire';
+  private coopP2Element: ElementType = 'Water';
+  private lastCursorHoverSent: number = 0;
+
+  // Co-op Modal Elements
+  private coopModal: HTMLElement;
+  private closeCoopBtn: HTMLElement;
+  private coopTabHost: HTMLElement;
+  private coopTabJoin: HTMLElement;
+  private coopHostPanel: HTMLElement;
+  private coopJoinPanel: HTMLElement;
+  private coopHostRoomCode: HTMLElement;
+  private coopCopyCodeBtn: HTMLElement;
+  private coopHostStatus: HTMLElement;
+  private coopHostLaunchBtn: HTMLButtonElement;
+  private coopHostPartnerCard: HTMLElement;
+  private coopPartnerAvatar: HTMLElement;
+  private coopPartnerName: HTMLElement;
+  private coopPartnerClass: HTMLElement;
+  private coopJoinCodeInput: HTMLInputElement;
+  private coopJoinConnectBtn: HTMLElement;
+  private coopJoinStatus: HTMLElement;
+  private coopJoinWaitingBox: HTMLElement;
+  private coopHostElementGrid: HTMLElement;
+  private coopJoinElementGrid: HTMLElement;
+  private navCoopBtn: HTMLElement | null;
+
   // Codex & Guide Modals
   private codexModal: HTMLElement;
   private codexGridContainer: HTMLElement;
@@ -296,6 +329,30 @@ export class GameApp {
     this.hotseatClassSelectContainer = document.getElementById('hotseat-class-select-container')!;
     this.pvpArenaBtn = document.getElementById('pvp-arena-btn');
 
+    // Online Co-op Elements & Network Manager
+    this.networkManager = new NetworkManager();
+    this.coopModal = document.getElementById('coop-modal')!;
+    this.closeCoopBtn = document.getElementById('close-coop-btn')!;
+    this.coopTabHost = document.getElementById('coop-tab-host')!;
+    this.coopTabJoin = document.getElementById('coop-tab-join')!;
+    this.coopHostPanel = document.getElementById('coop-host-panel')!;
+    this.coopJoinPanel = document.getElementById('coop-join-panel')!;
+    this.coopHostRoomCode = document.getElementById('coop-host-room-code')!;
+    this.coopCopyCodeBtn = document.getElementById('coop-copy-code-btn')!;
+    this.coopHostStatus = document.getElementById('coop-host-status')!;
+    this.coopHostLaunchBtn = document.getElementById('coop-host-launch-btn') as HTMLButtonElement;
+    this.coopHostPartnerCard = document.getElementById('coop-host-partner-card')!;
+    this.coopPartnerAvatar = document.getElementById('coop-partner-avatar')!;
+    this.coopPartnerName = document.getElementById('coop-partner-name')!;
+    this.coopPartnerClass = document.getElementById('coop-partner-class')!;
+    this.coopJoinCodeInput = document.getElementById('coop-join-code-input') as HTMLInputElement;
+    this.coopJoinConnectBtn = document.getElementById('coop-join-connect-btn')!;
+    this.coopJoinStatus = document.getElementById('coop-join-status')!;
+    this.coopJoinWaitingBox = document.getElementById('coop-join-waiting-box')!;
+    this.coopHostElementGrid = document.getElementById('coop-host-element-grid')!;
+    this.coopJoinElementGrid = document.getElementById('coop-join-element-grid')!;
+    this.navCoopBtn = document.getElementById('nav-coop-btn');
+
     this.hero = this.createHero(this.selectedElement);
     this.enemies = this.escalationManager.generateRoundEnemies(1);
 
@@ -313,9 +370,20 @@ export class GameApp {
     this.setupCodexTabs();
     this.setupObstacles();
     this.setupEventListeners(canvas);
+    this.setupNetworkHandlers();
+    this.setupCoopLobbyUI();
     this.updateAdminUI();
     this.updateReachableTiles();
     this.updateHUD();
+
+    // Check URL parameters for instant co-op room invite
+    const urlParams = new URLSearchParams(window.location.search);
+    const coopInvite = urlParams.get('coop');
+    if (coopInvite) {
+      setTimeout(() => {
+        this.openCoopModal('join', coopInvite);
+      }, 200);
+    }
 
     // Start Game Loop
     this.lastFrameTime = performance.now();
@@ -1442,6 +1510,603 @@ export class GameApp {
     this.updateHUD();
   }
 
+  // --- ONLINE CO-OP GAUNTLET METHODS ---
+
+  private setupNetworkHandlers(): void {
+    this.networkManager.onMessage((msg) => this.handleNetworkMessage(msg));
+
+    this.networkManager.onPlayerConnected(() => {
+      this.soundEngine.playClick();
+      if (this.networkManager.isHost()) {
+        this.coopHostStatus.textContent = 'Ally connected! Ready to launch.';
+        this.coopHostPartnerCard.style.display = 'flex';
+        this.updatePartnerCard(this.coopP2Element);
+        this.coopHostLaunchBtn.disabled = false;
+        this.coopHostLaunchBtn.textContent = '⚔️ Launch Co-op Gauntlet!';
+        this.networkManager.send({
+          type: 'LOBBY_UPDATE',
+          hostElement: this.coopP1Element,
+          hostReady: true,
+        });
+      } else {
+        this.coopJoinStatus.textContent = 'Connected to Host! Select champion.';
+        this.coopJoinWaitingBox.style.display = 'flex';
+        this.networkManager.send({
+          type: 'LOBBY_UPDATE',
+          guestElement: this.coopP2Element,
+          guestReady: true,
+        });
+      }
+    });
+
+    this.networkManager.onPlayerDisconnected(() => {
+      if (this.isCoopMode) {
+        this.combatEngine.addLog('system', '⚠️ Ally disconnected from session.');
+      }
+      if (this.networkManager.isHost()) {
+        this.coopHostStatus.textContent = 'Ally disconnected. Waiting for connection...';
+        this.coopHostPartnerCard.style.display = 'none';
+        this.coopHostLaunchBtn.disabled = true;
+        this.coopHostLaunchBtn.textContent = '⚔️ Launch Co-op Gauntlet (Waiting for Ally...)';
+      } else {
+        this.coopJoinStatus.textContent = 'Disconnected from host.';
+        this.coopJoinWaitingBox.style.display = 'none';
+      }
+    });
+
+    this.networkManager.onStatusChange((_status, text) => {
+      if (text) {
+        if (this.networkManager.isHost()) {
+          this.coopHostStatus.textContent = text;
+        } else {
+          this.coopJoinStatus.textContent = text;
+        }
+      }
+    });
+  }
+
+  private handleNetworkMessage(msg: NetworkMessage): void {
+    switch (msg.type) {
+      case 'LOBBY_UPDATE': {
+        if (this.networkManager.isHost()) {
+          if (msg.guestElement) {
+            this.coopP2Element = msg.guestElement;
+            this.updatePartnerCard(this.coopP2Element);
+          }
+        } else {
+          if (msg.hostElement) {
+            this.coopP1Element = msg.hostElement;
+          }
+        }
+        break;
+      }
+      case 'START_MATCH': {
+        this.startCoopMatch(msg.hostElement, msg.guestElement, false);
+        break;
+      }
+      case 'INTENT_MOVE': {
+        if (this.isCoopMode && this.networkManager.isHost() && this.turnManager.getPhase() === 'COOP_P2_TURN') {
+          this.handlePlayerMove(msg.targetCoord);
+        }
+        break;
+      }
+      case 'INTENT_CAST': {
+        if (this.isCoopMode && this.networkManager.isHost() && this.turnManager.getPhase() === 'COOP_P2_TURN') {
+          const p2 = this.combatEngine.coopHero;
+          const ability = p2?.abilities.find((a) => a.id === msg.abilityId);
+          if (ability) {
+            this.handlePlayerCast(ability, msg.targetCoord);
+          }
+        }
+        break;
+      }
+      case 'INTENT_END_TURN': {
+        if (this.isCoopMode && this.networkManager.isHost() && this.turnManager.getPhase() === 'COOP_P2_TURN') {
+          this.advanceCoopToEnemies();
+        }
+        break;
+      }
+      case 'EVENT_MOVE': {
+        const unit = (msg.unitId === this.hero.id)
+          ? this.hero
+          : (this.combatEngine.coopHero && msg.unitId === this.combatEngine.coopHero.id)
+          ? this.combatEngine.coopHero
+          : this.combatEngine.getUnitAt(msg.path[0]);
+        if (unit) {
+          this.renderer.animManager.animateMovement(unit.id, msg.path, 160, () => {
+            this.combatEngine.moveUnit(unit, msg.destination);
+            this.updateHUD();
+          });
+        }
+        break;
+      }
+      case 'EVENT_CAST': {
+        const caster = (msg.casterId === this.hero.id)
+          ? this.hero
+          : (this.combatEngine.coopHero && msg.casterId === this.combatEngine.coopHero.id)
+          ? this.combatEngine.coopHero
+          : this.combatEngine.enemies.find((e) => e.id === msg.casterId) ||
+            this.combatEngine.zombies.find((z) => z.id === msg.casterId) ||
+            this.combatEngine.lifeBeings.find((b) => b.id === msg.casterId);
+
+        const ability = caster?.abilities.find((a) => a.id === msg.abilityId);
+        if (caster && ability) {
+          const startPos = this.renderer.gridToScreen(caster.coord);
+          const targetPos = this.renderer.gridToScreen(msg.targetCoord);
+          const elemData = CORE_ELEMENTS[ability.element] || CORE_ELEMENTS.Fire;
+          this.playAbilitySounds(ability);
+
+          const isBeam = ability.name.toLowerCase().includes('beam') ||
+            ability.name.toLowerCase().includes('ray') ||
+            ability.name.toLowerCase().includes('lance') ||
+            ability.name.toLowerCase().includes('flare');
+
+          if (isBeam) {
+            this.renderer.particleEngine.addBeam(startPos.x, startPos.y, targetPos.x, targetPos.y, elemData.color, 8, 320);
+          }
+
+          this.renderer.projManager.spawnProjectile(startPos, targetPos, ability.element, elemData.color, 260, () => {
+            this.combatEngine.executeAbility(caster, ability, msg.targetCoord);
+            this.renderer.triggerSpellImpact(msg.targetCoord, ability.element, ability.aoeRadius > 0);
+            this.updateHUD();
+          });
+        }
+        break;
+      }
+      case 'EVENT_PHASE_CHANGE': {
+        this.turnManager.setPhase(msg.phase);
+        if (msg.phase === 'COOP_P2_TURN' && this.combatEngine.coopHero) {
+          this.combatEngine.coopHero.stats.currentAp = this.combatEngine.coopHero.stats.maxAp;
+          this.combatEngine.coopHero.abilities.forEach((a) => {
+            if (a.currentCooldown > 0) a.currentCooldown--;
+          });
+        } else if (msg.phase === 'COOP_P1_TURN') {
+          this.hero.stats.currentAp = this.hero.stats.maxAp;
+          this.hero.abilities.forEach((a) => {
+            if (a.currentCooldown > 0) a.currentCooldown--;
+          });
+        }
+        this.updateCoopTurnHUD();
+        this.updateReachableTiles();
+        this.updateHUD();
+        break;
+      }
+      case 'EVENT_ROUND_VICTORY': {
+        this.currentRound = msg.nextRound;
+        this.combatEngine.resetRoundState();
+        this.hero.coord = { x: 1, y: 1 };
+        if (this.combatEngine.coopHero) {
+          this.combatEngine.coopHero.coord = { x: 1, y: 3 };
+        }
+        this.enemies = this.escalationManager.generateRoundEnemies(this.currentRound);
+        this.combatEngine.enemies = this.enemies;
+        const roundBadge = document.getElementById('round-indicator');
+        if (roundBadge) {
+          const isBoss = this.currentRound % 5 === 0;
+          roundBadge.textContent = isBoss ? `👑 BOSS ROUND ${this.currentRound.toLocaleString()} / ${this.maxRoundsStr}` : `ROUND ${this.currentRound.toLocaleString()} / ${this.maxRoundsStr}`;
+          roundBadge.style.color = isBoss ? '#fbbf24' : '#38bdf8';
+        }
+        this.turnManager.startCoopTurn(1, this.hero);
+        this.updateCoopTurnHUD();
+        this.updateReachableTiles();
+        this.updateHUD();
+        break;
+      }
+      case 'EVENT_GAME_OVER': {
+        this.turnManager.setPhase('GAME_OVER');
+        this.showDefeatModal();
+        break;
+      }
+      case 'CURSOR_HOVER': {
+        this.renderer.partnerHoverCoord = msg.coord;
+        break;
+      }
+      case 'TACTICAL_PING': {
+        this.triggerTacticalPing(msg.coord, msg.playerNum, msg.label);
+        break;
+      }
+    }
+  }
+
+  private setupCoopLobbyUI(): void {
+    this.closeCoopBtn.onclick = () => {
+      this.soundEngine.playClick();
+      this.coopModal.classList.add('hidden');
+      this.networkManager.disconnect();
+    };
+
+    this.coopTabHost.onclick = () => {
+      this.soundEngine.playClick();
+      this.switchCoopTab('host');
+    };
+
+    this.coopTabJoin.onclick = () => {
+      this.soundEngine.playClick();
+      this.switchCoopTab('join');
+    };
+
+    this.coopCopyCodeBtn.onclick = () => {
+      this.soundEngine.playClick();
+      const code = this.networkManager.getRoomCode();
+      if (code) {
+        const url = `${window.location.origin}${window.location.pathname}?coop=${encodeURIComponent(code)}`;
+        navigator.clipboard.writeText(url).then(() => {
+          this.coopCopyCodeBtn.textContent = '✅ Copied Link!';
+          setTimeout(() => {
+            this.coopCopyCodeBtn.textContent = '📋 Copy Link';
+          }, 2000);
+        });
+      }
+    };
+
+    this.coopJoinConnectBtn.onclick = () => {
+      const code = this.coopJoinCodeInput.value.trim();
+      if (!code) {
+        this.coopJoinStatus.textContent = '⚠️ Please enter a room code first.';
+        return;
+      }
+      this.soundEngine.playClick();
+      this.networkManager.joinRoom(code).catch((err) => {
+        this.coopJoinStatus.textContent = `❌ Failed: ${err.message || err}`;
+      });
+    };
+
+    this.coopHostLaunchBtn.onclick = () => {
+      this.soundEngine.playClick();
+      this.networkManager.send({
+        type: 'START_MATCH',
+        hostElement: this.coopP1Element,
+        guestElement: this.coopP2Element,
+      });
+      this.startCoopMatch(this.coopP1Element, this.coopP2Element, true);
+    };
+  }
+
+  private switchCoopTab(tab: 'host' | 'join'): void {
+    if (tab === 'host') {
+      this.coopTabHost.classList.add('active');
+      this.coopTabJoin.classList.remove('active');
+      this.coopHostPanel.style.display = 'flex';
+      this.coopJoinPanel.style.display = 'none';
+      if (!this.networkManager.isHost() || !this.networkManager.getRoomCode()) {
+        this.networkManager.hostRoom().then((code) => {
+          this.coopHostRoomCode.textContent = code;
+        });
+      }
+    } else {
+      this.coopTabJoin.classList.add('active');
+      this.coopTabHost.classList.remove('active');
+      this.coopJoinPanel.style.display = 'flex';
+      this.coopHostPanel.style.display = 'none';
+    }
+  }
+
+  private updatePartnerCard(elem: ElementType): void {
+    const config = HERO_CLASSES[elem];
+    this.coopPartnerAvatar.textContent = config ? config.abilities[0]?.icon || '✨' : '✨';
+    this.coopPartnerName.textContent = `Partner: ${config ? config.className : elem}`;
+    this.coopPartnerClass.textContent = config ? config.tagline : 'Ready for battle';
+  }
+
+  private renderCoopElementGrid(container: HTMLElement, onSelect: (elem: ElementType) => void, selectedElem: ElementType): void {
+    container.innerHTML = '';
+    const allElements = Object.keys(HERO_CLASSES) as ElementType[];
+    allElements.forEach((elem) => {
+      const config = HERO_CLASSES[elem];
+      if (!config) return;
+      const elemData = CORE_ELEMENTS[elem] || CORE_ELEMENTS.Fire;
+      const pill = document.createElement('div');
+      pill.className = `coop-elem-pill ${elem === selectedElem ? 'selected' : ''}`;
+      pill.innerHTML = `<span>${elemData.icon}</span> <span>${config.className}</span>`;
+      pill.onclick = () => {
+        container.querySelectorAll('.coop-elem-pill').forEach((p) => p.classList.remove('selected'));
+        pill.classList.add('selected');
+        onSelect(elem);
+      };
+      container.appendChild(pill);
+    });
+  }
+
+  public openCoopModal(initialTab: 'host' | 'join' = 'host', prefillCode?: string): void {
+    this.hideHomeScreen();
+    this.characterSelectModal.classList.add('hidden');
+    this.hotseatSelectModal.classList.add('hidden');
+    this.coopModal.classList.remove('hidden');
+
+    this.renderCoopElementGrid(this.coopHostElementGrid, (elem) => {
+      this.coopP1Element = elem;
+      if (this.networkManager.isConnected()) {
+        this.networkManager.send({
+          type: 'LOBBY_UPDATE',
+          hostElement: this.coopP1Element,
+        });
+      }
+    }, this.coopP1Element);
+
+    this.renderCoopElementGrid(this.coopJoinElementGrid, (elem) => {
+      this.coopP2Element = elem;
+      if (this.networkManager.isConnected()) {
+        this.networkManager.send({
+          type: 'LOBBY_UPDATE',
+          guestElement: this.coopP2Element,
+        });
+      }
+    }, this.coopP2Element);
+
+    if (prefillCode) {
+      this.coopJoinCodeInput.value = prefillCode;
+    }
+
+    this.switchCoopTab(initialTab);
+  }
+
+  private startCoopMatch(p1Element: ElementType, p2Element: ElementType, isHost: boolean): void {
+    this.hideHomeScreen();
+    this.coopModal.classList.add('hidden');
+    this.isCoopMode = true;
+    this.coopLocalPlayer = isHost ? 1 : 2;
+    this.isHotseatMode = false;
+
+    const p1 = createHeroForElement(p1Element);
+    p1.id = 'hero_p1';
+    p1.name = `Player 1 (${p1.name})`;
+    p1.faction = 'Player';
+    p1.coord = { x: 2, y: 4 };
+
+    const p2 = createHeroForElement(p2Element);
+    p2.id = 'hero_p2';
+    p2.name = `Player 2 (${p2.name})`;
+    p2.faction = 'Player';
+    p2.coord = { x: 2, y: 6 };
+
+    this.hero = p1;
+    this.enemies = this.escalationManager.generateRoundEnemies(this.currentRound);
+
+    this.grid = new Grid(10);
+    this.hazardManager = new TileHazardManager(this.grid);
+    this.setupObstacles();
+
+    this.combatEngine = new CombatEngine(this.grid, this.hazardManager, this.hero, this.enemies, p2);
+    const canvas = document.getElementById('battlefield-canvas') as HTMLCanvasElement;
+    this.renderer = new BattlefieldRenderer(canvas, this.combatEngine);
+    this.enemyAI = new EnemyAI(this.combatEngine);
+
+    this.combatEngine.addLog('system', `🤝 Online Co-op Gauntlet: ${p1.name} & ${p2.name} have entered the arena!`);
+    this.turnManager.setPhase('COOP_P1_TURN');
+
+    this.updateCoopTurnHUD();
+    this.updateReachableTiles();
+    this.updateHUD();
+  }
+
+  private updateCoopTurnHUD(): void {
+    if (!this.isCoopMode) return;
+    const phase = this.turnManager.getPhase();
+    const isMyTurn = (this.coopLocalPlayer === 1 && phase === 'COOP_P1_TURN') ||
+                     (this.coopLocalPlayer === 2 && phase === 'COOP_P2_TURN');
+
+    if (phase === 'COOP_P1_TURN') {
+      this.hud.updatePhaseBanner(this.coopLocalPlayer === 1 ? "YOUR TURN (Player 1)" : "ALLY'S TURN (Player 1)");
+    } else if (phase === 'COOP_P2_TURN') {
+      this.hud.updatePhaseBanner(this.coopLocalPlayer === 2 ? "YOUR TURN (Player 2)" : "ALLY'S TURN (Player 2)");
+    } else if (phase === 'ENEMY_TURN') {
+      this.hud.updatePhaseBanner('ENEMY FORCES ADVANCING');
+    }
+
+    this.hud.setActionDockWaiting(!isMyTurn, isMyTurn ? '' : "Ally is taking their turn...");
+    const partnerUnit = this.coopLocalPlayer === 1 ? this.combatEngine.coopHero : this.hero;
+    this.hud.updateCoopAllyStatus(partnerUnit || null);
+  }
+
+  private async advanceCoopToEnemies(): Promise<void> {
+    this.isBusy = true;
+    this.turnManager.setPhase('ENEMY_TURN');
+    this.selectedAbility = null;
+    this.targetableTiles = [];
+    this.reachableTiles = [];
+    this.hud.updatePhaseBanner('ALLIED MINIONS');
+    this.updateHUD();
+
+    if (this.networkManager.isHost()) {
+      this.networkManager.send({
+        type: 'EVENT_PHASE_CHANGE',
+        phase: 'ENEMY_TURN',
+        activePlayer: 1,
+      });
+    }
+
+    await delay(250);
+
+    // 1. Allied Minions (Zombies & Beings of Life)
+    const alliedMinions = [
+      ...this.combatEngine.zombies.filter((z) => !z.isDead && z.faction === 'Player'),
+      ...this.combatEngine.lifeBeings.filter((b) => !b.isDead && b.faction === 'Player'),
+    ];
+
+    for (const minion of alliedMinions) {
+      if (minion.isDead) continue;
+      minion.stats.currentAp = minion.stats.maxAp;
+      const targets = this.combatEngine.enemies.filter((e) => !e.isDead);
+      if (targets.length === 0) break;
+      const closestTarget = targets.sort(
+        (a, b) =>
+          this.combatEngine.grid.manhattanDistance(minion.coord, a.coord) -
+          this.combatEngine.grid.manhattanDistance(minion.coord, b.coord)
+      )[0];
+
+      const steps = this.enemyAI.planTurnSteps(minion, closestTarget);
+      for (const step of steps) {
+        if (minion.isDead || closestTarget.isDead) break;
+        if (step.type === 'move') {
+          await new Promise<void>((resolve) => {
+            this.renderer.animManager.animateMovement(minion.id, step.path, 160, () => {
+              this.combatEngine.moveUnit(minion, step.destination);
+              resolve();
+            });
+          });
+          if (this.networkManager.isHost()) {
+            this.networkManager.send({
+              type: 'EVENT_MOVE',
+              unitId: minion.id,
+              path: step.path,
+              destination: step.destination,
+            });
+          }
+          this.updateHUD();
+          await delay(150);
+        } else if (step.type === 'cast') {
+          this.combatEngine.executeAbility(minion, step.ability, step.targetCoord);
+          if (this.networkManager.isHost()) {
+            this.networkManager.send({
+              type: 'EVENT_CAST',
+              casterId: minion.id,
+              abilityId: step.ability.id,
+              targetCoord: step.targetCoord,
+            });
+          }
+          this.updateHUD();
+          await delay(250);
+        }
+      }
+    }
+
+    // 2. Enemy AI Turn
+    this.hud.updatePhaseBanner('ENEMY TURN');
+    this.updateHUD();
+
+    for (const enemy of this.combatEngine.enemies) {
+      if (enemy.isDead || this.combatEngine.areAllHeroesDead()) break;
+      enemy.stats.currentAp = enemy.stats.maxAp;
+      enemy.abilities.forEach((a) => {
+        if (a.currentCooldown > 0) a.currentCooldown--;
+      });
+
+      this.focusedUnitId = enemy.id;
+      this.hud.updatePhaseBanner(`ENEMY: ${enemy.name.toUpperCase()}`);
+      await delay(250);
+
+      const targets = this.combatEngine.getAllAllies().filter((u) => !u.isDead);
+      if (targets.length === 0) break;
+      const targetUnit = targets.sort(
+        (a, b) =>
+          this.combatEngine.grid.manhattanDistance(enemy.coord, a.coord) -
+          this.combatEngine.grid.manhattanDistance(enemy.coord, b.coord)
+      )[0];
+
+      const steps = this.enemyAI.planTurnSteps(enemy, targetUnit);
+      for (const step of steps) {
+        if (enemy.isDead || this.combatEngine.areAllHeroesDead()) break;
+        if (step.type === 'move') {
+          await new Promise<void>((resolve) => {
+            this.renderer.animManager.animateMovement(enemy.id, step.path, 160, () => {
+              this.combatEngine.moveUnit(enemy, step.destination);
+              resolve();
+            });
+          });
+          if (this.networkManager.isHost()) {
+            this.networkManager.send({
+              type: 'EVENT_MOVE',
+              unitId: enemy.id,
+              path: step.path,
+              destination: step.destination,
+            });
+          }
+          this.updateHUD();
+          await delay(200);
+        } else if (step.type === 'cast') {
+          const startPos = this.renderer.gridToScreen(enemy.coord);
+          const targetPos = this.renderer.gridToScreen(step.targetCoord);
+          const elemData = CORE_ELEMENTS[step.ability.element];
+          const color = elemData ? elemData.color : '#ef4444';
+          await new Promise<void>((resolve) => {
+            this.renderer.projManager.spawnProjectile(
+              startPos,
+              targetPos,
+              step.ability.element,
+              color,
+              260,
+              () => {
+                this.combatEngine.executeAbility(enemy, step.ability, step.targetCoord);
+                this.renderer.triggerSpellImpact(step.targetCoord, step.ability.element, step.ability.aoeRadius > 0);
+                resolve();
+              }
+            );
+          });
+          if (this.networkManager.isHost()) {
+            this.networkManager.send({
+              type: 'EVENT_CAST',
+              casterId: enemy.id,
+              abilityId: step.ability.id,
+              targetCoord: step.targetCoord,
+            });
+          }
+          this.updateHUD();
+          await delay(250);
+        }
+      }
+    }
+
+    this.focusedUnitId = null;
+
+    // 3. Hazard & Environment Tick
+    this.hazardManager.tickHazards();
+    this.combatEngine.tickZombies();
+    this.combatEngine.statusManager.tickStatusEffects(this.hero);
+    if (this.combatEngine.coopHero) {
+      this.combatEngine.statusManager.tickStatusEffects(this.combatEngine.coopHero);
+    }
+
+    // Check if heroes or enemies wiped
+    if (this.combatEngine.areAllHeroesDead()) {
+      this.isBusy = false;
+      this.checkCombatState();
+      return;
+    }
+
+    if (this.combatEngine.areAllEnemiesDead()) {
+      this.isBusy = false;
+      this.checkCombatState();
+      return;
+    }
+
+    // Advance to next Player cycle
+    const nextPlayer: 1 | 2 = !this.hero.isDead ? 1 : 2;
+    const activeHero = nextPlayer === 1 ? this.hero : this.combatEngine.coopHero!;
+    this.turnManager.startCoopTurn(nextPlayer, activeHero);
+
+    if (this.networkManager.isHost()) {
+      this.networkManager.send({
+        type: 'EVENT_PHASE_CHANGE',
+        phase: nextPlayer === 1 ? 'COOP_P1_TURN' : 'COOP_P2_TURN',
+        activePlayer: nextPlayer,
+      });
+    }
+
+    this.isBusy = false;
+    this.updateCoopTurnHUD();
+    this.updateReachableTiles();
+    this.updateHUD();
+  }
+
+  private triggerTacticalPing(coord: GridCoord, playerNum: 1 | 2, label?: string): void {
+    this.renderer.activePings.push({
+      coord,
+      label: label || (playerNum === 1 ? 'P1 📍' : 'P2 📍'),
+      playerNum,
+      age: 0,
+      maxAge: 2500,
+    });
+    this.soundEngine.playClick();
+    if (this.isCoopMode && this.networkManager.isConnected() && playerNum === this.coopLocalPlayer) {
+      this.networkManager.send({
+        type: 'TACTICAL_PING',
+        playerNum,
+        coord,
+        label,
+      });
+    }
+  }
+
   private setupObstacles(): void {
     const obstacleCoords = [
       { x: 3, y: 3 },
@@ -1577,6 +2242,22 @@ export class GameApp {
       this.hideHomeScreen();
       this.renderCharacterSelectModal();
       this.characterSelectModal.classList.remove('hidden');
+    });
+
+    // Online Co-op Listeners
+    this.navCoopBtn?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      this.openCoopModal('host');
+    });
+
+    document.getElementById('home-btn-coop')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      this.openCoopModal('host');
+    });
+
+    document.getElementById('home-btn-coop-card')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      this.openCoopModal('host');
     });
 
     document.getElementById('home-btn-multiplayer')?.addEventListener('click', () => {
@@ -2064,6 +2745,18 @@ export class GameApp {
         const unit = this.combatEngine.getUnitAt(gridCoord);
         this.hud.inspectUnit(unit, gridCoord);
       }
+
+      if (this.isCoopMode && this.networkManager.isConnected()) {
+        const now = performance.now();
+        if (now - this.lastCursorHoverSent > 60) {
+          this.lastCursorHoverSent = now;
+          this.networkManager.send({
+            type: 'CURSOR_HOVER',
+            playerNum: this.coopLocalPlayer,
+            coord: gridCoord,
+          });
+        }
+      }
     });
 
     canvas.addEventListener('click', async (e) => {
@@ -2149,7 +2842,15 @@ export class GameApp {
         return;
       }
 
-      const activeUnit = this.getActivePlayerUnit();
+      // Tactical Ping in Co-op Mode
+      if (e.key === 'p' || e.key === 'P') {
+        if (this.isCoopMode && this.hoveredCoord) {
+          this.triggerTacticalPing(this.hoveredCoord, this.coopLocalPlayer);
+          return;
+        }
+      }
+
+      const activeUnit = this.getLocalPlayerUnit();
       if ((e.key >= '1' && e.key <= '9') || e.key === '0') {
         const idx = e.key === '0' ? 9 : parseInt(e.key) - 1;
         const visibleAbility = this.hud.getVisibleAbility(idx) || activeUnit.abilities[idx];
@@ -2168,15 +2869,38 @@ export class GameApp {
     });
   }
 
+  private getLocalPlayerUnit(): Unit {
+    if (this.isHotseatMode) {
+      return this.hotseatCurrentPlayer === 2 ? this.enemies[0] : this.hero;
+    }
+    if (this.isCoopMode) {
+      return this.coopLocalPlayer === 2 ? (this.combatEngine?.coopHero || this.hero) : this.hero;
+    }
+    return this.hero;
+  }
+
   private getActivePlayerUnit(): Unit {
     if (this.isHotseatMode && this.hotseatCurrentPlayer === 2) {
       return this.enemies[0];
+    }
+    if (this.isCoopMode) {
+      const isP2Turn = this.turnManager.getPhase() === 'COOP_P2_TURN';
+      if (isP2Turn && this.combatEngine?.coopHero) {
+        return this.combatEngine.coopHero;
+      }
+      return this.hero;
     }
     return this.hero;
   }
 
   private selectAbility(ability: Ability): void {
-    const activeUnit = this.getActivePlayerUnit();
+    if (this.isCoopMode) {
+      const phase = this.turnManager.getPhase();
+      const isMyTurn = (this.coopLocalPlayer === 1 && phase === 'COOP_P1_TURN') ||
+                       (this.coopLocalPlayer === 2 && phase === 'COOP_P2_TURN');
+      if (!isMyTurn) return;
+    }
+    const activeUnit = this.getLocalPlayerUnit();
     if (this.isBusy || ability.apCost > activeUnit.stats.currentAp || ability.currentCooldown > 0) return;
 
     if (this.selectedAbility?.id === ability.id) {
@@ -2205,6 +2929,22 @@ export class GameApp {
   }
 
   private async handlePlayerMove(targetCoord: GridCoord): Promise<void> {
+    if (this.isCoopMode) {
+      const phase = this.turnManager.getPhase();
+      const isMyTurn = (this.coopLocalPlayer === 1 && phase === 'COOP_P1_TURN') ||
+                       (this.coopLocalPlayer === 2 && phase === 'COOP_P2_TURN');
+      if (!isMyTurn) return;
+
+      if (this.coopLocalPlayer === 2 && !this.networkManager.isHost()) {
+        this.networkManager.send({
+          type: 'INTENT_MOVE',
+          playerNum: 2,
+          targetCoord,
+        });
+        return;
+      }
+    }
+
     const activeUnit = this.getActivePlayerUnit();
     if (this.combatEngine.statusManager.hasStatus(activeUnit, 'Rooted')) {
       const screenPos = this.renderer.gridToScreen(activeUnit.coord);
@@ -2264,6 +3004,14 @@ export class GameApp {
     await new Promise<void>((resolve) => {
       this.renderer.animManager.animateMovement(activeUnit.id, path, 160, () => {
         this.combatEngine.moveUnit(activeUnit, targetCoord);
+        if (this.isCoopMode && this.networkManager.isHost()) {
+          this.networkManager.send({
+            type: 'EVENT_MOVE',
+            unitId: activeUnit.id,
+            path,
+            destination: targetCoord,
+          });
+        }
         resolve();
       });
     });
@@ -2277,6 +3025,7 @@ export class GameApp {
   private checkAndTriggerDeaths(killerElement?: ElementType): void {
     const allUnits = [
       this.hero,
+      ...(this.combatEngine.coopHero ? [this.combatEngine.coopHero] : []),
       ...this.combatEngine.zombies,
       ...this.combatEngine.lifeBeings,
       ...this.combatEngine.enemies,
@@ -2314,6 +3063,23 @@ export class GameApp {
   }
 
   private async handlePlayerCast(ability: Ability, targetCoord: GridCoord): Promise<void> {
+    if (this.isCoopMode) {
+      const phase = this.turnManager.getPhase();
+      const isMyTurn = (this.coopLocalPlayer === 1 && phase === 'COOP_P1_TURN') ||
+                       (this.coopLocalPlayer === 2 && phase === 'COOP_P2_TURN');
+      if (!isMyTurn) return;
+
+      if (this.coopLocalPlayer === 2 && !this.networkManager.isHost()) {
+        this.networkManager.send({
+          type: 'INTENT_CAST',
+          playerNum: 2,
+          abilityId: ability.id,
+          targetCoord,
+        });
+        return;
+      }
+    }
+
     const activeUnit = this.getActivePlayerUnit();
     const isTargetable = this.targetableTiles.some((c) => c.x === targetCoord.x && c.y === targetCoord.y);
     if (!isTargetable) return;
@@ -2380,6 +3146,15 @@ export class GameApp {
         const logCountBefore = this.combatEngine.logs.length;
         this.combatEngine.executeAbility(activeUnit, ability, targetCoord);
 
+        if (this.isCoopMode && this.networkManager.isHost()) {
+          this.networkManager.send({
+            type: 'EVENT_CAST',
+            casterId: activeUnit.id,
+            abilityId: ability.id,
+            targetCoord,
+          });
+        }
+
         const isAoE = ability.aoeRadius > 0;
         this.renderer.triggerSpellImpact(targetCoord, ability.element, isAoE);
 
@@ -2426,6 +3201,40 @@ export class GameApp {
 
   private async endPlayerTurn(): Promise<void> {
     if (this.isBusy) return;
+
+    // --- ONLINE CO-OP TURN MANAGEMENT ---
+    if (this.isCoopMode) {
+      if (this.coopLocalPlayer === 2) {
+        this.networkManager.send({
+          type: 'INTENT_END_TURN',
+          playerNum: 2,
+        });
+        return;
+      }
+
+      // Host executes co-op turn transition
+      const currentPhase = this.turnManager.getPhase();
+      if (currentPhase === 'COOP_P1_TURN') {
+        const p2 = this.combatEngine.coopHero;
+        if (p2 && !p2.isDead) {
+          this.turnManager.startCoopTurn(2, p2);
+          if (this.networkManager.isHost()) {
+            this.networkManager.send({
+              type: 'EVENT_PHASE_CHANGE',
+              phase: 'COOP_P2_TURN',
+              activePlayer: 2,
+            });
+          }
+          this.updateCoopTurnHUD();
+          this.updateReachableTiles();
+          this.updateHUD();
+          return;
+        }
+      }
+
+      await this.advanceCoopToEnemies();
+      return;
+    }
 
     // --- HOT SEAT ARENA TURN MANAGEMENT ---
     if (this.isHotseatMode) {
@@ -2768,6 +3577,44 @@ export class GameApp {
   private checkCombatState(): void {
     if (this.isHotseatMode) return;
 
+    if (this.isCoopMode) {
+      const p1 = this.hero;
+      const p2 = this.combatEngine.coopHero;
+      const bothDead = p1.isDead && (!p2 || p2.isDead);
+
+      if (bothDead) {
+        if (!this.isHeroDeathAnimating) {
+          this.isHeroDeathAnimating = true;
+          this.isBusy = true;
+          this.combatEngine.addLog('system', '💀 Both allied champions have fallen in combat! Gauntlet Over.');
+          setTimeout(() => {
+            this.turnManager.setPhase('GAME_OVER');
+            this.showDefeatModal();
+            this.isHeroDeathAnimating = false;
+            if (this.networkManager.isHost()) {
+              this.networkManager.send({
+                type: 'EVENT_GAME_OVER',
+                reason: 'Both champions defeated',
+              });
+            }
+          }, 2400);
+        }
+        return;
+      }
+
+      if (this.combatEngine.areAllEnemiesDead()) {
+        if (this.isRoundVictoryAnimating) return;
+        this.isRoundVictoryAnimating = true;
+        this.isBusy = true;
+        setTimeout(() => {
+          this.isRoundVictoryAnimating = false;
+          this.isBusy = false;
+          this.advanceToNextRound();
+        }, 1800);
+      }
+      return;
+    }
+
     if (this.hero.isDead) {
       if (!this.isHeroDeathAnimating) {
         this.isHeroDeathAnimating = true;
@@ -2872,6 +3719,9 @@ export class GameApp {
     // Reset round state
     this.combatEngine.resetRoundState();
     this.hero.coord = { x: 1, y: 1 };
+    if (this.isCoopMode && this.combatEngine.coopHero) {
+      this.combatEngine.coopHero.coord = { x: 1, y: 3 };
+    }
 
     // Generate new enemies for this round
     this.enemies = this.escalationManager.generateRoundEnemies(this.currentRound);
@@ -2885,7 +3735,18 @@ export class GameApp {
       roundBadge.style.color = isBoss ? '#fbbf24' : '#38bdf8';
     }
 
-    this.turnManager.startPlayerTurn([this.hero]);
+    if (this.isCoopMode) {
+      this.turnManager.startCoopTurn(1, this.hero);
+      if (this.networkManager.isHost()) {
+        this.networkManager.send({
+          type: 'EVENT_ROUND_VICTORY',
+          nextRound: this.currentRound,
+        });
+      }
+      this.updateCoopTurnHUD();
+    } else {
+      this.turnManager.startPlayerTurn([this.hero]);
+    }
     this.isBusy = false;
     this.updateReachableTiles();
     this.updateHUD();
@@ -3157,14 +4018,18 @@ export class GameApp {
   }
 
   private updateHUD(): void {
-    const activeUnit = this.getActivePlayerUnit();
-    this.hud.updateHeroStatus(activeUnit);
+    const localUnit = this.getLocalPlayerUnit();
+    this.hud.updateHeroStatus(localUnit);
     this.hud.renderAbilities(
-      activeUnit.abilities,
+      localUnit.abilities,
       this.selectedAbility?.id || null,
-      activeUnit.stats.currentAp,
+      localUnit.stats.currentAp,
       (ability) => this.selectAbility(ability)
     );
+
+    if (this.isCoopMode) {
+      this.updateCoopTurnHUD();
+    }
 
     const essenceEl = document.getElementById('essence-counter');
     const xpEl = document.getElementById('xp-counter');

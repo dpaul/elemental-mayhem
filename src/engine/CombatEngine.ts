@@ -52,6 +52,7 @@ export class CombatEngine {
   public reactionEngine: ReactionEngine;
   public statusManager: StatusEffectManager;
   public hero: Unit;
+  public coopHero?: Unit;
   public enemies: Unit[];
   public zombies: Unit[] = [];
   public lifeBeings: Unit[] = [];
@@ -60,13 +61,14 @@ export class CombatEngine {
   public performance: PerformanceStats;
   public onZombieSpawn?: (zombie: Unit) => void;
 
-  constructor(grid: Grid, hazardManager: TileHazardManager, hero: Unit, enemies: Unit[]) {
+  constructor(grid: Grid, hazardManager: TileHazardManager, hero: Unit, enemies: Unit[], coopHero?: Unit) {
     this.grid = grid;
     this.hazardManager = hazardManager;
     this.matrix = new ElementalMatrix();
     this.reactionEngine = new ReactionEngine();
     this.statusManager = new StatusEffectManager();
     this.hero = hero;
+    this.coopHero = coopHero;
     this.enemies = enemies;
     this.zombies = [];
     this.lifeBeings = [];
@@ -87,6 +89,9 @@ export class CombatEngine {
   public getUnitAt(coord: GridCoord): Unit | null {
     if (!this.hero.isDead && this.hero.coord.x === coord.x && this.hero.coord.y === coord.y) {
       return this.hero;
+    }
+    if (this.coopHero && !this.coopHero.isDead && this.coopHero.coord.x === coord.x && this.coopHero.coord.y === coord.y) {
+      return this.coopHero;
     }
     for (const zombie of this.zombies) {
       if (!zombie.isDead && zombie.coord.x === coord.x && zombie.coord.y === coord.y) {
@@ -109,6 +114,7 @@ export class CombatEngine {
   public getAllAllies(): Unit[] {
     return [
       this.hero,
+      ...(this.coopHero && !this.coopHero.isDead ? [this.coopHero] : []),
       ...this.zombies.filter((z) => !z.isDead && z.faction === 'Player'),
       ...this.lifeBeings.filter((b) => !b.isDead && b.faction === 'Player'),
     ];
@@ -1214,10 +1220,28 @@ export class CombatEngine {
     return this.enemies.every((e) => e.isDead);
   }
 
+  public areAllHeroesDead(): boolean {
+    if (this.coopHero) {
+      return this.hero.isDead && this.coopHero.isDead;
+    }
+    return this.hero.isDead;
+  }
+
   public resetRoundState(): void {
     // 1. Restore hero health and AP (mana) to full
+    this.hero.isDead = false;
     this.hero.stats.currentHp = this.hero.stats.maxHp;
     this.hero.stats.currentAp = this.hero.stats.maxAp;
+
+    if (this.coopHero) {
+      this.coopHero.isDead = false;
+      this.coopHero.stats.currentHp = this.coopHero.stats.maxHp;
+      this.coopHero.stats.currentAp = this.coopHero.stats.maxAp;
+      this.statusManager.clearStatusEffects(this.coopHero);
+      this.coopHero.abilities.forEach((ability) => {
+        ability.currentCooldown = 0;
+      });
+    }
 
     // 2. Clear all status effects on hero
     this.statusManager.clearStatusEffects(this.hero);
@@ -1237,7 +1261,9 @@ export class CombatEngine {
 
     this.addLog(
       'system',
-      '✨ Round completed! Hero restored to full Health & AP, cooldowns reset, and hazards cleared.'
+      this.coopHero
+        ? '✨ Round completed! Heroes restored to full Health & AP, cooldowns reset, and hazards cleared.'
+        : '✨ Round completed! Hero restored to full Health & AP, cooldowns reset, and hazards cleared.'
     );
   }
 }

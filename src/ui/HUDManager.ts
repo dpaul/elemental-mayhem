@@ -313,4 +313,58 @@ export class HUDManager {
       this.combatLogList.appendChild(row);
     });
   }
+
+  public updateCoopAllyStatus(ally: Unit | null): void {
+    let allyContainer = document.getElementById('coop-ally-status');
+    if (!ally) {
+      if (allyContainer) allyContainer.style.display = 'none';
+      return;
+    }
+    if (!allyContainer) {
+      allyContainer = document.createElement('div');
+      allyContainer.id = 'coop-ally-status';
+      allyContainer.className = 'coop-ally-pill glass-card';
+      const headerRight = document.querySelector('.header-right');
+      if (headerRight) {
+        headerRight.insertBefore(allyContainer, headerRight.firstChild);
+      }
+    }
+    allyContainer.style.display = 'flex';
+    const hpPct = Math.max(0, Math.round((ally.stats.currentHp / ally.stats.maxHp) * 100));
+    allyContainer.innerHTML = `
+      <div class="ally-avatar">${ally.avatar}</div>
+      <div class="ally-info">
+        <div class="ally-name">${ally.name} ${ally.isDead ? '💀 (FALLEN)' : ''}</div>
+        <div class="ally-bars">
+          <span class="ally-hp-text">HP ${ally.stats.currentHp}/${ally.stats.maxHp} (${hpPct}%)</span>
+          <span class="ally-ap-text">• AP ${ally.stats.currentAp}/${ally.stats.maxAp}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  public setActionDockWaiting(isWaiting: boolean, message: string = 'Waiting for ally...'): void {
+    let overlay = document.getElementById('action-dock-waiting-overlay');
+    const dock = document.querySelector('.action-dock') as HTMLElement | null;
+    if (!dock) return;
+
+    if (!isWaiting) {
+      if (overlay) overlay.style.display = 'none';
+      dock.classList.remove('action-dock-disabled');
+      return;
+    }
+
+    dock.classList.add('action-dock-disabled');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'action-dock-waiting-overlay';
+      overlay.className = 'action-dock-waiting-overlay';
+      dock.appendChild(overlay);
+    }
+    overlay.style.display = 'flex';
+    overlay.innerHTML = `
+      <div class="waiting-spinner">⏳</div>
+      <div class="waiting-text">${message}</div>
+    `;
+  }
 }
