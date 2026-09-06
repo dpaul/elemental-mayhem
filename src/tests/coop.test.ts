@@ -121,5 +121,59 @@ describe('Online Co-op Arena & Networking', () => {
       expect(p2.stats.currentAp).toBe(p2.stats.maxAp);
       expect(p2.abilities[0].currentCooldown).toBe(1);
     });
+
+    it('should correctly execute Player 2 movement and deduct AP', () => {
+      const p1 = createHeroForElement('Fire');
+      const p2 = createHeroForElement('Water');
+      p1.coord = { x: 2, y: 4 };
+      p2.coord = { x: 2, y: 6 };
+      const combatEngine = new CombatEngine(grid, hazardManager, p1, [], p2);
+
+      const targetCoord = { x: 2, y: 5 };
+      const startAp = p2.stats.currentAp;
+      const moved = combatEngine.moveUnit(p2, targetCoord);
+
+      expect(moved).toBe(true);
+      expect(p2.coord).toEqual({ x: 2, y: 5 });
+      expect(p2.stats.currentAp).toBe(startAp - p2.stats.moveCostPerTile);
+    });
+
+    it('should correctly execute Player 2 ability cast and apply damage', () => {
+      const p1 = createHeroForElement('Fire');
+      const p2 = createHeroForElement('Water');
+      p1.coord = { x: 2, y: 4 };
+      p2.coord = { x: 2, y: 6 };
+
+      const enemy = {
+        id: 'enemy_test',
+        name: 'Test Target',
+        faction: 'Enemy' as const,
+        avatar: '👾',
+        coord: { x: 2, y: 7 },
+        stats: {
+          maxHp: 50,
+          currentHp: 50,
+          maxAp: 3,
+          currentAp: 3,
+          moveCostPerTile: 1,
+          elementalAffinity: 'Fire' as const,
+        },
+        abilities: [],
+        statusEffects: [],
+        isDead: false,
+      };
+
+      const combatEngine = new CombatEngine(grid, hazardManager, p1, [enemy], p2);
+      const ability = p2.abilities.find((a) => a.baseDamage > 0);
+      expect(ability).toBeDefined();
+
+      if (ability) {
+        const startAp = p2.stats.currentAp;
+        const res = combatEngine.executeAbility(p2, ability, enemy.coord);
+        expect(res.success).toBe(true);
+        expect(p2.stats.currentAp).toBe(startAp - ability.apCost);
+        expect(enemy.stats.currentHp).toBeLessThan(50);
+      }
+    });
   });
 });

@@ -1565,7 +1565,7 @@ export class GameApp {
     });
   }
 
-  private handleNetworkMessage(msg: NetworkMessage): void {
+  private async handleNetworkMessage(msg: NetworkMessage): Promise<void> {
     switch (msg.type) {
       case 'LOBBY_UPDATE': {
         if (this.networkManager.isHost()) {
@@ -1586,23 +1586,19 @@ export class GameApp {
       }
       case 'INTENT_MOVE': {
         if (this.isCoopMode && this.networkManager.isHost() && this.turnManager.getPhase() === 'COOP_P2_TURN') {
-          this.handlePlayerMove(msg.targetCoord);
+          await this.executeCoopMove(2, msg.targetCoord);
         }
         break;
       }
       case 'INTENT_CAST': {
         if (this.isCoopMode && this.networkManager.isHost() && this.turnManager.getPhase() === 'COOP_P2_TURN') {
-          const p2 = this.combatEngine.coopHero;
-          const ability = p2?.abilities.find((a) => a.id === msg.abilityId);
-          if (ability) {
-            this.handlePlayerCast(ability, msg.targetCoord);
-          }
+          await this.executeCoopCast(2, msg.abilityId, msg.targetCoord);
         }
         break;
       }
       case 'INTENT_END_TURN': {
         if (this.isCoopMode && this.networkManager.isHost() && this.turnManager.getPhase() === 'COOP_P2_TURN') {
-          this.advanceCoopToEnemies();
+          await this.advanceCoopToEnemies();
         }
         break;
       }
@@ -1613,10 +1609,16 @@ export class GameApp {
           ? this.combatEngine.coopHero
           : this.combatEngine.getUnitAt(msg.path[0]);
         if (unit) {
+          this.isBusy = true;
           this.renderer.animManager.animateMovement(unit.id, msg.path, 160, () => {
             this.combatEngine.moveUnit(unit, msg.destination);
+            this.isBusy = false;
+            this.updateReachableTiles();
             this.updateHUD();
+            this.checkCombatState();
           });
+        } else {
+          this.isBusy = false;
         }
         break;
       }
@@ -1631,6 +1633,7 @@ export class GameApp {
 
         const ability = caster?.abilities.find((a) => a.id === msg.abilityId);
         if (caster && ability) {
+          this.isBusy = true;
           const startPos = this.renderer.gridToScreen(caster.coord);
           const targetPos = this.renderer.gridToScreen(msg.targetCoord);
           const elemData = CORE_ELEMENTS[ability.element] || CORE_ELEMENTS.Fire;
@@ -1646,10 +1649,46 @@ export class GameApp {
           }
 
           this.renderer.projManager.spawnProjectile(startPos, targetPos, ability.element, elemData.color, 260, () => {
+            const logCountBefore = this.combatEngine.logs.length;
             this.combatEngine.executeAbility(caster, ability, msg.targetCoord);
-            this.renderer.triggerSpellImpact(msg.targetCoord, ability.element, ability.aoeRadius > 0);
+            const isAoE = ability.aoeRadius > 0;
+            this.renderer.triggerSpellImpact(msg.targetCoord, ability.element, isAoE);
+
+            const newLogs = this.combatEngine.logs.slice(logCountBefore);
+            const reactionLog = newLogs.find((l) => l.type === 'reaction');
+
+            if (ability.baseDamage > 0) {
+              this.soundEngine.playHit();
+              this.renderer.particleEngine.addFloatingText(
+                `-${ability.baseDamage}`,
+                targetPos.x,
+                targetPos.y - 15,
+                elemData.color,
+                22
+              );
+            }
+
+            if (ability.appliesStatus === 'Rooted') {
+              this.soundEngine.playRoot();
+            }
+
+            if (reactionLog) {
+              this.renderer.particleEngine.addFloatingText(
+                `💥 ${reactionLog.message.split('!')[0]}!`,
+                targetPos.x,
+                targetPos.y - 38,
+                '#f59e0b',
+                24
+              );
+            }
+
+            this.checkAndTriggerDeaths(ability.element);
+            this.isBusy = false;
+            this.updateReachableTiles();
             this.updateHUD();
           });
+        } else {
+          this.isBusy = false;
         }
         break;
       }
@@ -1666,6 +1705,9 @@ export class GameApp {
             if (a.currentCooldown > 0) a.currentCooldown--;
           });
         }
+        this.isBusy = false;
+        this.selectedAbility = null;
+        this.targetableTiles = [];
         this.updateCoopTurnHUD();
         this.updateReachableTiles();
         this.updateHUD();
@@ -1674,6 +1716,7 @@ export class GameApp {
       case 'EVENT_ROUND_VICTORY': {
         this.currentRound = msg.nextRound;
         this.combatEngine.resetRoundState();
+        this.deadUnitIds.clear();
         this.hero.coord = { x: 1, y: 1 };
         if (this.combatEngine.coopHero) {
           this.combatEngine.coopHero.coord = { x: 1, y: 3 };
@@ -1687,6 +1730,9 @@ export class GameApp {
           roundBadge.style.color = isBoss ? '#fbbf24' : '#38bdf8';
         }
         this.turnManager.startCoopTurn(1, this.hero);
+        this.isBusy = false;
+        this.selectedAbility = null;
+        this.targetableTiles = [];
         this.updateCoopTurnHUD();
         this.updateReachableTiles();
         this.updateHUD();
@@ -1846,6 +1892,11 @@ export class GameApp {
     this.isCoopMode = true;
     this.coopLocalPlayer = isHost ? 1 : 2;
     this.isHotseatMode = false;
+    this.isBusy = false;
+    this.selectedAbility = null;
+    this.targetableTiles = [];
+    this.reachableTiles = [];
+    this.deadUnitIds.clear();
 
     const p1 = createHeroForElement(p1Element);
     p1.id = 'hero_p1';
@@ -2928,6 +2979,205 @@ export class GameApp {
     this.updateHUD();
   }
 
+  private async executeCoopMove(playerNum: 1 | 2, targetCoord: GridCoord): Promise<void> {
+    const unit = playerNum === 1 ? this.hero : this.combatEngine.coopHero;
+    if (!unit || unit.isDead) return;
+    if (this.combatEngine.statusManager.hasStatus(unit, 'Rooted')) return;
+
+    const tile = this.grid.getTile(targetCoord);
+    if (!tile || tile.isObstacle) return;
+    if (this.combatEngine.getUnitAt(targetCoord) !== null) return;
+
+    const path = this.grid.findPath(unit.coord, targetCoord);
+    if (!path || path.length === 0) return;
+
+    const apCost = path.length * unit.stats.moveCostPerTile;
+    if (unit.stats.currentAp < apCost) return;
+
+    // Check confusion on unit
+    if (unit.statusEffects.some((s) => s.type === 'Confused')) {
+      if (Math.random() < 0.35) {
+        const selfDmg = 10;
+        unit.stats.currentHp = Math.max(0, unit.stats.currentHp - selfDmg);
+        unit.stats.currentAp = Math.max(0, unit.stats.currentAp - 1);
+        const screenPos = this.renderer.gridToScreen(unit.coord);
+        this.renderer.particleEngine.addFloatingText(
+          `🌀 Stumbled in Confusion! -${selfDmg}`,
+          screenPos.x,
+          screenPos.y - 20,
+          '#f59e0b',
+          20
+        );
+        this.renderer.particleEngine.emit(screenPos.x, screenPos.y, '#f59e0b', 16, 2.5);
+        this.renderer.particleEngine.triggerScreenShake(4, 200);
+        this.combatEngine.addLog(
+          'system',
+          `🌀 ${unit.name} is confused and stumbled, taking ${selfDmg} damage!`
+        );
+        if (unit.stats.currentHp <= 0) {
+          unit.isDead = true;
+          this.checkAndTriggerDeaths(unit.stats.elementalAffinity);
+        }
+        this.updateReachableTiles();
+        this.updateHUD();
+        this.checkCombatState();
+        return;
+      }
+    }
+
+    this.isBusy = true;
+    this.reachableTiles = [];
+    this.selectedAbility = null;
+    this.targetableTiles = [];
+
+    await new Promise<void>((resolve) => {
+      this.renderer.animManager.animateMovement(unit.id, path, 160, () => {
+        this.combatEngine.moveUnit(unit, targetCoord);
+        if (this.networkManager.isHost()) {
+          this.networkManager.send({
+            type: 'EVENT_MOVE',
+            unitId: unit.id,
+            path,
+            destination: targetCoord,
+          });
+        }
+        resolve();
+      });
+    });
+
+    this.isBusy = false;
+    this.updateReachableTiles();
+    this.updateHUD();
+    this.checkCombatState();
+  }
+
+  private async executeCoopCast(playerNum: 1 | 2, abilityId: string, targetCoord: GridCoord): Promise<void> {
+    const unit = playerNum === 1 ? this.hero : this.combatEngine.coopHero;
+    if (!unit || unit.isDead) return;
+
+    const ability = unit.abilities.find((a) => a.id === abilityId);
+    if (!ability) return;
+
+    if (unit.stats.currentAp < ability.apCost || ability.currentCooldown > 0) return;
+
+    const dist = this.grid.manhattanDistance(unit.coord, targetCoord);
+    if (dist > ability.range && ability.targeting !== 'Self') return;
+    if (ability.targeting !== 'Self' && !this.grid.hasLineOfSight(unit.coord, targetCoord)) return;
+
+    // Check confusion on unit
+    if (unit.statusEffects.some((s) => s.type === 'Confused')) {
+      if (Math.random() < 0.45) {
+        const selfDmg = 15;
+        unit.stats.currentHp = Math.max(0, unit.stats.currentHp - selfDmg);
+        unit.stats.currentAp = Math.max(0, unit.stats.currentAp - 1);
+        const screenPos = this.renderer.gridToScreen(unit.coord);
+        this.renderer.particleEngine.addFloatingText(
+          `🌀 Hurt in Confusion! -${selfDmg}`,
+          screenPos.x,
+          screenPos.y - 20,
+          '#f59e0b',
+          22
+        );
+        this.renderer.particleEngine.emit(screenPos.x, screenPos.y, '#f59e0b', 20, 3);
+        this.renderer.particleEngine.triggerScreenShake(6, 250);
+        this.soundEngine.playHit();
+        this.combatEngine.addLog(
+          'system',
+          `🌀 ${unit.name} is confused and hurt itself for ${selfDmg} damage!`
+        );
+        if (unit.stats.currentHp <= 0) {
+          unit.isDead = true;
+          this.checkAndTriggerDeaths(unit.stats.elementalAffinity);
+        }
+        this.selectedAbility = null;
+        this.targetableTiles = [];
+        this.updateReachableTiles();
+        this.updateHUD();
+        this.checkCombatState();
+        return;
+      }
+    }
+
+    this.isBusy = true;
+    this.selectedAbility = null;
+    this.targetableTiles = [];
+    this.reachableTiles = [];
+    this.updateHUD();
+
+    const startPos = this.renderer.gridToScreen(unit.coord);
+    const targetPos = this.renderer.gridToScreen(targetCoord);
+    const elemData = CORE_ELEMENTS[ability.element];
+    const color = elemData ? elemData.color : '#ffd000';
+
+    this.playAbilitySounds(ability);
+
+    const isBeam = ability.name.toLowerCase().includes('beam') ||
+      ability.name.toLowerCase().includes('ray') ||
+      ability.name.toLowerCase().includes('lance') ||
+      ability.name.toLowerCase().includes('flare');
+
+    if (isBeam) {
+      this.renderer.particleEngine.addBeam(startPos.x, startPos.y, targetPos.x, targetPos.y, color, 8, 320);
+    }
+
+    await new Promise<void>((resolve) => {
+      this.renderer.projManager.spawnProjectile(startPos, targetPos, ability.element, color, 260, () => {
+        const logCountBefore = this.combatEngine.logs.length;
+        this.combatEngine.executeAbility(unit, ability, targetCoord);
+
+        if (this.networkManager.isHost()) {
+          this.networkManager.send({
+            type: 'EVENT_CAST',
+            casterId: unit.id,
+            abilityId: ability.id,
+            targetCoord,
+          });
+        }
+
+        const isAoE = ability.aoeRadius > 0;
+        this.renderer.triggerSpellImpact(targetCoord, ability.element, isAoE);
+
+        const newLogs = this.combatEngine.logs.slice(logCountBefore);
+        const reactionLog = newLogs.find((l) => l.type === 'reaction');
+
+        if (ability.baseDamage > 0) {
+          this.soundEngine.playHit();
+          this.renderer.particleEngine.addFloatingText(
+            `-${ability.baseDamage}`,
+            targetPos.x,
+            targetPos.y - 15,
+            color,
+            22
+          );
+        }
+
+        if (ability.appliesStatus === 'Rooted') {
+          this.soundEngine.playRoot();
+        }
+
+        if (reactionLog) {
+          this.renderer.particleEngine.addFloatingText(
+            `💥 ${reactionLog.message.split('!')[0]}!`,
+            targetPos.x,
+            targetPos.y - 38,
+            '#f59e0b',
+            24
+          );
+        }
+
+        this.checkAndTriggerDeaths(ability.element);
+        resolve();
+      });
+    });
+
+    await delay(250);
+
+    this.isBusy = false;
+    this.updateReachableTiles();
+    this.updateHUD();
+    this.checkCombatState();
+  }
+
   private async handlePlayerMove(targetCoord: GridCoord): Promise<void> {
     if (this.isCoopMode) {
       const phase = this.turnManager.getPhase();
@@ -2936,11 +3186,28 @@ export class GameApp {
       if (!isMyTurn) return;
 
       if (this.coopLocalPlayer === 2 && !this.networkManager.isHost()) {
+        const isReachable = this.reachableTiles.some((c) => c.x === targetCoord.x && c.y === targetCoord.y);
+        if (!isReachable) return;
+
+        this.isBusy = true;
         this.networkManager.send({
           type: 'INTENT_MOVE',
           playerNum: 2,
           targetCoord,
         });
+        this.reachableTiles = [];
+        setTimeout(() => {
+          if (this.isBusy && this.isCoopMode && this.coopLocalPlayer === 2) {
+            this.isBusy = false;
+            this.updateReachableTiles();
+            this.updateHUD();
+          }
+        }, 2000);
+        return;
+      }
+
+      if (this.networkManager.isHost()) {
+        await this.executeCoopMove(1, targetCoord);
         return;
       }
     }
@@ -3070,12 +3337,31 @@ export class GameApp {
       if (!isMyTurn) return;
 
       if (this.coopLocalPlayer === 2 && !this.networkManager.isHost()) {
+        const isTargetable = this.targetableTiles.some((c) => c.x === targetCoord.x && c.y === targetCoord.y);
+        if (!isTargetable) return;
+
+        this.isBusy = true;
         this.networkManager.send({
           type: 'INTENT_CAST',
           playerNum: 2,
           abilityId: ability.id,
           targetCoord,
         });
+        this.selectedAbility = null;
+        this.targetableTiles = [];
+        this.updateHUD();
+        setTimeout(() => {
+          if (this.isBusy && this.isCoopMode && this.coopLocalPlayer === 2) {
+            this.isBusy = false;
+            this.updateReachableTiles();
+            this.updateHUD();
+          }
+        }, 2000);
+        return;
+      }
+
+      if (this.networkManager.isHost()) {
+        await this.executeCoopCast(1, ability.id, targetCoord);
         return;
       }
     }
@@ -3603,6 +3889,7 @@ export class GameApp {
       }
 
       if (this.combatEngine.areAllEnemiesDead()) {
+        if (!this.networkManager.isHost()) return;
         if (this.isRoundVictoryAnimating) return;
         this.isRoundVictoryAnimating = true;
         this.isBusy = true;
@@ -3995,6 +4282,16 @@ export class GameApp {
   }
 
   private updateReachableTiles(): void {
+    if (this.isCoopMode) {
+      const phase = this.turnManager.getPhase();
+      const isMyTurn = (this.coopLocalPlayer === 1 && phase === 'COOP_P1_TURN') ||
+                       (this.coopLocalPlayer === 2 && phase === 'COOP_P2_TURN');
+      if (!isMyTurn) {
+        this.reachableTiles = [];
+        return;
+      }
+    }
+
     const activeUnit = this.getActivePlayerUnit();
     this.reachableTiles = [];
     if (this.combatEngine.statusManager.hasStatus(activeUnit, 'Rooted')) {
