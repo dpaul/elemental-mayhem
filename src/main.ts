@@ -3,6 +3,7 @@ import { Grid } from './engine/Grid';
 import { TileHazardManager } from './engine/TileHazardManager';
 import { CombatEngine } from './engine/CombatEngine';
 import { TurnManager } from './engine/TurnManager';
+import { TurnTimer } from './engine/TurnTimer';
 import { EnemyAI } from './engine/EnemyAI';
 import { PerformanceScorer } from './engine/PerformanceScorer';
 import { UpgradeManager } from './engine/UpgradeManager';
@@ -135,6 +136,7 @@ export class GameApp {
   private hazardManager: TileHazardManager;
   private combatEngine: CombatEngine;
   private turnManager: TurnManager;
+  private autoTurnTimer: TurnTimer;
   private enemyAI: EnemyAI;
   private scorer: PerformanceScorer;
   private upgradeManager: UpgradeManager;
@@ -271,6 +273,25 @@ export class GameApp {
     this.grid = new Grid(10);
     this.hazardManager = new TileHazardManager(this.grid);
     this.turnManager = new TurnManager();
+    this.autoTurnTimer = new TurnTimer({
+      durationSeconds: 10,
+      onTick: (secondsLeft) => {
+        this.hud.updateEndTurnCountdown(secondsLeft);
+      },
+      onExpire: () => {
+        this.hud.updateEndTurnCountdown(null);
+        if (!this.isBusy) {
+          this.endPlayerTurn();
+        } else {
+          const checkBusy = setInterval(() => {
+            if (!this.isBusy) {
+              clearInterval(checkBusy);
+              this.endPlayerTurn();
+            }
+          }, 100);
+        }
+      },
+    });
     this.scorer = new PerformanceScorer();
     this.upgradeManager = new UpgradeManager();
     this.escalationManager = new EscalationManager();
@@ -1045,6 +1066,7 @@ export class GameApp {
   }
 
   public showHomeScreen(): void {
+    this.cancelAutoTurnCountdown();
     this.autoSaveGame();
     this.homeScreen.classList.remove('hidden');
     this.homeScreen.style.display = 'flex';
@@ -3486,6 +3508,7 @@ export class GameApp {
   }
 
   private async endPlayerTurn(): Promise<void> {
+    this.cancelAutoTurnCountdown();
     if (this.isBusy) return;
 
     // --- ONLINE CO-OP TURN MANAGEMENT ---
@@ -3951,6 +3974,7 @@ export class GameApp {
   }
 
   private openUpgradeModal(): void {
+    this.cancelAutoTurnCountdown();
     this.turnManager.setPhase('UPGRADE_PHASE');
     const rewards = this.scorer.calculateRoundRewards(this.combatEngine.performance);
     this.totalEssence += rewards.essence;
@@ -4000,6 +4024,7 @@ export class GameApp {
   }
 
   private advanceToNextRound(): void {
+    this.cancelAutoTurnCountdown();
     this.upgradeModal.classList.add('hidden');
     this.currentRound += 1;
 
@@ -4041,6 +4066,7 @@ export class GameApp {
   }
 
   private showVictoryModal(): void {
+    this.cancelAutoTurnCountdown();
     this.saveManager.clearSave();
     this.soundEngine.playVictoryFanfare();
     this.turnManager.setPhase('VICTORY');
@@ -4051,6 +4077,7 @@ export class GameApp {
   }
 
   private showDefeatModal(): void {
+    this.cancelAutoTurnCountdown();
     this.saveManager.clearSave();
     this.turnManager.setPhase('GAME_OVER');
     this.outcomeTitle.textContent = 'DEFEATED IN BATTLE';
@@ -4235,6 +4262,7 @@ export class GameApp {
   }
 
   private restartGame(element: ElementType): void {
+    this.cancelAutoTurnCountdown();
     this.hideHomeScreen();
     this.resumeRunModal.classList.add('hidden');
     this.characterSelectModal.classList.add('hidden');
@@ -4340,6 +4368,79 @@ export class GameApp {
         .map((log) => `<div class="log-entry log-${log.type}">${log.message}</div>`)
         .join('');
     }
+
+    this.checkAutoTurnEnd();
+  }
+
+  private checkAutoTurnEnd(): void {
+    if (!this.combatEngine || !this.hero || this.hero.isDead) {
+      this.cancelAutoTurnCountdown();
+      return;
+    }
+
+    if (this.homeScreen && !this.homeScreen.classList.contains('hidden')) {
+      this.cancelAutoTurnCountdown();
+      return;
+    }
+
+    if (this.gameOverModal && !this.gameOverModal.classList.contains('hidden')) {
+      this.cancelAutoTurnCountdown();
+      return;
+    }
+
+    if (this.upgradeModal && !this.upgradeModal.classList.contains('hidden')) {
+      this.cancelAutoTurnCountdown();
+      return;
+    }
+
+    if (this.isRoundVictoryAnimating || this.isHeroDeathAnimating) {
+      this.cancelAutoTurnCountdown();
+      return;
+    }
+
+    let isPlayerTurn = false;
+    if (this.isHotseatMode) {
+      isPlayerTurn = true;
+    } else if (this.isCoopMode) {
+      const phase = this.turnManager.getPhase();
+      isPlayerTurn =
+        (this.coopLocalPlayer === 1 && phase === 'COOP_P1_TURN') ||
+        (this.coopLocalPlayer === 2 && phase === 'COOP_P2_TURN');
+    } else {
+      isPlayerTurn = this.turnManager.getPhase() === 'PLAYER_TURN';
+    }
+
+    if (!isPlayerTurn) {
+      this.cancelAutoTurnCountdown();
+      return;
+    }
+
+    const activeUnit = this.getActivePlayerUnit();
+    if (!activeUnit || activeUnit.isDead) {
+      this.cancelAutoTurnCountdown();
+      return;
+    }
+
+    if (activeUnit.stats.currentAp <= 0 && !this.isBusy) {
+      if (!this.autoTurnTimer.isActive()) {
+        this.combatEngine.addLog(
+          'system',
+          '⏳ Out of AP! Turn will automatically end in 10 seconds.'
+        );
+        this.autoTurnTimer.start(10);
+      }
+    } else {
+      if (activeUnit.stats.currentAp > 0 && this.autoTurnTimer.isActive()) {
+        this.cancelAutoTurnCountdown();
+      }
+    }
+  }
+
+  private cancelAutoTurnCountdown(): void {
+    if (this.autoTurnTimer && this.autoTurnTimer.isActive()) {
+      this.autoTurnTimer.stop();
+    }
+    this.hud?.updateEndTurnCountdown(null);
   }
 
   private gameLoop(): void {

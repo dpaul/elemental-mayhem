@@ -231,6 +231,28 @@ export class HUDManager {
     }
   }
 
+  public updateEndTurnCountdown(secondsRemaining: number | null): void {
+    const btn = document.getElementById('end-turn-btn');
+    const title = document.getElementById('end-turn-title') || btn?.querySelector('.btn-title');
+    const countdownEl = document.getElementById('end-turn-auto-countdown');
+
+    if (secondsRemaining !== null && secondsRemaining >= 0) {
+      btn?.classList.add('auto-turn-warning');
+      if (title) title.textContent = `END TURN (${secondsRemaining}s)`;
+      if (countdownEl) {
+        countdownEl.style.display = 'block';
+        countdownEl.textContent = `⏳ Auto in ${secondsRemaining}s`;
+      }
+    } else {
+      btn?.classList.remove('auto-turn-warning');
+      if (title) title.textContent = 'END TURN';
+      if (countdownEl) {
+        countdownEl.style.display = 'none';
+        countdownEl.textContent = '';
+      }
+    }
+  }
+
   public updateCurrencies(
     essence: number,
     xp: number,
