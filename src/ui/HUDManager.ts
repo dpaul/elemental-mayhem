@@ -1,6 +1,7 @@
 // Elemental Mayhem - Glassmorphism Tactical HUD & Action Dock Manager
 import { Unit, Ability, GridCoord } from '../types';
 import { CORE_ELEMENTS } from '../constants/elements';
+import { SpellTooltipManager } from './SpellTooltip';
 
 export class HUDManager {
   private heroAvatar: HTMLElement | null;
@@ -29,8 +30,11 @@ export class HUDManager {
   private cachedAbilities: Ability[] = [];
   private cachedSelectedId: string | null = null;
   private cachedCurrentAp: number = 0;
+  private tooltipManager: SpellTooltipManager;
+  private inspectedTargetUnit: Unit | null = null;
 
   constructor() {
+    this.tooltipManager = new SpellTooltipManager();
     this.heroAvatar = document.getElementById('hero-avatar-icon');
     this.heroHpFill = document.getElementById('hero-hp-fill')!;
     this.heroHpText = document.getElementById('hero-hp-text')!;
@@ -176,6 +180,12 @@ export class HUDManager {
       const isDisabled = ability.apCost > currentAp || ability.currentCooldown > 0;
 
       card.className = `ability-card ${isSelected ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}`;
+      card.tabIndex = 0;
+      card.setAttribute('role', 'button');
+      card.setAttribute(
+        'aria-label',
+        `${ability.name}, ${ability.apCost} AP, ${ability.baseDamage > 0 ? `${ability.baseDamage} damage` : 'support'}`
+      );
 
       const elemData = CORE_ELEMENTS[ability.element];
       if (elemData) {
@@ -194,7 +204,19 @@ export class HUDManager {
 
       if (!isDisabled) {
         card.onclick = () => onSelect(ability);
+        card.onkeydown = (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onSelect(ability);
+          }
+        };
       }
+
+      // Attach tactical spell hover tooltip
+      this.tooltipManager.attach(card, ability, () => ({
+        currentAp,
+        targetUnit: this.inspectedTargetUnit,
+      }));
 
       this.actionBar.appendChild(card);
     });
@@ -232,6 +254,7 @@ export class HUDManager {
   }
 
   public inspectUnit(unit: Unit | null, coord: GridCoord | null): void {
+    this.inspectedTargetUnit = unit;
     if (!unit) {
       if (coord) {
         this.targetName.textContent = `Tile (${coord.x}, ${coord.y})`;
@@ -267,6 +290,18 @@ export class HUDManager {
         ${elem ? `<div><strong>Weak To:</strong> ${elem.weakAgainst.join(', ') || 'None'}</div>` : ''}
       </div>
     `;
+  }
+
+  public setInspectedTargetUnit(unit: Unit | null): void {
+    this.inspectedTargetUnit = unit;
+  }
+
+  public getInspectedTargetUnit(): Unit | null {
+    return this.inspectedTargetUnit;
+  }
+
+  public getTooltipManager(): SpellTooltipManager {
+    return this.tooltipManager;
   }
 
   public updateCombatLog(logs: { id: string; type: string; message: string }[]): void {

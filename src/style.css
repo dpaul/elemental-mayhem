@@ -795,6 +795,15 @@ body {
   border-radius: var(--radius-sm);
   background: rgba(255, 255, 255, 0.03);
   font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+}
+
+.class-ability-row:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateX(2px);
 }
 
 .class-ability-name {
@@ -1689,5 +1698,273 @@ body {
   font-size: 0.82rem;
   color: #cbd5e1;
   line-height: 1.35;
+}
+
+/* ========================================================================== */
+/* TACTICAL SPELL HOVER TOOLTIP                                              */
+/* ========================================================================== */
+
+.spell-tooltip {
+  position: fixed;
+  z-index: 10000;
+  pointer-events: none;
+  width: max-content;
+  max-width: 360px;
+  min-width: 290px;
+  border-radius: var(--radius-lg);
+  background: rgba(10, 14, 24, 0.95);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid var(--tooltip-color, rgba(56, 189, 248, 0.4));
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.75), 0 0 28px var(--tooltip-glow, rgba(56, 189, 248, 0.25));
+  padding: 14px 16px;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  font-family: var(--font-body);
+  color: var(--text-main);
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.spell-tooltip.hidden {
+  opacity: 0;
+  transform: translateY(4px);
+  pointer-events: none;
+  display: none;
+}
+
+.spell-tooltip-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.spell-tooltip-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 8px;
+}
+
+.spell-tooltip-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.spell-tooltip-icon {
+  font-size: 1.8rem;
+  line-height: 1;
+  filter: drop-shadow(0 0 8px var(--tooltip-glow, rgba(56, 189, 248, 0.5)));
+}
+
+.spell-tooltip-name {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.3px;
+}
+
+.spell-tooltip-subtitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.spell-level-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+/* Stat pills grid */
+.spell-tooltip-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  white-space: nowrap;
+}
+
+.stat-pill.dmg-pill {
+  background: rgba(255, 255, 255, 0.08);
+  font-weight: 700;
+  font-size: 0.82rem;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+}
+
+.stat-pill.dmg-pill small {
+  font-size: 0.7rem;
+  opacity: 0.85;
+}
+
+.stat-pill.util-pill {
+  border-color: rgba(148, 163, 184, 0.3);
+  color: #cbd5e1;
+}
+
+.stat-pill.ap-pill {
+  border-color: rgba(250, 204, 21, 0.3);
+  color: #fde047;
+}
+
+.stat-pill.range-pill {
+  border-color: rgba(56, 189, 248, 0.3);
+  color: #7dd3fc;
+}
+
+.stat-pill.aoe-pill {
+  border-color: rgba(192, 132, 252, 0.3);
+  color: #d8b4fe;
+}
+
+.stat-pill.cd-pill {
+  border-color: rgba(244, 114, 182, 0.3);
+  color: #f472b6;
+}
+
+/* Description */
+.spell-tooltip-description {
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: #e2e8f0;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--tooltip-color, rgba(56, 189, 248, 0.5));
+}
+
+/* Secondary Effects */
+.spell-tooltip-effects {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.effect-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.effect-row.status-effect {
+  color: #fef08a;
+  border-left: 2px solid #eab308;
+}
+
+.effect-row.hazard-effect {
+  color: #fdba74;
+  border-left: 2px solid #f97316;
+}
+
+/* Target damage preview */
+.tooltip-target-preview {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.15);
+}
+
+.target-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  color: #cbd5e1;
+}
+
+.target-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.target-badge.advantage {
+  background: rgba(34, 197, 94, 0.25);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.5);
+}
+
+.target-badge.resisted {
+  background: rgba(239, 68, 68, 0.25);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.5);
+}
+
+.target-badge.neutral {
+  background: rgba(148, 163, 184, 0.2);
+  color: #94a3b8;
+}
+
+.target-preview-damage {
+  margin-top: 3px;
+  font-size: 0.84rem;
+  color: #f8fafc;
+}
+
+.target-preview-damage strong {
+  color: #38bdf8;
+}
+
+/* Elemental matrix */
+.spell-tooltip-matrix {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.matrix-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.matrix-label {
+  font-weight: 600;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+.matrix-elements {
+  color: #e2e8f0;
+}
+
+/* Warning banner */
+.tooltip-warning-banner {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 4px;
+  padding: 4px 8px;
+  text-align: center;
 }
 

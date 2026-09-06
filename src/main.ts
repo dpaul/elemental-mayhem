@@ -1291,6 +1291,15 @@ export class GameApp {
         ${actionHtml}
       `;
 
+      // Attach hover tooltips to spell rows in class card
+      const abilityRowEls = card.querySelectorAll<HTMLElement>('.class-ability-row');
+      displayAbilities.forEach((ab, idx) => {
+        const rowEl = abilityRowEls[idx];
+        if (rowEl) {
+          this.hud.getTooltipManager().attach(rowEl, ab);
+        }
+      });
+
       if (isPickable) {
         card.style.cursor = 'pointer';
         const selectHandler = (e: Event) => {
@@ -1368,6 +1377,15 @@ export class GameApp {
         <div class="class-ability-list">${abilityRows}</div>
         ${actionHtml}
       `;
+
+      // Attach hover tooltips to spell rows in hotseat card
+      const abilityRowEls = card.querySelectorAll<HTMLElement>('.class-ability-row');
+      displayAbilities.forEach((ab, idx) => {
+        const rowEl = abilityRowEls[idx];
+        if (rowEl) {
+          this.hud.getTooltipManager().attach(rowEl, ab);
+        }
+      });
 
       card.onclick = () => {
         if (playerNum === 1) {
@@ -2839,6 +2857,8 @@ export class GameApp {
         this.combatEngine.addLog('system', `Upgraded ${ability.name} to Level ${ability.level}!`);
         this.advanceToNextRound();
       };
+      // Attach hover tooltip for current ability details
+      this.hud.getTooltipManager().attach(card, ability);
       this.upgradeChoicesContainer.appendChild(card);
     });
 
