@@ -7,6 +7,7 @@ export class SoundEngine {
   public masterVolume: number = 0.45;
   private lastZombieScreamTime: number = 0;
   private lastZombieSpawnTime: number = 0;
+  private lastHumanScreamTime: number = 0;
   private sampleBuffers: Map<string, AudioBuffer> = new Map();
   private hasPreloaded: boolean = false;
 
@@ -106,6 +107,9 @@ export class SoundEngine {
       ['hit_1', 'hit_1.ogg'],
       ['hit_2', 'hit_2.ogg'],
       ['hit_3', 'hit_3.ogg'],
+      ['human_scream_1', 'human_scream_1.ogg'],
+      ['human_scream_2', 'human_scream_2.ogg'],
+      ['human_scream_3', 'human_scream_3.ogg'],
       ['root', 'root.ogg'],
       ['screamer_wail', 'screamer_wail.ogg'],
       ['slash', 'slash.ogg'],
@@ -522,6 +526,117 @@ export class SoundEngine {
       chordOsc.start(t + 0.2 + idx * 0.1);
       chordOsc.stop(t + 1.85);
     });
+  }
+
+  /**
+   * Loud, bloodcurdling human scream when eaten by zombies or facing agonizing trauma
+   */
+  public playHumanScream(volume: number = 1.0, bypassDebounce: boolean = false): void {
+    const now = Date.now();
+    if (!bypassDebounce && now - this.lastHumanScreamTime < 100) return;
+    this.lastHumanScreamTime = now;
+
+    const ctx = this.initContext();
+    if (!ctx || this.isMuted) return;
+
+    // Pick between 3 realistic recorded human terror screams
+    const screamVariants = ['human_scream_1', 'human_scream_2', 'human_scream_3'];
+    const chosenVariant = screamVariants[Math.floor(Math.random() * screamVariants.length)];
+
+    // Boosted volume for maximum dramatic shock (loud human scream)
+    const played = this.playSample(chosenVariant, Math.min(1.0, volume * 1.05), 0.06);
+
+    if (!played) {
+      // High-realism procedural Web Audio human scream synthesis
+      const t = ctx.currentTime;
+      const masterGain = this.createGain(ctx, Math.min(1.0, volume * 0.95));
+
+      // 1. Primary vocal tract oscillator (vocal folds open in terror)
+      const osc1 = ctx.createOscillator();
+      osc1.type = 'sawtooth';
+      osc1.frequency.setValueAtTime(880, t); // High human scream pitch (A5)
+      osc1.frequency.linearRampToValueAtTime(940, t + 0.1);
+      osc1.frequency.exponentialRampToValueAtTime(380, t + 0.95);
+
+      // 2. Harmonic rasp oscillator (minor third / dissonant multiphonic strain)
+      const osc2 = ctx.createOscillator();
+      osc2.type = 'sawtooth';
+      osc2.frequency.setValueAtTime(1080, t);
+      osc2.frequency.exponentialRampToValueAtTime(460, t + 0.9);
+
+      // 3. Frequency Modulation (vocal fold jitter / terror tremor at 38 Hz)
+      const lfo = ctx.createOscillator();
+      lfo.type = 'sine';
+      lfo.frequency.setValueAtTime(38, t);
+      const lfoGain = ctx.createGain();
+      lfoGain.gain.setValueAtTime(45, t);
+      lfoGain.gain.exponentialRampToValueAtTime(12, t + 0.85);
+      lfo.connect(lfoGain);
+      lfoGain.connect(osc1.frequency);
+      lfoGain.connect(osc2.frequency);
+
+      // 4. Throat & Mouth Vocal Tract Formants (vowel "AHHH" resonance ~920 Hz & 2800 Hz)
+      const formant1 = ctx.createBiquadFilter();
+      formant1.type = 'bandpass';
+      formant1.frequency.setValueAtTime(920, t);
+      formant1.Q.setValueAtTime(3.5, t);
+
+      const formant2 = ctx.createBiquadFilter();
+      formant2.type = 'bandpass';
+      formant2.frequency.setValueAtTime(2800, t);
+      formant2.Q.setValueAtTime(2.5, t);
+
+      // 5. Overdrive saturation for screaming vocal rasp
+      const shaper = ctx.createWaveShaper();
+      shaper.curve = this.makeDistortionCurve(16) as any;
+
+      // 6. White noise layer for breath rush / breathlessness
+      const noiseBuffer = this.createNoiseBuffer(ctx, 0.9);
+      const noise = ctx.createBufferSource();
+      noise.buffer = noiseBuffer;
+      const noiseFilter = ctx.createBiquadFilter();
+      noiseFilter.type = 'bandpass';
+      noiseFilter.frequency.setValueAtTime(2200, t);
+      noiseFilter.Q.setValueAtTime(2.0, t);
+      const noiseGain = ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.01, t);
+      noiseGain.gain.linearRampToValueAtTime(0.35, t + 0.05);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 0.85);
+      noise.connect(noiseFilter);
+      noiseFilter.connect(noiseGain);
+      noiseGain.connect(masterGain);
+
+      // Amplitude Envelope: Instant punchy scream, holding strong, trailing off
+      const env = ctx.createGain();
+      env.gain.setValueAtTime(0.01, t);
+      env.gain.linearRampToValueAtTime(0.9, t + 0.03);
+      env.gain.setValueAtTime(0.85, t + 0.4);
+      env.gain.exponentialRampToValueAtTime(0.001, t + 0.95);
+
+      osc1.connect(shaper);
+      osc2.connect(shaper);
+      shaper.connect(formant1);
+      formant1.connect(formant2);
+      formant2.connect(env);
+      env.connect(masterGain);
+
+      lfo.start(t);
+      osc1.start(t);
+      osc2.start(t);
+      noise.start(t);
+
+      lfo.stop(t + 0.95);
+      osc1.stop(t + 0.95);
+      osc2.stop(t + 0.95);
+      noise.stop(t + 0.9);
+    }
+  }
+
+  /**
+   * Dedicated loud human scream trigger with maximum volume
+   */
+  public playLoudHumanScream(bypassDebounce: boolean = false): void {
+    this.playHumanScream(1.0, bypassDebounce);
   }
 
   /**

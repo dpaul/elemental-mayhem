@@ -14,7 +14,36 @@ import {
   UnitFaction,
   ZombieClass,
   ElementType,
+  TileHazardType,
 } from '../types';
+
+export const ZOMBIE_CLASS_FLOOR_REQUIREMENTS: Record<ZombieClass, TileHazardType[]> = {
+  Frostbite: ['IceSurface'],
+  Boomer: ['LavaPool', 'Burning'],
+  Electro: ['ElectrifiedPuddle'],
+  PlagueBearer: ['ToxicMire'],
+  Spitter: ['AcidPool'],
+  Wizard: ['VoidRift'],
+  DeathKnight: ['BonePile'],
+  Brute: ['MudWall'],
+  Runner: ['Puddle'],
+  Screamer: ['CrystalSpikes'],
+  Walker: ['None'],
+};
+
+export const HAZARD_TO_ZOMBIE_CLASS: Partial<Record<TileHazardType, ZombieClass>> = {
+  IceSurface: 'Frostbite',
+  LavaPool: 'Boomer',
+  Burning: 'Boomer',
+  ElectrifiedPuddle: 'Electro',
+  ToxicMire: 'PlagueBearer',
+  AcidPool: 'Spitter',
+  VoidRift: 'Wizard',
+  BonePile: 'DeathKnight',
+  MudWall: 'Brute',
+  Puddle: 'Runner',
+  CrystalSpikes: 'Screamer',
+};
 
 export class CombatEngine {
   public grid: Grid;
@@ -90,35 +119,48 @@ export class CombatEngine {
     baseHp: number,
     baseAp: number,
     faction: UnitFaction = 'Player',
-    forcedClass?: ZombieClass
+    forcedClass?: ZombieClass,
+    forceOverride: boolean = false
   ): Unit {
-    let zClass: ZombieClass = forcedClass || 'Walker';
+    const tile = this.grid.getTile(coord);
+    const hazardType: TileHazardType = tile ? tile.hazard.type : 'None';
 
-    if (!forcedClass) {
-      // 1 out of 10,000 to be a Wizard Zombie!
-      const roll = Math.random();
-      if (roll < 0.0001) {
-        zClass = 'Wizard';
+    let zClass: ZombieClass = 'Walker';
+
+    if (forcedClass) {
+      if (forceOverride) {
+        zClass = forcedClass;
       } else {
-        const subRoll = Math.random();
-        if (subRoll < 0.18) {
-          zClass = 'Runner';
-        } else if (subRoll < 0.30) {
-          zClass = 'Brute';
-        } else if (subRoll < 0.40) {
-          zClass = 'Spitter';
-        } else if (subRoll < 0.50) {
-          zClass = 'Boomer';
-        } else if (subRoll < 0.60) {
-          zClass = 'Frostbite';
-        } else if (subRoll < 0.70) {
-          zClass = 'DeathKnight';
-        } else if (subRoll < 0.80) {
-          zClass = 'Screamer';
-        } else if (subRoll < 0.90) {
-          zClass = 'PlagueBearer';
-        } else if (subRoll < 0.96) {
-          zClass = 'Electro';
+        const allowedHazards = ZOMBIE_CLASS_FLOOR_REQUIREMENTS[forcedClass] || ['None'];
+        if (allowedHazards.includes(hazardType)) {
+          zClass = forcedClass;
+        } else {
+          // If tile does not meet floor requirements, adapt to tile hazard or fallback to Walker
+          const fallbackClass = (hazardType !== 'None' && HAZARD_TO_ZOMBIE_CLASS[hazardType])
+            ? HAZARD_TO_ZOMBIE_CLASS[hazardType]!
+            : 'Walker';
+          this.addLog(
+            'system',
+            `⚠️ ${forcedClass} Zombie requires ${allowedHazards.join(' or ')} on the floor! The tile has ${hazardType}, so a ${fallbackClass} Zombie was raised instead.`
+          );
+          zClass = fallbackClass;
+        }
+      }
+    } else {
+      // Natural emergence determined by floor condition on the tile:
+      if (hazardType !== 'None' && HAZARD_TO_ZOMBIE_CLASS[hazardType]) {
+        zClass = HAZARD_TO_ZOMBIE_CLASS[hazardType]!;
+      } else {
+        // Normal clean ground
+        // 1 out of 10,000 to tear a miraculous Void Rift and rise as a Wizard Zombie!
+        const roll = Math.random();
+        if (roll < 0.0001) {
+          zClass = 'Wizard';
+          this.hazardManager.applyHazard(coord, 'VoidRift', 5, 20, 'Void');
+          this.addLog(
+            'system',
+            '🌌 An abyssal void rift tore open on the floor! A legendary Wizard Zombie emerges from the Nether!'
+          );
         } else {
           zClass = 'Walker';
         }
@@ -583,6 +625,30 @@ export class CombatEngine {
       zombieLifetime: 4,
     };
 
+    if (zClass === 'Frostbite') {
+      this.addLog('system', `❄️ An icy Frostbite Zombie condensed and rose from the frost on the floor!`);
+    } else if (zClass === 'Boomer') {
+      this.addLog('system', `💣 A volatile Boomer Zombie ignited and rose from the searing flames on the floor!`);
+    } else if (zClass === 'Electro') {
+      this.addLog('system', `⚡ An electrified Electro Zombie materialized from the energized puddle on the floor!`);
+    } else if (zClass === 'PlagueBearer') {
+      this.addLog('system', `🦠 A diseased Plague Bearer Zombie festered and rose from the toxic mire on the floor!`);
+    } else if (zClass === 'Spitter') {
+      this.addLog('system', `🧪 A caustic Spitter Zombie dissolved and rose from the acid pool on the floor!`);
+    } else if (zClass === 'Wizard') {
+      this.addLog('system', `🌌 A legendary Wizard Zombie emerged from the abyssal void rift on the floor!`);
+    } else if (zClass === 'DeathKnight') {
+      this.addLog('system', `⚔️ An armored Death Knight Zombie assembled and rose from the bone pile on the floor!`);
+    } else if (zClass === 'Brute') {
+      this.addLog('system', `🛡️ A colossal Brute Zombie solidified and rose from the heavy mud on the floor!`);
+    } else if (zClass === 'Runner') {
+      this.addLog('system', `🌊 A swift Runner Zombie surged and rose from the slick puddle on the floor!`);
+    } else if (zClass === 'Screamer') {
+      this.addLog('system', `😱 A shrieking Screamer Zombie resonated and rose from the crystal spikes on the floor!`);
+    } else {
+      this.addLog('system', `🧟 A standard Reanimated Zombie rose from the ground!`);
+    }
+
     this.zombies.push(zombie);
     this.onZombieSpawn?.(zombie);
     return zombie;
@@ -733,24 +799,37 @@ export class CombatEngine {
     if (tile && tile.hazard.type !== 'None' && tile.hazard.damagePerTurn > 0) {
       let hazardDmg = tile.hazard.damagePerTurn;
       if (unit.isZombie) {
-        const maxPerHit = Math.max(1, Math.floor(unit.stats.maxHp * 0.5));
-        hazardDmg = Math.min(hazardDmg, maxPerHit);
-        if (unit.stats.currentHp === unit.stats.maxHp && hazardDmg >= unit.stats.currentHp) {
-          hazardDmg = unit.stats.currentHp - 1;
+        // Native floor hazard immunity: zombies thrive in their native floor condition
+        if (unit.zombieClass && ZOMBIE_CLASS_FLOOR_REQUIREMENTS[unit.zombieClass]?.includes(tile.hazard.type)) {
+          hazardDmg = 0;
+        } else {
+          const maxPerHit = Math.max(1, Math.floor(unit.stats.maxHp * 0.5));
+          hazardDmg = Math.min(hazardDmg, maxPerHit);
+          if (unit.stats.currentHp === unit.stats.maxHp && hazardDmg >= unit.stats.currentHp) {
+            hazardDmg = unit.stats.currentHp - 1;
+          }
         }
       }
-      unit.stats.currentHp = Math.max(0, unit.stats.currentHp - hazardDmg);
-      this.addLog(
-        'hazard',
-        `${unit.name} stepped into ${tile.hazard.type} taking ${hazardDmg} hazard damage!`
-      );
-      if (unit.faction === 'Player') {
-        this.performance.damageTaken += hazardDmg;
-        this.performance.flawlessBonus = false;
-      }
-      if (unit.stats.currentHp === 0) {
-        unit.isDead = true;
-        this.addLog('system', `${unit.name} perished in ${tile.hazard.type}!`);
+
+      if (hazardDmg > 0) {
+        unit.stats.currentHp = Math.max(0, unit.stats.currentHp - hazardDmg);
+        this.addLog(
+          'hazard',
+          `${unit.name} stepped into ${tile.hazard.type} taking ${hazardDmg} hazard damage!`
+        );
+        if (unit.faction === 'Player') {
+          this.performance.damageTaken += hazardDmg;
+          this.performance.flawlessBonus = false;
+        }
+        if (unit.stats.currentHp === 0) {
+          unit.isDead = true;
+          this.addLog('system', `${unit.name} perished in ${tile.hazard.type}!`);
+        }
+      } else if (unit.isZombie && unit.zombieClass && ZOMBIE_CLASS_FLOOR_REQUIREMENTS[unit.zombieClass]?.includes(tile.hazard.type)) {
+        this.addLog(
+          'system',
+          `🧟 ${unit.name} is immune to native floor condition ${tile.hazard.type}!`
+        );
       }
     }
 

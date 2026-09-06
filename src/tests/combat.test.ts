@@ -608,7 +608,11 @@ describe('Life Element Unzombify, Cascade Explosions & Being of Life (TDD Red ->
     expect(classes.length).toBeGreaterThanOrEqual(42);
 
     classes.forEach((cls) => {
-      expect(cls.abilities.length).toBe(10);
+      if (cls.element === 'Admin') {
+        expect(cls.abilities.length).toBeGreaterThanOrEqual(10);
+      } else {
+        expect(cls.abilities.length).toBe(10);
+      }
       const shieldSpell = cls.abilities.find(
         (a: any) =>
           a.appliesStatus === 'Shielded' ||
@@ -667,9 +671,9 @@ describe('Life Element Unzombify, Cascade Explosions & Being of Life (TDD Red ->
     expect(timeHero.stats.currentAp).toBe(10);
   });
 
-  it('should verify every single element (all 44) has a dedicated Confusion move that applies Confused status', () => {
+  it('should verify every single element (all 50) has a dedicated Confusion move that applies Confused status', () => {
     const elements = Object.keys(HERO_CLASSES) as any[];
-    expect(elements.length).toBe(44);
+    expect(elements.length).toBe(50);
 
     elements.forEach((elem) => {
       const cls = HERO_CLASSES[elem as keyof typeof HERO_CLASSES];
@@ -678,6 +682,114 @@ describe('Life Element Unzombify, Cascade Explosions & Being of Life (TDD Red ->
       expect(confusionMove!.appliesStatus).toBe('Confused');
       expect(confusionMove!.statusDuration).toBe(2);
       expect(confusionMove!.icon).toBe('🌀');
+    });
+  });
+
+  it('should support the 3 martial elements (Iron, War, Rage) with complete 10-spell kits, shields, and combat execution', () => {
+    // 1. Iron Juggernaut
+    const ironHero = createHeroForElement('Iron');
+    expect(ironHero.name).toBe('Iron Juggernaut');
+    expect(ironHero.avatar).toBe('🦾');
+    expect(ironHero.stats.elementalAffinity).toBe('Iron');
+    expect(ironHero.stats.maxHp).toBe(130);
+    expect(ironHero.abilities.length).toBe(10);
+    const ironShield = ironHero.abilities.find((a) => a.id === 'iron_bulwark');
+    expect(ironShield).toBeDefined();
+    expect(ironShield?.appliesStatus).toBe('Shielded');
+    const ironConfusion = ironHero.abilities.find((a) => a.id === 'iron_concussion');
+    expect(ironConfusion).toBeDefined();
+    expect(ironConfusion?.appliesStatus).toBe('Confused');
+
+    // 2. Warmaster
+    const warHero = createHeroForElement('War');
+    expect(warHero.name).toBe('Warmaster');
+    expect(warHero.avatar).toBe('⚔️');
+    expect(warHero.stats.elementalAffinity).toBe('War');
+    expect(warHero.stats.maxHp).toBe(115);
+    expect(warHero.abilities.length).toBe(10);
+    const warShield = warHero.abilities.find((a) => a.id === 'war_phalanx_shield');
+    expect(warShield).toBeDefined();
+    expect(warShield?.appliesStatus).toBe('Shielded');
+    const warConfusion = warHero.abilities.find((a) => a.id === 'war_tactical_disarray');
+    expect(warConfusion).toBeDefined();
+    expect(warConfusion?.appliesStatus).toBe('Confused');
+
+    // 3. Berserker (Rage)
+    const rageHero = createHeroForElement('Rage');
+    expect(rageHero.name).toBe('Berserker');
+    expect(rageHero.avatar).toBe('👹');
+    expect(rageHero.stats.elementalAffinity).toBe('Rage');
+    expect(rageHero.stats.maxHp).toBe(125);
+    expect(rageHero.abilities.length).toBe(10);
+    const rageShield = rageHero.abilities.find((a) => a.id === 'rage_barrier');
+    expect(rageShield).toBeDefined();
+    expect(rageShield?.appliesStatus).toBe('Shielded');
+    const rageConfusion = rageHero.abilities.find((a) => a.id === 'rage_blind_frenzy');
+    expect(rageConfusion).toBeDefined();
+    expect(rageConfusion?.appliesStatus).toBe('Confused');
+
+    // Execute combat ability with Iron Hero
+    const testEnemy = combatEngine.spawnZombie({ x: 2, y: 1 }, 50, 4, 'Enemy');
+    const anvilToss = ironHero.abilities.find((a) => a.id === 'iron_anvil_toss')!;
+    const hitResult = combatEngine.executeAbility(ironHero, anvilToss, testEnemy.coord);
+    expect(hitResult.success).toBe(true);
+    expect(testEnemy.stats.currentHp).toBe(170); // 200 HP - 30 damage = 170
+  });
+
+  it('should support the 2 new forces elements (Titan, Blast) with complete 10-spell kits, shields, and combat execution', () => {
+    // 1. Titan Colossus
+    const titanHero = createHeroForElement('Titan');
+    expect(titanHero.name).toBe('Titan Colossus');
+    expect(titanHero.avatar).toBe('🗿');
+    expect(titanHero.stats.elementalAffinity).toBe('Titan');
+    expect(titanHero.stats.maxHp).toBe(140);
+    expect(titanHero.abilities.length).toBe(10);
+    const titanShield = titanHero.abilities.find((a) => a.id === 'titan_colossus_aegis');
+    expect(titanShield).toBeDefined();
+    expect(titanShield?.appliesStatus).toBe('Shielded');
+    const titanConfusion = titanHero.abilities.find((a) => a.id === 'titan_tectonic_stupor');
+    expect(titanConfusion).toBeDefined();
+    expect(titanConfusion?.appliesStatus).toBe('Confused');
+
+    // 2. Demolitionist (Blast)
+    const blastHero = createHeroForElement('Blast');
+    expect(blastHero.name).toBe('Demolitionist');
+    expect(blastHero.avatar).toBe('💥');
+    expect(blastHero.stats.elementalAffinity).toBe('Blast');
+    expect(blastHero.stats.maxHp).toBe(110);
+    expect(blastHero.abilities.length).toBe(10);
+    const blastShield = blastHero.abilities.find((a) => a.id === 'blast_dampener_field');
+    expect(blastShield).toBeDefined();
+    expect(blastShield?.appliesStatus).toBe('Shielded');
+    const blastConfusion = blastHero.abilities.find((a) => a.id === 'blast_flashbang');
+    expect(blastConfusion).toBeDefined();
+    expect(blastConfusion?.appliesStatus).toBe('Confused');
+
+    // Execute combat ability with Titan Colossus
+    const enemyUnit = combatEngine.spawnZombie({ x: 3, y: 1 }, 50, 4, 'Enemy');
+    const boulderToss = titanHero.abilities.find((a) => a.id === 'titan_mountain_toss')!;
+    const titanHit = combatEngine.executeAbility(titanHero, boulderToss, enemyUnit.coord);
+    expect(titanHit.success).toBe(true);
+    expect(enemyUnit.stats.currentHp).toBe(168); // 200 HP - 32 damage = 168
+
+    // Execute combat ability with Demolitionist - verifying explosive AoE radius hits multiple enemies
+    const enemyUnit2 = combatEngine.spawnZombie({ x: 4, y: 1 }, 50, 4, 'Enemy'); // Adjacent to { x: 3, y: 1 }
+    expect(enemyUnit2.stats.currentHp).toBe(200);
+
+    const fragGrenade = blastHero.abilities.find((a) => a.id === 'blast_grenade')!;
+    expect(fragGrenade.aoeRadius).toBe(2); // Explosive range 2
+    const blastHit = combatEngine.executeAbility(blastHero, fragGrenade, enemyUnit.coord);
+    expect(blastHit.success).toBe(true);
+
+    // Both enemyUnit and enemyUnit2 in the explosive radius took 28 damage!
+    expect(enemyUnit.stats.currentHp).toBe(140); // 168 HP - 28 damage = 140
+    expect(enemyUnit2.stats.currentHp).toBe(172); // 200 HP - 28 damage = 172
+
+    // Verify all offensive Blast abilities have an explosive aoeRadius >= 1
+    const offensiveMoves = blastHero.abilities.filter((a) => a.targeting !== 'Self');
+    expect(offensiveMoves.length).toBe(9);
+    offensiveMoves.forEach((move) => {
+      expect(move.aoeRadius).toBeGreaterThanOrEqual(1);
     });
   });
 
@@ -699,40 +811,52 @@ describe('Life Element Unzombify, Cascade Explosions & Being of Life (TDD Red ->
     expect(tickLogs.some((l) => l.includes('Confusion'))).toBe(true);
   });
 
-  it('should support multiple zombie classes with distinct avatars, stats, and abilities', () => {
+  it('should support multiple zombie classes with distinct avatars, stats, and abilities when spawned on their required floor hazards', () => {
     const walker = combatEngine.spawnZombie({ x: 1, y: 1 }, 25, 4, 'Player', 'Walker');
     expect(walker.zombieClass).toBe('Walker');
     expect(walker.avatar).toBe('🧟');
     expect(walker.abilities.some((a) => a.id === 'zombie_bite')).toBe(true);
 
+    // Runner requires Puddle
+    combatEngine.hazardManager.applyHazard({ x: 2, y: 1 }, 'Puddle', 3, 0, 'Water');
     const runner = combatEngine.spawnZombie({ x: 2, y: 1 }, 25, 4, 'Player', 'Runner');
     expect(runner.zombieClass).toBe('Runner');
     expect(runner.avatar).toBe('🧟⚡');
     expect(runner.abilities.some((a) => a.id === 'runner_frenzied_pounce')).toBe(true);
 
+    // Brute requires MudWall
+    combatEngine.hazardManager.applyHazard({ x: 3, y: 1 }, 'MudWall', 3, 0, 'Earth');
     const brute = combatEngine.spawnZombie({ x: 3, y: 1 }, 25, 4, 'Player', 'Brute');
     expect(brute.zombieClass).toBe('Brute');
     expect(brute.avatar).toBe('🧟🛡️');
     expect(brute.stats.maxHp).toBe(25 * 4); // 100 (4x HP)
     expect(brute.abilities.some((a) => a.id === 'brute_ground_slam')).toBe(true);
 
+    // Spitter requires AcidPool
+    combatEngine.hazardManager.applyHazard({ x: 4, y: 1 }, 'AcidPool', 3, 0, 'Acid');
     const spitter = combatEngine.spawnZombie({ x: 4, y: 1 }, 25, 4, 'Player', 'Spitter');
     expect(spitter.zombieClass).toBe('Spitter');
     expect(spitter.avatar).toBe('🧟🧪');
     expect(spitter.abilities.some((a) => a.id === 'spitter_toxic_bile')).toBe(true);
 
+    // Boomer requires LavaPool or Burning
+    combatEngine.hazardManager.applyHazard({ x: 5, y: 1 }, 'LavaPool', 3, 0, 'Fire');
     const boomer = combatEngine.spawnZombie({ x: 5, y: 1 }, 25, 4, 'Player', 'Boomer');
     expect(boomer.zombieClass).toBe('Boomer');
     expect(boomer.avatar).toBe('🧟💣');
     expect(boomer.stats.elementalAffinity).toBe('Fire');
     expect(boomer.abilities.some((a) => a.id === 'boomer_detonation')).toBe(true);
 
+    // Frostbite requires IceSurface
+    combatEngine.hazardManager.applyHazard({ x: 6, y: 1 }, 'IceSurface', 3, 0, 'Cold');
     const frostbite = combatEngine.spawnZombie({ x: 6, y: 1 }, 25, 4, 'Player', 'Frostbite');
     expect(frostbite.zombieClass).toBe('Frostbite');
     expect(frostbite.avatar).toBe('🧟❄️');
     expect(frostbite.stats.elementalAffinity).toBe('Cold');
     expect(frostbite.abilities.some((a) => a.id === 'frostbite_freeze')).toBe(true);
 
+    // DeathKnight requires BonePile
+    combatEngine.hazardManager.applyHazard({ x: 7, y: 1 }, 'BonePile', 3, 0, 'Death');
     const deathKnight = combatEngine.spawnZombie({ x: 7, y: 1 }, 25, 4, 'Player', 'DeathKnight');
     expect(deathKnight.zombieClass).toBe('DeathKnight');
     expect(deathKnight.avatar).toBe('🧟⚔️');
@@ -740,26 +864,71 @@ describe('Life Element Unzombify, Cascade Explosions & Being of Life (TDD Red ->
     expect(deathKnight.abilities.some((a) => a.id === 'deathknight_cleave')).toBe(true);
     expect(deathKnight.abilities.some((a) => a.id === 'deathknight_shield')).toBe(true);
 
+    // Screamer requires CrystalSpikes
+    combatEngine.hazardManager.applyHazard({ x: 8, y: 1 }, 'CrystalSpikes', 3, 0, 'Crystal');
     const screamer = combatEngine.spawnZombie({ x: 8, y: 1 }, 25, 4, 'Player', 'Screamer');
     expect(screamer.zombieClass).toBe('Screamer');
     expect(screamer.avatar).toBe('🧟😱');
     expect(screamer.stats.elementalAffinity).toBe('Sound');
     expect(screamer.abilities.some((a) => a.id === 'screamer_wail')).toBe(true);
 
+    // PlagueBearer requires ToxicMire
+    combatEngine.hazardManager.applyHazard({ x: 9, y: 1 }, 'ToxicMire', 3, 0, 'Poison');
     const plague = combatEngine.spawnZombie({ x: 9, y: 1 }, 25, 4, 'Player', 'PlagueBearer');
     expect(plague.zombieClass).toBe('PlagueBearer');
     expect(plague.avatar).toBe('🧟🦠');
     expect(plague.stats.elementalAffinity).toBe('Poison');
     expect(plague.abilities.some((a) => a.id === 'plague_contagion')).toBe(true);
 
-    const electro = combatEngine.spawnZombie({ x: 10, y: 1 }, 25, 4, 'Player', 'Electro');
+    // Electro requires ElectrifiedPuddle
+    combatEngine.hazardManager.applyHazard({ x: 0, y: 1 }, 'ElectrifiedPuddle', 3, 0, 'Lightning');
+    const electro = combatEngine.spawnZombie({ x: 0, y: 1 }, 25, 4, 'Player', 'Electro');
     expect(electro.zombieClass).toBe('Electro');
     expect(electro.avatar).toBe('🧟⚡');
     expect(electro.stats.elementalAffinity).toBe('Lightning');
     expect(electro.abilities.some((a) => a.id === 'electro_shock')).toBe(true);
   });
 
+  it('should require floor hazards for specialized zombies (e.g. Frostbite needs IceSurface) and downgrade to Walker on bare ground', () => {
+    // Attempting to spawn Frostbite on clean floor without IceSurface
+    const bareTileCoord = { x: 5, y: 5 };
+    const cleanTile = combatEngine.grid.getTile(bareTileCoord);
+    expect(cleanTile?.hazard.type).toBe('None');
+
+    const downgradedZombie = combatEngine.spawnZombie(bareTileCoord, 25, 4, 'Player', 'Frostbite');
+    // Without frost on the floor, it cannot manifest as Frostbite and falls back to Walker
+    expect(downgradedZombie.zombieClass).toBe('Walker');
+    expect(downgradedZombie.avatar).toBe('🧟');
+
+    // Now apply frost (IceSurface) to the tile
+    combatEngine.hazardManager.applyHazard(bareTileCoord, 'IceSurface', 4, 10, 'Cold');
+    expect(combatEngine.grid.getTile(bareTileCoord)?.hazard.type).toBe('IceSurface');
+
+    // Now spawning Frostbite on the ice succeeds!
+    const frostZombie = combatEngine.spawnZombie(bareTileCoord, 25, 4, 'Player', 'Frostbite');
+    expect(frostZombie.zombieClass).toBe('Frostbite');
+    expect(frostZombie.avatar).toBe('🧟❄️');
+    expect(frostZombie.stats.elementalAffinity).toBe('Cold');
+
+    // Natural emergence on IceSurface also spontaneously creates Frostbite
+    const iceTile2 = { x: 5, y: 6 };
+    combatEngine.hazardManager.applyHazard(iceTile2, 'IceSurface', 4, 10, 'Cold');
+    const naturalFrostZombie = combatEngine.spawnZombie(iceTile2, 25, 4, 'Player');
+    expect(naturalFrostZombie.zombieClass).toBe('Frostbite');
+    expect(naturalFrostZombie.avatar).toBe('🧟❄️');
+
+    // Verify native floor immunity: Frostbite zombie does not take hazard damage on IceSurface
+    const initialHp = frostZombie.stats.currentHp;
+    const destIce = { x: 5, y: 7 };
+    combatEngine.hazardManager.applyHazard(destIce, 'IceSurface', 4, 15, 'Cold');
+    combatEngine.moveUnit(frostZombie, destIce);
+    expect(frostZombie.coord).toEqual(destIce);
+    expect(frostZombie.stats.currentHp).toBe(initialHp); // Zero hazard damage due to native ice immunity!
+  });
+
   it('should spawn a legendary Wizard Zombie that can attack from afar and bind target to the spot', () => {
+    // Apply required VoidRift floor hazard
+    combatEngine.hazardManager.applyHazard({ x: 1, y: 2 }, 'VoidRift', 5, 20, 'Void');
     const wizard = combatEngine.spawnZombie({ x: 1, y: 2 }, 30, 4, 'Player', 'Wizard');
     expect(wizard.zombieClass).toBe('Wizard');
     expect(wizard.name).toBe('Wizard Zombie');
@@ -816,7 +985,7 @@ describe('Life Element Unzombify, Cascade Explosions & Being of Life (TDD Red ->
     const toSpawn = 1000;
 
     for (let i = 0; i < toSpawn; i++) {
-      combatEngine.spawnZombie({ x: i % 10, y: Math.floor(i / 10) % 10 }, 70, 6, 'Player', 'Wizard');
+      combatEngine.spawnZombie({ x: i % 10, y: Math.floor(i / 10) % 10 }, 70, 6, 'Player', 'Wizard', true);
     }
 
     expect(combatEngine.zombies.length).toBe(initialCount + 1000);

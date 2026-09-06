@@ -109,8 +109,17 @@
       </div>
 
       <!-- Action Bar (Abilities) -->
-      <div class="action-bar" id="ability-action-bar">
-        <!-- Dynamic ability slots injected by JavaScript -->
+      <div class="action-bar-wrapper">
+        <div class="action-bar-controls" id="action-bar-controls" style="display: none;">
+          <input type="text" id="ability-search-input" class="ability-search-input" placeholder="🔍 Search powers (e.g. smite, fire, shield)..." />
+          <select id="ability-element-filter" class="ability-element-filter">
+            <option value="All">🌟 All Elements</option>
+          </select>
+          <span class="ability-count-badge" id="ability-count-badge">500 Powers</span>
+        </div>
+        <div class="action-bar" id="ability-action-bar">
+          <!-- Dynamic ability slots injected by JavaScript -->
+        </div>
       </div>
 
       <!-- End Turn Controls -->
@@ -259,6 +268,29 @@
 
         <div class="home-footer-text">
           <span>✨ Elemental Mayhem Tactical Arena • Powered by Web Audio, Canvas & TypeScript</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Resume Run Confirmation Modal -->
+    <div id="resume-run-modal" class="modal-overlay hidden">
+      <div class="modal-content glass-card resume-modal-content" style="max-width: 520px; text-align: center; padding: 28px; border: 1px solid rgba(251, 191, 36, 0.5); box-shadow: 0 0 50px rgba(245, 158, 11, 0.25);">
+        <div class="modal-header text-center" style="justify-content: center; border-bottom: none; padding-bottom: 0;">
+          <h2 style="color: #fbbf24; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 1.6rem; margin: 0;">
+            <span>⚔️</span> RESUME PREVIOUS RUN?
+          </h2>
+        </div>
+        <p class="modal-subtitle" style="margin-top: 8px; color: #94a3b8;">You have an active battle saved from your previous session.</p>
+        <div id="resume-run-details" style="margin: 20px 0; padding: 18px; background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; text-align: left;">
+          <!-- Injected dynamically via TS -->
+        </div>
+        <div style="display: flex; gap: 14px; justify-content: center; margin-top: 20px;">
+          <button id="resume-game-btn" class="btn-primary" style="background: linear-gradient(135deg, #f59e0b, #ef4444); border: 1px solid #fbbf24; font-weight: 800; padding: 12px 26px; border-radius: 10px; cursor: pointer; font-size: 1.05rem; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);">
+            ▶️ Resume Battle
+          </button>
+          <button id="discard-save-btn" class="btn-text" style="background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.2); color: #cbd5e1; padding: 12px 20px; border-radius: 10px; cursor: pointer; font-weight: 600;">
+            Start Fresh Run
+          </button>
         </div>
       </div>
     </div>
@@ -539,8 +571,20 @@
 
             <!-- Power 13: Test Zombie Screams & Combat SFX -->
             <button class="admin-power-btn" id="admin-btn-test-scream">
-              <div class="admin-btn-header">🧟😱 Play Zombie Scream & Banshee Wail</div>
-              <div class="admin-btn-desc">Synthesizes terrifying guttural undead screams, banshee ultrasound wails, and crunching bites.</div>
+              <div class="admin-btn-header">🧟😱 Play Zombie Scream, Bite & Human Scream</div>
+              <div class="admin-btn-desc">Synthesizes terrifying guttural undead screams, banshee ultrasound wails, crunching bites, and loud human screams.</div>
+            </button>
+
+            <!-- Power 14: Zombies Eat You (Loud Human Scream) -->
+            <button class="admin-power-btn" id="admin-btn-zombies-eat-you">
+              <div class="admin-btn-header">🧟🍽️ Zombies Eat You (Loud Human Scream)</div>
+              <div class="admin-btn-desc">Simulates ravenous zombies biting and eating you alive with visceral crunching bites and loud bloodcurdling human screams!</div>
+            </button>
+
+            <!-- Power 15: Spawn Hostile Enemy Zombies -->
+            <button class="admin-power-btn" id="admin-btn-spawn-enemy-zombies">
+              <div class="admin-btn-header">🧟⚔️ Summon 4 Hostile Enemy Zombies</div>
+              <div class="admin-btn-desc">Spawns 4 vicious enemy zombies on the battlefield that hunt, surround, and devour the player!</div>
             </button>
           </div>
         </div>

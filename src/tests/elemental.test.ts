@@ -21,6 +21,16 @@ describe('ElementalMatrix & Affinities (TDD Red -> Green)', () => {
     expect(matrix.getAffinityMultiplier('Lightning', 'Water')).toBe(1.5);
     // Neutral -> Fire = 1.0x
     expect(matrix.getAffinityMultiplier('Neutral', 'Fire')).toBe(1.0);
+    // Iron -> Earth = strong (1.5x)
+    expect(matrix.getAffinityMultiplier('Iron', 'Earth')).toBe(1.5);
+    // War -> Order = strong (1.5x)
+    expect(matrix.getAffinityMultiplier('War', 'Order')).toBe(1.5);
+    // Rage -> Ice = strong (1.5x)
+    expect(matrix.getAffinityMultiplier('Rage', 'Ice')).toBe(1.5);
+    // Titan -> Earth = strong (1.5x)
+    expect(matrix.getAffinityMultiplier('Titan', 'Earth')).toBe(1.5);
+    // Blast -> Crystal = strong (1.5x)
+    expect(matrix.getAffinityMultiplier('Blast', 'Crystal')).toBe(1.5);
   });
 
   it('should calculate base damage factoring attacker & defender affinities', () => {
@@ -232,5 +242,43 @@ describe('Hero Elemental Classes & Dedicated Move Kits (TDD Red -> Green)', () =
     expect(necromancer.avatar).toBe('🧟‍♂️');
     expect(necromancer.stats.elementalAffinity).toBe('Undead');
     expect(necromancer.abilities.every((a) => a.element === 'Undead')).toBe(true);
+
+    // 9. Administrator (Admin) - Has ALL the powers!
+    const adminHero = createHeroForElement('Admin');
+    expect(adminHero.name).toBe('Administrator');
+    expect(adminHero.avatar).toBe('👑⚡');
+    expect(adminHero.stats.elementalAffinity).toBe('Admin');
+    expect(adminHero.stats.maxHp).toBe(999);
+    expect(adminHero.stats.currentHp).toBe(999);
+    expect(adminHero.stats.maxAp).toBe(1000);
+    expect(adminHero.stats.currentAp).toBe(1000);
+
+    // Has signature Admin god powers
+    expect(adminHero.abilities.some((a) => a.id === 'admin_ban_hammer')).toBe(true);
+    expect(adminHero.abilities.some((a) => a.id === 'admin_server_smite')).toBe(true);
+    expect(adminHero.abilities.some((a) => a.id === 'admin_god_barrier')).toBe(true);
+    expect(adminHero.abilities.some((a) => a.id === 'admin_reality_warp')).toBe(true);
+    expect(adminHero.abilities.some((a) => a.id === 'admin_screen_clear')).toBe(true);
+
+    // Has powers from other elements as well (all powers!)
+    expect(adminHero.abilities.some((a) => a.element === 'Fire')).toBe(true);
+    expect(adminHero.abilities.some((a) => a.element === 'Water')).toBe(true);
+    expect(adminHero.abilities.some((a) => a.element === 'Ice')).toBe(true);
+    expect(adminHero.abilities.some((a) => a.element === 'Death')).toBe(true);
+    expect(adminHero.abilities.some((a) => a.element === 'Titan')).toBe(true);
+    expect(adminHero.abilities.some((a) => a.element === 'Blast')).toBe(true);
+
+    // Contains over 450 abilities!
+    expect(adminHero.abilities.length).toBeGreaterThan(450);
+  });
+
+  it('should calculate Admin elemental matrix supremacy (1.5x damage, 0.75x incoming damage)', () => {
+    const matrix = new ElementalMatrix();
+    expect(matrix.getAffinityMultiplier('Admin', 'Fire')).toBe(1.5);
+    expect(matrix.getAffinityMultiplier('Admin', 'Water')).toBe(1.5);
+    expect(matrix.getAffinityMultiplier('Admin', 'Void')).toBe(1.5);
+    expect(matrix.getAffinityMultiplier('Fire', 'Admin')).toBe(0.75);
+    expect(matrix.getAffinityMultiplier('Water', 'Admin')).toBe(0.75);
+    expect(matrix.getAffinityMultiplier('Admin', 'Admin')).toBe(1.0);
   });
 });

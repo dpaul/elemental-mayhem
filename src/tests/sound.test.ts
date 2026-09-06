@@ -115,6 +115,18 @@ describe('SoundEngine (Web Audio API & Procedural SFX)', () => {
     expect(mockAudioContext.createWaveShaper).toHaveBeenCalled();
   });
 
+  it('should synthesize loud human screams when eaten by zombies', () => {
+    mockAudioContext.createOscillator.mockClear();
+    soundEngine.playHumanScream();
+    expect(mockAudioContext.createOscillator).toHaveBeenCalled();
+    expect(mockAudioContext.createBiquadFilter).toHaveBeenCalled();
+    expect(mockAudioContext.createBufferSource).toHaveBeenCalled();
+
+    mockAudioContext.createOscillator.mockClear();
+    soundEngine.playLoudHumanScream(true);
+    expect(mockAudioContext.createOscillator).toHaveBeenCalled();
+  });
+
   it('should synthesize elemental combat sounds and explosions', () => {
     soundEngine.playExplosion();
     expect(mockAudioContext.createBufferSource).toHaveBeenCalled();
@@ -153,12 +165,20 @@ describe('SoundEngine (Web Audio API & Procedural SFX)', () => {
     soundEngine.setSampleBuffer('spell_fire', mockBuffer);
     soundEngine.setSampleBuffer('spell_earth', mockBuffer);
     soundEngine.setSampleBuffer('spell_light', mockBuffer);
+    soundEngine.setSampleBuffer('human_scream_1', mockBuffer);
+    soundEngine.setSampleBuffer('human_scream_2', mockBuffer);
+    soundEngine.setSampleBuffer('human_scream_3', mockBuffer);
 
     expect(soundEngine.hasSample('zombie_scream_1')).toBe(true);
+    expect(soundEngine.hasSample('human_scream_1')).toBe(true);
 
     mockBufferSourceNode.start.mockClear();
     soundEngine.playZombieScream();
     expect(mockAudioContext.createBufferSource).toHaveBeenCalled();
+    expect(mockBufferSourceNode.start).toHaveBeenCalled();
+
+    mockBufferSourceNode.start.mockClear();
+    soundEngine.playHumanScream();
     expect(mockBufferSourceNode.start).toHaveBeenCalled();
 
     mockBufferSourceNode.start.mockClear();

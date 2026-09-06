@@ -12,7 +12,8 @@ import { AdminManager } from './engine/AdminManager';
 import { BattlefieldRenderer } from './renderer/BattlefieldRenderer';
 import { HUDManager } from './ui/HUDManager';
 import { SoundEngine } from './audio/SoundEngine';
-import { ElementType, Unit, Ability, GridCoord, ZombieClass } from './types';
+import { SaveManager, GameSaveData, SavedHazardTile } from './engine/SaveManager';
+import { ElementType, Unit, Ability, GridCoord, ZombieClass, TileHazardType } from './types';
 import { CORE_ELEMENTS } from './constants/elements';
 import { HERO_CLASSES, createHeroForElement } from './constants/classes';
 
@@ -23,6 +24,8 @@ function delay(ms: number): Promise<void> {
 interface HomeStar {
   x: number;
   y: number;
+  originX: number;
+  originY: number;
   vx: number;
   vy: number;
   baseVx: number;
@@ -35,6 +38,9 @@ interface HomeStar {
   pulseSpeed: number;
   pulsePhase: number;
   layer: number;
+  angle: number;
+  rotSpeed: number;
+  spikes: number;
 }
 
 interface StardustSpark {
@@ -46,6 +52,80 @@ interface StardustSpark {
   color: string;
   alpha: number;
   life: number;
+}
+
+interface CosmicNova {
+  x: number;
+  y: number;
+  radius: number;
+  maxRadius: number;
+  color: string;
+  alpha: number;
+}
+
+interface ShootingStar {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  length: number;
+  color: string;
+  life: number;
+  maxLife: number;
+}
+
+interface StargazerEye {
+  x: number;
+  y: number;
+  baseX: number;
+  baseY: number;
+  size: number;
+  color: string;
+  glowColor: string;
+  pupilOffsetX: number;
+  pupilOffsetY: number;
+  blinkTimer: number;
+  blinkProgress: number; // 0 = open, 1 = fully closed
+  isBlinking: boolean;
+}
+
+function drawStarCross(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  outerRadius: number,
+  innerRadius: number,
+  angle: number,
+  color: string,
+  glow: string
+): void {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(angle);
+  ctx.fillStyle = color;
+  ctx.shadowColor = glow;
+  ctx.shadowBlur = 14;
+
+  ctx.beginPath();
+  const points = 4;
+  for (let i = 0; i < points * 2; i++) {
+    const r = i % 2 === 0 ? outerRadius : innerRadius;
+    const a = (i * Math.PI) / points;
+    const px = Math.cos(a) * r;
+    const py = Math.sin(a) * r;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fill();
+
+  // Incandescent white core
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(0, 0, Math.max(1, innerRadius * 0.7), 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
 }
 
 export class GameApp {
@@ -93,6 +173,10 @@ export class GameApp {
   private homeParticlesCtx: CanvasRenderingContext2D | null = null;
   private homeStars: HomeStar[] = [];
   private stardustSparks: StardustSpark[] = [];
+  private homeNovas: CosmicNova[] = [];
+  private shootingStars: ShootingStar[] = [];
+  private stargazerEyes: StargazerEye[] = [];
+  private nextShootingStarCounter: number = 60;
   private homeBtnCampaign: HTMLElement;
   private homeBtnHotseat: HTMLElement;
   private homeBtnCodex: HTMLElement;
@@ -141,6 +225,13 @@ export class GameApp {
   private outcomeSubtitle: HTMLElement;
   private outcomeStatsList: HTMLElement;
   private restartGameBtn: HTMLElement;
+
+  // Save & Resume Game State
+  public saveManager: SaveManager;
+  private resumeRunModal: HTMLElement;
+  private resumeRunDetails: HTMLElement;
+  private resumeGameBtn: HTMLElement;
+  private discardSaveBtn: HTMLElement;
 
   constructor() {
     const canvas = document.getElementById('battlefield-canvas') as HTMLCanvasElement;
@@ -191,6 +282,13 @@ export class GameApp {
     this.outcomeStatsList = document.getElementById('outcome-stats-list')!;
     this.restartGameBtn = document.getElementById('restart-game-btn')!;
 
+    // Save & Resume Elements
+    this.saveManager = new SaveManager();
+    this.resumeRunModal = document.getElementById('resume-run-modal')!;
+    this.resumeRunDetails = document.getElementById('resume-run-details')!;
+    this.resumeGameBtn = document.getElementById('resume-game-btn')!;
+    this.discardSaveBtn = document.getElementById('discard-save-btn')!;
+
     // Hotseat modal elements
     this.hotseatSelectModal = document.getElementById('hotseat-select-modal')!;
     this.hotseatModalTitle = document.getElementById('hotseat-modal-title')!;
@@ -222,6 +320,11 @@ export class GameApp {
     // Start Game Loop
     this.lastFrameTime = performance.now();
     this.gameLoop();
+
+    // Check for unfinished active run on startup
+    if (this.saveManager.hasActiveSave()) {
+      this.promptResumeRun();
+    }
   }
 
   private initHomeParticles(): void {
@@ -244,16 +347,16 @@ export class GameApp {
         const speed = Math.hypot(dx, dy);
 
         // Spawn sparkling stardust trail on movement
-        if (speed > 3 && this.stardustSparks.length < 90) {
-          const sparkPalette = ['#38bdf8', '#ffd000', '#f43f5e', '#a855f7', '#ffffff', '#22c55e', '#ff6b35'];
-          const count = Math.min(3, Math.floor(speed / 8) + 1);
+        if (speed > 2 && this.stardustSparks.length < 120) {
+          const sparkPalette = ['#38bdf8', '#ffd000', '#f43f5e', '#a855f7', '#ffffff', '#22c55e', '#ec4899'];
+          const count = Math.min(4, Math.floor(speed / 6) + 1);
           for (let s = 0; s < count; s++) {
             this.stardustSparks.push({
-              x: e.clientX + (Math.random() - 0.5) * 12,
-              y: e.clientY + (Math.random() - 0.5) * 12,
-              vx: (Math.random() - 0.5) * 3 - dx * 0.12,
-              vy: (Math.random() - 0.5) * 3 - dy * 0.12,
-              size: Math.random() * 2.8 + 1.2,
+              x: e.clientX + (Math.random() - 0.5) * 14,
+              y: e.clientY + (Math.random() - 0.5) * 14,
+              vx: (Math.random() - 0.5) * 3.5 - dx * 0.15,
+              vy: (Math.random() - 0.5) * 3.5 - dy * 0.15,
+              size: Math.random() * 3.2 + 1.2,
               color: sparkPalette[Math.floor(Math.random() * sparkPalette.length)],
               alpha: 0.95,
               life: 1.0,
@@ -274,45 +377,57 @@ export class GameApp {
       this.homeLastMouseY = -9999;
     });
 
+    // Mouse Click Shockwave / Starburst Reaction
+    window.addEventListener('pointerdown', (e) => {
+      if (this.homeScreen.classList.contains('hidden')) return;
+      this.triggerHomeClickNova(e.clientX, e.clientY);
+    });
+
     const starColors = [
-      { color: '#ffffff', glow: 'rgba(255, 255, 255, 0.85)' }, // Starlight White
-      { color: '#93c5fd', glow: 'rgba(147, 197, 253, 0.85)' }, // Celestial Blue
-      { color: '#38bdf8', glow: 'rgba(56, 189, 248, 0.85)' },  // Primal Cyan
-      { color: '#fde047', glow: 'rgba(253, 224, 71, 0.85)' },  // Solar Gold
-      { color: '#ffd000', glow: 'rgba(255, 208, 0, 0.85)' },   // Lightning Amber
-      { color: '#ff7849', glow: 'rgba(255, 120, 73, 0.85)' },  // Pyromancer Fire
-      { color: '#c084fc', glow: 'rgba(192, 132, 252, 0.85)' }, // Void Amethyst
-      { color: '#f43f5e', glow: 'rgba(244, 63, 94, 0.85)' },   // Crimson War
-      { color: '#4ade80', glow: 'rgba(74, 222, 128, 0.85)' },  // Nature Emerald
+      { color: '#ffffff', glow: 'rgba(255, 255, 255, 0.9)' }, // Starlight White
+      { color: '#93c5fd', glow: 'rgba(147, 197, 253, 0.9)' }, // Celestial Blue
+      { color: '#38bdf8', glow: 'rgba(56, 189, 248, 0.9)' },  // Primal Cyan
+      { color: '#fde047', glow: 'rgba(253, 224, 71, 0.9)' },  // Solar Gold
+      { color: '#ffd000', glow: 'rgba(255, 208, 0, 0.9)' },   // Lightning Amber
+      { color: '#ec4899', glow: 'rgba(236, 72, 153, 0.9)' },  // Admin Magenta
+      { color: '#c084fc', glow: 'rgba(192, 132, 252, 0.9)' }, // Void Amethyst
+      { color: '#f43f5e', glow: 'rgba(244, 63, 94, 0.9)' },   // Crimson Fire
+      { color: '#4ade80', glow: 'rgba(74, 222, 128, 0.9)' },  // Nature Emerald
     ];
 
     this.homeStars = [];
-    const totalStars = 160;
+    const totalStars = 210;
 
     for (let i = 0; i < totalStars; i++) {
-      // 3 depth layers: 1 = distant background, 2 = midground elemental, 3 = foreground radiant
       let layer = 1;
-      let size = Math.random() * 1.5 + 1.0;
+      let size = Math.random() * 1.5 + 1.2;
       let baseAlpha = Math.random() * 0.35 + 0.35;
-      let baseSpeed = 0.2;
+      let baseSpeed = 0.25;
+      let spikes = 0;
 
-      if (i >= 80 && i < 135) {
+      if (i >= 80 && i < 155) {
         layer = 2;
-        size = Math.random() * 2.2 + 2.2;
-        baseAlpha = Math.random() * 0.4 + 0.55;
-        baseSpeed = 0.35;
-      } else if (i >= 135) {
+        size = Math.random() * 2.5 + 2.5;
+        baseAlpha = Math.random() * 0.4 + 0.6;
+        baseSpeed = 0.4;
+        spikes = 4;
+      } else if (i >= 155) {
         layer = 3;
-        size = Math.random() * 3.0 + 4.2;
-        baseAlpha = Math.random() * 0.3 + 0.7;
-        baseSpeed = 0.5;
+        size = Math.random() * 3.5 + 4.5;
+        baseAlpha = Math.random() * 0.25 + 0.75;
+        baseSpeed = 0.55;
+        spikes = 4;
       }
 
       const c = starColors[Math.floor(Math.random() * starColors.length)];
+      const startX = Math.random() * window.innerWidth;
+      const startY = Math.random() * window.innerHeight;
 
       this.homeStars.push({
-        x: Math.random() * window.innerWidth,
-        y: Math.random() * window.innerHeight,
+        x: startX,
+        y: startY,
+        originX: startX,
+        originY: startY,
         vx: (Math.random() - 0.5) * 0.5,
         vy: (Math.random() - 0.5) * 0.5,
         baseVx: (Math.random() - 0.5) * baseSpeed,
@@ -322,9 +437,118 @@ export class GameApp {
         glowColor: c.glow,
         alpha: baseAlpha,
         baseAlpha: baseAlpha,
-        pulseSpeed: Math.random() * 0.035 + 0.015,
+        pulseSpeed: Math.random() * 0.04 + 0.018,
         pulsePhase: Math.random() * Math.PI * 2,
         layer: layer,
+        angle: Math.random() * Math.PI * 2,
+        rotSpeed: (Math.random() - 0.5) * 0.02,
+        spikes: spikes,
+      });
+    }
+
+    // Initialize 2 pairs of celestial Stargazer Eyes ("Stares" that track the mouse)
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    this.stargazerEyes = [
+      // Left celestial watcher pair
+      {
+        x: w * 0.14,
+        y: h * 0.22,
+        baseX: w * 0.14,
+        baseY: h * 0.22,
+        size: 18,
+        color: '#38bdf8',
+        glowColor: 'rgba(56, 189, 248, 0.8)',
+        pupilOffsetX: 0,
+        pupilOffsetY: 0,
+        blinkTimer: 180 + Math.random() * 120,
+        blinkProgress: 0,
+        isBlinking: false,
+      },
+      {
+        x: w * 0.19,
+        y: h * 0.21,
+        baseX: w * 0.19,
+        baseY: h * 0.21,
+        size: 18,
+        color: '#38bdf8',
+        glowColor: 'rgba(56, 189, 248, 0.8)',
+        pupilOffsetX: 0,
+        pupilOffsetY: 0,
+        blinkTimer: 180 + Math.random() * 120,
+        blinkProgress: 0,
+        isBlinking: false,
+      },
+      // Right celestial watcher pair
+      {
+        x: w * 0.81,
+        y: h * 0.21,
+        baseX: w * 0.81,
+        baseY: h * 0.21,
+        size: 18,
+        color: '#c084fc',
+        glowColor: 'rgba(192, 132, 252, 0.8)',
+        pupilOffsetX: 0,
+        pupilOffsetY: 0,
+        blinkTimer: 240 + Math.random() * 120,
+        blinkProgress: 0,
+        isBlinking: false,
+      },
+      {
+        x: w * 0.86,
+        y: h * 0.22,
+        baseX: w * 0.86,
+        baseY: h * 0.22,
+        size: 18,
+        color: '#c084fc',
+        glowColor: 'rgba(192, 132, 252, 0.8)',
+        pupilOffsetX: 0,
+        pupilOffsetY: 0,
+        blinkTimer: 240 + Math.random() * 120,
+        blinkProgress: 0,
+        isBlinking: false,
+      },
+    ];
+  }
+
+  private triggerHomeClickNova(clickX: number, clickY: number): void {
+    // 1. Expand luminous shockwave ring
+    this.homeNovas.push({
+      x: clickX,
+      y: clickY,
+      radius: 10,
+      maxRadius: 300,
+      color: '#38bdf8',
+      alpha: 0.9,
+    });
+
+    // 2. Strongly blast and scatter nearby stars
+    for (const star of this.homeStars) {
+      const dx = star.x - clickX;
+      const dy = star.y - clickY;
+      const dist = Math.hypot(dx, dy);
+      if (dist < 320 && dist > 1) {
+        const force = Math.pow(1 - dist / 320, 1.5) * 22;
+        star.vx += (dx / dist) * force;
+        star.vy += (dy / dist) * force;
+      }
+    }
+
+    // 3. Erupt radial burst of stardust sparks
+    const sparkCount = 24;
+    const colors = ['#ffffff', '#38bdf8', '#ffd000', '#ec4899', '#a855f7', '#4ade80'];
+    for (let i = 0; i < sparkCount; i++) {
+      const angle = (Math.PI * 2 * i) / sparkCount + (Math.random() - 0.5) * 0.2;
+      const speed = Math.random() * 6.5 + 4;
+      this.stardustSparks.push({
+        x: clickX,
+        y: clickY,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        size: Math.random() * 3.8 + 1.6,
+        color: colors[i % colors.length],
+        alpha: 1.0,
+        life: 1.0,
       });
     }
   }
@@ -341,23 +565,93 @@ export class GameApp {
     const hasMouse = this.homeMouseX > -500;
 
     // Smooth 3D Parallax offset based on cursor position
-    const targetParallaxX = hasMouse ? (this.homeMouseX - centerX) * 0.045 : 0;
-    const targetParallaxY = hasMouse ? (this.homeMouseY - centerY) * 0.045 : 0;
+    const targetParallaxX = hasMouse ? (this.homeMouseX - centerX) * 0.05 : 0;
+    const targetParallaxY = hasMouse ? (this.homeMouseY - centerY) * 0.05 : 0;
     this.homeParallaxX += (targetParallaxX - this.homeParallaxX) * 0.08;
     this.homeParallaxY += (targetParallaxY - this.homeParallaxY) * 0.08;
 
-    // Soft cosmic central nebula glow
-    const grad = ctx.createRadialGradient(centerX, centerY, 20, centerX, centerY, Math.max(w, h) * 0.7);
+    // Deep cosmic nebula aura
+    const grad = ctx.createRadialGradient(centerX, centerY, 30, centerX, centerY, Math.max(w, h) * 0.75);
     grad.addColorStop(0, 'rgba(56, 189, 248, 0.09)');
     grad.addColorStop(0.35, 'rgba(139, 92, 246, 0.06)');
-    grad.addColorStop(0.7, 'rgba(15, 23, 42, 0.02)');
+    grad.addColorStop(0.7, 'rgba(15, 23, 42, 0.03)');
     grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, w, h);
 
-    const len = this.homeStars.length;
+    // -------------------------------------------------------------
+    // 1. CELESTIAL STARGAZER EYES ("Stares" that track the mouse)
+    // -------------------------------------------------------------
+    for (const eye of this.stargazerEyes) {
+      // Natural blinking animation
+      eye.blinkTimer--;
+      if (eye.blinkTimer <= 0) {
+        eye.isBlinking = true;
+        eye.blinkProgress += 0.12;
+        if (eye.blinkProgress >= 1) {
+          eye.blinkProgress = 0;
+          eye.isBlinking = false;
+          eye.blinkTimer = 180 + Math.random() * 240;
+        }
+      }
 
-    // 1. Constellation links between close stars
+      // Smoothly direct pupil toward mouse coordinates
+      const eyeDrawX = eye.baseX + this.homeParallaxX * 0.7;
+      const eyeDrawY = eye.baseY + this.homeParallaxY * 0.7;
+      let targetPupilX = 0;
+      let targetPupilY = 0;
+
+      if (hasMouse) {
+        const dx = this.homeMouseX - eyeDrawX;
+        const dy = this.homeMouseY - eyeDrawY;
+        const dist = Math.hypot(dx, dy);
+        const maxOffset = eye.size * 0.45;
+        const angle = Math.atan2(dy, dx);
+        const pull = Math.min(1, dist / 200) * maxOffset;
+        targetPupilX = Math.cos(angle) * pull;
+        targetPupilY = Math.sin(angle) * pull;
+      }
+
+      eye.pupilOffsetX += (targetPupilX - eye.pupilOffsetX) * 0.12;
+      eye.pupilOffsetY += (targetPupilY - eye.pupilOffsetY) * 0.12;
+
+      ctx.save();
+      const openHeight = eye.size * (1 - eye.blinkProgress * 0.95);
+
+      // Outer ethereal astral aura
+      ctx.shadowColor = eye.glowColor;
+      ctx.shadowBlur = 18;
+      ctx.strokeStyle = eye.color;
+      ctx.lineWidth = 1.8;
+
+      // Celestial Almond Eye Contour
+      ctx.beginPath();
+      ctx.ellipse(eyeDrawX, eyeDrawY, eye.size * 1.5, Math.max(1, openHeight * 0.8), 0, 0, Math.PI * 2);
+      ctx.stroke();
+
+      if (openHeight > 2) {
+        // Glowing Iris
+        ctx.fillStyle = eye.glowColor;
+        ctx.beginPath();
+        ctx.arc(eyeDrawX + eye.pupilOffsetX, eyeDrawY + eye.pupilOffsetY, eye.size * 0.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Staring Incandescent Pupil
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = '#ffffff';
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.arc(eyeDrawX + eye.pupilOffsetX, eyeDrawY + eye.pupilOffsetY, eye.size * 0.22, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.restore();
+    }
+
+    // -------------------------------------------------------------
+    // 2. CONSTELLATION MESH (Links between nearby stars)
+    // -------------------------------------------------------------
+    const len = this.homeStars.length;
     for (let i = 0; i < len; i++) {
       const s1 = this.homeStars[i];
       const pMult1 = s1.layer === 1 ? 0.35 : (s1.layer === 2 ? 0.85 : 1.6);
@@ -373,10 +667,10 @@ export class GameApp {
         const dx = x1 - x2;
         const dy = y1 - y2;
         const distSq = dx * dx + dy * dy;
-        const maxDist = 90;
+        const maxDist = 95;
         if (distSq < maxDist * maxDist) {
           const dist = Math.sqrt(distSq);
-          const lineAlpha = (1 - dist / maxDist) * 0.16;
+          const lineAlpha = (1 - dist / maxDist) * 0.18;
           ctx.strokeStyle = s1.color;
           ctx.globalAlpha = lineAlpha;
           ctx.lineWidth = 0.8;
@@ -388,7 +682,9 @@ export class GameApp {
       }
     }
 
-    // 2. Direct Interactive Constellation Lasers to Mouse Cursor
+    // -------------------------------------------------------------
+    // 3. INTERACTIVE CONSTELLATION LASERS & PHOTONS TO MOUSE
+    // -------------------------------------------------------------
     if (hasMouse) {
       for (const star of this.homeStars) {
         const pMult = star.layer === 1 ? 0.35 : (star.layer === 2 ? 0.85 : 1.6);
@@ -397,101 +693,235 @@ export class GameApp {
         const dx = drawX - this.homeMouseX;
         const dy = drawY - this.homeMouseY;
         const dist = Math.hypot(dx, dy);
-        const mouseConnectRadius = 175;
+        const mouseConnectRadius = 220;
 
         if (dist < mouseConnectRadius) {
-          const lineAlpha = Math.pow(1 - dist / mouseConnectRadius, 1.25) * 0.75;
+          const lineAlpha = Math.pow(1 - dist / mouseConnectRadius, 1.2) * 0.85;
           ctx.save();
           ctx.strokeStyle = star.color;
           ctx.globalAlpha = lineAlpha;
-          ctx.lineWidth = star.layer === 3 ? 1.6 : 1.0;
+          ctx.lineWidth = star.layer === 3 ? 1.8 : 1.0;
           ctx.shadowColor = star.glowColor;
-          ctx.shadowBlur = 10;
+          ctx.shadowBlur = 12;
+
           ctx.beginPath();
           ctx.moveTo(this.homeMouseX, this.homeMouseY);
           ctx.lineTo(drawX, drawY);
           ctx.stroke();
+
+          // Flowing photon pulse traveling between mouse and star
+          const pulseT = ((Date.now() * 0.0025 + star.pulsePhase) % 1);
+          const px = this.homeMouseX + (drawX - this.homeMouseX) * pulseT;
+          const py = this.homeMouseY + (drawY - this.homeMouseY) * pulseT;
+          ctx.fillStyle = '#ffffff';
+          ctx.shadowBlur = 8;
+          ctx.beginPath();
+          ctx.arc(px, py, 2.2, 0, Math.PI * 2);
+          ctx.fill();
+
           ctx.restore();
         }
       }
     }
 
-    // 3. Update star positions with dynamic mouse repulsion and render
+    // -------------------------------------------------------------
+    // 4. UPDATE AND RENDER STARS (Magnetic Attraction, Swirl & Flares)
+    // -------------------------------------------------------------
     for (const star of this.homeStars) {
       const pMult = star.layer === 1 ? 0.35 : (star.layer === 2 ? 0.85 : 1.6);
       const drawX = star.x + this.homeParallaxX * pMult;
       const drawY = star.y + this.homeParallaxY * pMult;
 
-      // Mouse interactive repulsion wave
+      // Magnetic Attraction & Orbital Swirl toward Mouse
       if (hasMouse) {
-        const mdx = drawX - this.homeMouseX;
-        const mdy = drawY - this.homeMouseY;
+        const mdx = this.homeMouseX - drawX;
+        const mdy = this.homeMouseY - drawY;
         const dist = Math.hypot(mdx, mdy);
-        const reactRadius = star.layer === 3 ? 200 : (star.layer === 2 ? 160 : 120);
+        const reactRadius = 240;
 
-        if (dist < reactRadius && dist > 0.1) {
-          const factor = Math.pow(1 - dist / reactRadius, 2);
-          const force = factor * (star.layer * 6.5);
-          star.vx += (mdx / dist) * force;
-          star.vy += (mdy / dist) * force;
+        if (dist < reactRadius && dist > 1) {
+          const factor = 1 - dist / reactRadius;
+          // Attraction pull + orbital tangential swirl
+          const pull = factor * (star.layer * 1.8);
+          const swirl = factor * (star.layer * 1.6);
+          star.vx += (mdx / dist) * pull + (-mdy / dist) * swirl;
+          star.vy += (mdy / dist) * pull + (mdx / dist) * swirl;
         }
       }
 
-      // Smooth velocity decay and natural drift
-      star.vx *= 0.90;
-      star.vy *= 0.90;
+      // Smooth spring return to star origin anchor
+      star.vx += (star.originX - star.x) * 0.004;
+      star.vy += (star.originY - star.y) * 0.004;
+
+      // Friction & natural drift
+      star.vx *= 0.91;
+      star.vy *= 0.91;
       star.x += star.vx + star.baseVx;
       star.y += star.vy + star.baseVy;
+      star.angle += star.rotSpeed;
 
-      // Screen edge wrapping
-      if (star.x < -30) star.x = w + 30;
-      if (star.x > w + 30) star.x = -30;
-      if (star.y < -30) star.y = h + 30;
-      if (star.y > h + 30) star.y = -30;
+      // Screen wrapping
+      if (star.x < -30) { star.x = w + 30; star.originX = star.x; }
+      if (star.x > w + 30) { star.x = -30; star.originX = star.x; }
+      if (star.y < -30) { star.y = h + 30; star.originY = star.y; }
+      if (star.y > h + 30) { star.y = -30; star.originY = star.y; }
 
-      // Twinkle pulsation & cursor proximity flare
+      // Twinkle pulsation
       star.pulsePhase += star.pulseSpeed;
       let currentAlpha = star.baseAlpha + Math.sin(star.pulsePhase) * 0.25;
       let currentSize = star.size;
+      let isNearMouse = false;
 
-      // Brighten and flare star when mouse is nearby
+      // Flare up when near mouse cursor
       if (hasMouse) {
         const distToMouse = Math.hypot(drawX - this.homeMouseX, drawY - this.homeMouseY);
-        if (distToMouse < 210) {
-          const proximity = 1 - distToMouse / 210;
-          currentAlpha = Math.min(1.0, currentAlpha + proximity * 0.55);
-          currentSize = star.size * (1 + proximity * 0.75);
+        if (distToMouse < 220) {
+          const proximity = 1 - distToMouse / 220;
+          currentAlpha = Math.min(1.0, currentAlpha + proximity * 0.65);
+          currentSize = star.size * (1 + proximity * 0.9);
+          if (distToMouse < 180 && star.layer >= 2) {
+            isNearMouse = true;
+          }
         }
       }
 
-      // Draw star body and outer glow
       ctx.save();
       ctx.globalAlpha = Math.max(0.1, Math.min(1.0, currentAlpha));
-      ctx.fillStyle = star.color;
-      ctx.shadowColor = star.glowColor;
-      ctx.shadowBlur = star.layer === 3 ? 20 : (star.layer === 2 ? 12 : 5);
-      ctx.beginPath();
-      ctx.arc(drawX, drawY, Math.max(0.6, currentSize), 0, Math.PI * 2);
-      ctx.fill();
 
-      // Bright incandescent core for larger stars
-      if (star.layer >= 2) {
-        ctx.fillStyle = '#ffffff';
+      if (isNearMouse || star.spikes === 4) {
+        // Draw radiant 4-pointed cross starburst
+        drawStarCross(
+          ctx,
+          drawX,
+          drawY,
+          currentSize * 2.2,
+          currentSize * 0.6,
+          star.angle,
+          star.color,
+          star.glowColor
+        );
+      } else {
+        // Draw round incandescent celestial star
+        ctx.fillStyle = star.color;
+        ctx.shadowColor = star.glowColor;
+        ctx.shadowBlur = star.layer === 3 ? 20 : (star.layer === 2 ? 12 : 6);
         ctx.beginPath();
-        ctx.arc(drawX, drawY, Math.max(0.5, currentSize * 0.45), 0, Math.PI * 2);
+        ctx.arc(drawX, drawY, Math.max(0.8, currentSize), 0, Math.PI * 2);
         ctx.fill();
+
+        if (star.layer >= 2) {
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(drawX, drawY, Math.max(0.5, currentSize * 0.45), 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
+
       ctx.restore();
     }
 
-    // 4. Stardust Sparkle Trails from Mouse Movement
+    // -------------------------------------------------------------
+    // 5. PERIODIC SHOOTING STARS (Meteors that bend near mouse)
+    // -------------------------------------------------------------
+    this.nextShootingStarCounter--;
+    if (this.nextShootingStarCounter <= 0) {
+      this.nextShootingStarCounter = Math.floor(Math.random() * 140 + 70);
+      const startX = Math.random() * w;
+      const startY = Math.random() * (h * 0.5);
+      const angle = Math.PI * 0.25 + (Math.random() - 0.5) * 0.4;
+      const speed = Math.random() * 12 + 16;
+      this.shootingStars.push({
+        x: startX,
+        y: startY,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        length: Math.random() * 70 + 60,
+        color: ['#ffffff', '#38bdf8', '#ec4899', '#ffd000'][Math.floor(Math.random() * 4)],
+        life: 1.0,
+        maxLife: 35,
+      });
+    }
+
+    for (let i = this.shootingStars.length - 1; i >= 0; i--) {
+      const meteor = this.shootingStars[i];
+      // Gravitational lensing towards cursor
+      if (hasMouse) {
+        const dx = this.homeMouseX - meteor.x;
+        const dy = this.homeMouseY - meteor.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < 260 && dist > 1) {
+          meteor.vx += (dx / dist) * 0.8;
+          meteor.vy += (dy / dist) * 0.8;
+        }
+      }
+
+      meteor.x += meteor.vx;
+      meteor.y += meteor.vy;
+      meteor.life -= 1 / meteor.maxLife;
+
+      if (meteor.life <= 0 || meteor.x > w + 100 || meteor.y > h + 100) {
+        this.shootingStars.splice(i, 1);
+        continue;
+      }
+
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, meteor.life);
+      ctx.strokeStyle = meteor.color;
+      ctx.shadowColor = meteor.color;
+      ctx.shadowBlur = 12;
+      ctx.lineWidth = 2.4;
+
+      ctx.beginPath();
+      ctx.moveTo(meteor.x, meteor.y);
+      const tailX = meteor.x - (meteor.vx / Math.hypot(meteor.vx, meteor.vy)) * meteor.length;
+      const tailY = meteor.y - (meteor.vy / Math.hypot(meteor.vx, meteor.vy)) * meteor.length;
+      ctx.lineTo(tailX, tailY);
+      ctx.stroke();
+
+      // Glowing head
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(meteor.x, meteor.y, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // -------------------------------------------------------------
+    // 6. COSMIC CLICK NOVAS (Shockwaves rippling through stars)
+    // -------------------------------------------------------------
+    for (let i = this.homeNovas.length - 1; i >= 0; i--) {
+      const nova = this.homeNovas[i];
+      nova.radius += 8;
+      nova.alpha = Math.max(0, (1 - nova.radius / nova.maxRadius) * 0.9);
+
+      if (nova.radius >= nova.maxRadius || nova.alpha <= 0) {
+        this.homeNovas.splice(i, 1);
+        continue;
+      }
+
+      ctx.save();
+      ctx.strokeStyle = nova.color;
+      ctx.shadowColor = nova.color;
+      ctx.shadowBlur = 18;
+      ctx.globalAlpha = nova.alpha;
+      ctx.lineWidth = 3.5 * (1 - nova.radius / nova.maxRadius) + 1;
+
+      ctx.beginPath();
+      ctx.arc(nova.x, nova.y, nova.radius, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // -------------------------------------------------------------
+    // 7. STARDUST SPARKLE TRAILS FROM MOUSE MOVEMENT
+    // -------------------------------------------------------------
     for (let i = this.stardustSparks.length - 1; i >= 0; i--) {
       const spark = this.stardustSparks[i];
       spark.x += spark.vx;
       spark.y += spark.vy;
-      spark.vx *= 0.93;
-      spark.vy *= 0.93;
-      spark.life -= 0.028;
+      spark.vx *= 0.92;
+      spark.vy *= 0.92;
+      spark.life -= 0.024;
 
       if (spark.life <= 0) {
         this.stardustSparks.splice(i, 1);
@@ -502,40 +932,55 @@ export class GameApp {
       ctx.globalAlpha = Math.max(0, spark.life * spark.alpha);
       ctx.fillStyle = spark.color;
       ctx.shadowColor = spark.color;
-      ctx.shadowBlur = 10;
+      ctx.shadowBlur = 12;
       ctx.beginPath();
       ctx.arc(spark.x, spark.y, spark.size * spark.life, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
     }
 
-    // 5. Mouse Gravity Reticle & Celestial Aura
+    // -------------------------------------------------------------
+    // 8. MOUSE CELESTIAL RETICLE & STARLIGHT AURA
+    // -------------------------------------------------------------
     if (hasMouse) {
       ctx.save();
-      const cursorGlow = ctx.createRadialGradient(this.homeMouseX, this.homeMouseY, 0, this.homeMouseX, this.homeMouseY, 32);
-      cursorGlow.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
-      cursorGlow.addColorStop(0.3, 'rgba(56, 189, 248, 0.45)');
-      cursorGlow.addColorStop(0.7, 'rgba(168, 85, 247, 0.2)');
+      const cursorGlow = ctx.createRadialGradient(
+        this.homeMouseX,
+        this.homeMouseY,
+        0,
+        this.homeMouseX,
+        this.homeMouseY,
+        38
+      );
+      cursorGlow.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+      cursorGlow.addColorStop(0.25, 'rgba(56, 189, 248, 0.55)');
+      cursorGlow.addColorStop(0.65, 'rgba(236, 72, 153, 0.25)');
       cursorGlow.addColorStop(1, 'rgba(56, 189, 248, 0)');
       ctx.fillStyle = cursorGlow;
       ctx.beginPath();
-      ctx.arc(this.homeMouseX, this.homeMouseY, 32, 0, Math.PI * 2);
+      ctx.arc(this.homeMouseX, this.homeMouseY, 38, 0, Math.PI * 2);
       ctx.fill();
 
-      // Sharp sparkling core
-      ctx.fillStyle = '#ffffff';
-      ctx.shadowColor = '#38bdf8';
-      ctx.shadowBlur = 14;
-      ctx.beginPath();
-      ctx.arc(this.homeMouseX, this.homeMouseY, 3.2, 0, Math.PI * 2);
-      ctx.fill();
+      // Sharp radiant 4-pointed cursor core star
+      drawStarCross(
+        ctx,
+        this.homeMouseX,
+        this.homeMouseY,
+        14,
+        3.5,
+        Date.now() * 0.003,
+        '#ffffff',
+        '#38bdf8'
+      );
       ctx.restore();
     }
   }
 
   public showHomeScreen(): void {
+    this.autoSaveGame();
     this.homeScreen.classList.remove('hidden');
     this.homeScreen.style.display = 'flex';
+    this.resumeRunModal.classList.add('hidden');
     this.characterSelectModal.classList.add('hidden');
     this.hotseatSelectModal.classList.add('hidden');
     this.codexModal.classList.add('hidden');
@@ -800,26 +1245,34 @@ export class GameApp {
       const elemData = CORE_ELEMENTS[elem] || CORE_ELEMENTS.Fire;
       const isAdmin = this.unlockManager.isAdminOnly(elem);
       const isUnlocked = this.unlockManager.isElementUnlocked(elem);
+      const isPickable = isUnlocked || elem === 'Admin';
       const card = document.createElement('div');
-      card.className = `class-card ${isUnlocked ? '' : 'locked'}`;
+      card.className = `class-card ${isPickable ? '' : 'locked'}`;
       card.style.setProperty('--card-color', elemData.color);
       card.style.setProperty('--card-glow', elemData.glowColor);
 
-      const abilityRows = config.abilities.map((ab) => `
+      const displayAbilities = config.abilities.slice(0, 10);
+      const abilityRows = displayAbilities.map((ab) => `
         <div class="class-ability-row">
           <span class="class-ability-name">${ab.icon} ${ab.name}</span>
           <span class="class-ability-meta">${ab.apCost} AP | ${ab.baseDamage} DMG</span>
         </div>
-      `).join('');
+      `).join('') + (config.abilities.length > 10 ? `
+        <div class="class-ability-row" style="color: #ec4899; font-weight: bold; justify-content: center;">
+          ⚡ + ${config.abilities.length - 10} More Powers (All Elements!)
+        </div>
+      ` : '');
 
-      const badgeHtml = isAdmin
+      const badgeHtml = elem === 'Admin'
+        ? `<span class="element-badge" style="background: rgba(236, 72, 153, 0.3); color: #f472b6; border: 1px solid #ec4899;">👑 All Powers</span>`
+        : isAdmin
         ? `<span class="element-badge" style="background: rgba(239, 68, 68, 0.3); color: #fca5a5; border: 1px solid #ef4444;">👑 Admin Power</span>`
         : isUnlocked
         ? `<span class="element-badge" style="background:${elemData.glowColor}; color:${elemData.color}; width:fit-content;">${elem}</span>`
         : `<span class="lock-badge">🔒 Locked</span>`;
 
-      const actionHtml = isUnlocked
-        ? `<button class="class-select-btn" style="${isAdmin ? 'background: linear-gradient(135deg, #ef4444, #8b5cf6); border-color: #f87171;' : ''}">Choose ${config.className}</button>`
+      const actionHtml = isPickable
+        ? `<button class="class-select-btn" style="${elem === 'Admin' ? 'background: linear-gradient(135deg, #ec4899, #8b5cf6); border-color: #f472b6; box-shadow: 0 0 15px rgba(236, 72, 153, 0.4);' : isAdmin ? 'background: linear-gradient(135deg, #ef4444, #8b5cf6); border-color: #f87171;' : ''}">Choose ${config.className}</button>`
         : `<div class="unlock-requirement-box">🔒 ${config.unlockRequirement || 'Defeat Boss to Unlock'}</div>`;
 
       card.innerHTML = `
@@ -838,7 +1291,7 @@ export class GameApp {
         ${actionHtml}
       `;
 
-      if (isUnlocked) {
+      if (isPickable) {
         card.style.cursor = 'pointer';
         const selectHandler = (e: Event) => {
           e.preventDefault();
@@ -876,23 +1329,31 @@ export class GameApp {
       const elemData = CORE_ELEMENTS[elem] || CORE_ELEMENTS.Fire;
       const isAdmin = this.unlockManager.isAdminOnly(elem);
       const isUnlocked = this.unlockManager.isElementUnlocked(elem);
+      const isPickable = isUnlocked || elem === 'Admin';
       const card = document.createElement('div');
-      card.className = `class-card ${isUnlocked ? '' : 'locked'}`;
+      card.className = `class-card ${isPickable ? '' : 'locked'}`;
       card.style.setProperty('--card-color', elemData.color);
       card.style.setProperty('--card-glow', elemData.glowColor);
 
-      const abilityRows = config.abilities.map((ab) => `
+      const displayAbilities = config.abilities.slice(0, 10);
+      const abilityRows = displayAbilities.map((ab) => `
         <div class="class-ability-row">
           <span class="class-ability-name">${ab.icon} ${ab.name}</span>
           <span class="class-ability-meta">${ab.apCost} AP | ${ab.baseDamage} DMG</span>
         </div>
-      `).join('');
+      `).join('') + (config.abilities.length > 10 ? `
+        <div class="class-ability-row" style="color: #ec4899; font-weight: bold; justify-content: center;">
+          ⚡ + ${config.abilities.length - 10} More Powers (All Elements!)
+        </div>
+      ` : '');
 
-      const badgeHtml = isAdmin
+      const badgeHtml = elem === 'Admin'
+        ? `<span class="element-badge" style="background: rgba(236, 72, 153, 0.3); color: #f472b6; border: 1px solid #ec4899;">👑 All Powers</span>`
+        : isAdmin
         ? `<span class="element-badge" style="background: rgba(239, 68, 68, 0.3); color: #fca5a5; border: 1px solid #ef4444;">👑 Admin Power</span>`
         : `<span class="element-badge" style="background:${elemData.glowColor}; color:${elemData.color}; width:fit-content;">${elem}</span>`;
 
-      const actionHtml = `<button class="class-select-btn" style="${isAdmin ? 'background: linear-gradient(135deg, #ef4444, #8b5cf6); border-color: #f87171;' : ''}">Pick for Player ${playerNum}</button>`;
+      const actionHtml = `<button class="class-select-btn" style="${elem === 'Admin' ? 'background: linear-gradient(135deg, #ec4899, #8b5cf6); border-color: #f472b6;' : isAdmin ? 'background: linear-gradient(135deg, #ef4444, #8b5cf6); border-color: #f87171;' : ''}">Pick for Player ${playerNum}</button>`;
 
       card.innerHTML = `
         <div class="class-card-header">
@@ -1080,6 +1541,10 @@ export class GameApp {
 
     document.getElementById('home-btn-element-card')?.addEventListener('click', () => {
       this.soundEngine.playClick();
+      if (this.saveManager.hasActiveSave()) {
+        this.promptResumeRun();
+        return;
+      }
       this.hideHomeScreen();
       this.renderCharacterSelectModal();
       this.characterSelectModal.classList.remove('hidden');
@@ -1087,6 +1552,10 @@ export class GameApp {
 
     this.homeBtnCampaign?.addEventListener('click', () => {
       this.soundEngine.playClick();
+      if (this.saveManager.hasActiveSave()) {
+        this.promptResumeRun();
+        return;
+      }
       this.hideHomeScreen();
       this.renderCharacterSelectModal();
       this.characterSelectModal.classList.remove('hidden');
@@ -1309,8 +1778,9 @@ export class GameApp {
         for (let y = 0; y < this.grid.size; y++) {
           const coord = { x, y };
           if (this.grid.isWalkable(coord) && !this.combatEngine.getUnitAt(coord)) {
+            this.hazardManager.applyHazard(coord, 'VoidRift', 5, 20, 'Void');
             const wiz = this.combatEngine.spawnZombie(coord, 70, 6, 'Player', 'Wizard');
-            this.combatEngine.addLog('system', `👑 ADMIN: Summoned Legendary ${wiz.name} (1 in 10,000 Rare)!`);
+            this.combatEngine.addLog('system', `👑 ADMIN: Summoned Legendary ${wiz.name} (1 in 10,000 Rare) from a Void Rift on the floor!`);
             this.renderer.particleEngine.triggerScreenShake(12, 400);
             this.closeAdminPanel();
             this.updateHUD();
@@ -1325,27 +1795,30 @@ export class GameApp {
         this.openAdminPanel();
         return;
       }
-      const allClasses: ZombieClass[] = [
-        'Walker',
-        'Runner',
-        'Brute',
-        'Spitter',
-        'Wizard',
-        'Boomer',
-        'Frostbite',
-        'DeathKnight',
-        'Screamer',
-        'PlagueBearer',
-        'Electro',
+      const allClasses: Array<{ zc: ZombieClass; hazard: TileHazardType; elem: ElementType }> = [
+        { zc: 'Frostbite', hazard: 'IceSurface', elem: 'Cold' },
+        { zc: 'Boomer', hazard: 'LavaPool', elem: 'Fire' },
+        { zc: 'Electro', hazard: 'ElectrifiedPuddle', elem: 'Lightning' },
+        { zc: 'PlagueBearer', hazard: 'ToxicMire', elem: 'Poison' },
+        { zc: 'Spitter', hazard: 'AcidPool', elem: 'Acid' },
+        { zc: 'Wizard', hazard: 'VoidRift', elem: 'Void' },
+        { zc: 'DeathKnight', hazard: 'BonePile', elem: 'Death' },
+        { zc: 'Brute', hazard: 'MudWall', elem: 'Earth' },
+        { zc: 'Runner', hazard: 'Puddle', elem: 'Water' },
+        { zc: 'Screamer', hazard: 'CrystalSpikes', elem: 'Sound' },
+        { zc: 'Walker', hazard: 'None', elem: 'Neutral' },
       ];
       let spawned = 0;
-      for (const zc of allClasses) {
+      for (const item of allClasses) {
         let placed = false;
         for (let x = 0; x < this.grid.size && !placed; x++) {
           for (let y = 0; y < this.grid.size && !placed; y++) {
             const coord = { x, y };
             if (this.grid.isWalkable(coord) && !this.combatEngine.getUnitAt(coord)) {
-              this.combatEngine.spawnZombie(coord, 60, 4, 'Player', zc);
+              if (item.hazard !== 'None') {
+                this.hazardManager.applyHazard(coord, item.hazard, 5, 10, item.elem);
+              }
+              this.combatEngine.spawnZombie(coord, 60, 4, 'Player', item.zc);
               spawned++;
               placed = true;
             }
@@ -1354,7 +1827,7 @@ export class GameApp {
       }
       this.combatEngine.addLog(
         'system',
-        `👑 ADMIN: Summoned all ${spawned} Specialized Zombie Classes (Walker, Runner, Brute, Spitter, Wizard, Boomer, Frostbite, DeathKnight, Screamer, PlagueBearer, Electro)!`
+        `👑 ADMIN: Summoned all ${spawned} Specialized Zombie Classes rising from their native floor elements (Frost, Lava, Puddle, Mire, Void Rift, etc.)!`
       );
       this.renderer.particleEngine.triggerScreenShake(14, 500);
       this.closeAdminPanel();
@@ -1383,7 +1856,7 @@ export class GameApp {
       const totalToSpawn = 1000;
       for (let i = 0; i < totalToSpawn; i++) {
         const coord = walkableCoords[i % walkableCoords.length] || { x: i % 10, y: Math.floor(i / 10) % 10 };
-        this.combatEngine.spawnZombie(coord, 70, 6, 'Player', 'Wizard');
+        this.combatEngine.spawnZombie(coord, 70, 6, 'Player', 'Wizard', true);
       }
 
       this.combatEngine.addLog(
@@ -1520,9 +1993,48 @@ export class GameApp {
       this.soundEngine.unlockAudio();
       this.soundEngine.playZombieScream();
       setTimeout(() => this.soundEngine.playScreamerWail(), 450);
-      setTimeout(() => this.soundEngine.playZombieBite(), 900);
-      this.renderer.particleEngine.triggerScreenShake(8, 300);
-      this.combatEngine.addLog('system', '👑 ADMIN: Synthesized Bloodcurdling Zombie Screams & Banshee Wails!');
+      setTimeout(() => {
+        this.soundEngine.playZombieBite();
+        this.soundEngine.playHumanScream(1.0, true);
+        this.renderer.particleEngine.triggerScreenShake(12, 450);
+        const heroPos = this.renderer.gridToScreen(this.hero.coord);
+        this.renderer.particleEngine.addFloatingText('🩸 CHOMP! 😱 AAAAAAAHHH!', heroPos.x, heroPos.y - 30, '#ef4444', 28);
+        this.renderer.particleEngine.emit(heroPos.x, heroPos.y, '#dc2626', 30, 4);
+      }, 900);
+      this.combatEngine.addLog('system', '👑 ADMIN: Synthesized Bloodcurdling Zombie Screams & Loud Human Scream!');
+    });
+
+    document.getElementById('admin-btn-zombies-eat-you')?.addEventListener('click', () => {
+      this.soundEngine.unlockAudio();
+      this.soundEngine.playZombieScream();
+      setTimeout(() => {
+        this.soundEngine.playZombieBite();
+        this.soundEngine.playHumanScream(1.0, true);
+        this.renderer.particleEngine.triggerScreenShake(14, 550);
+        const heroPos = this.renderer.gridToScreen(this.hero.coord);
+        this.renderer.particleEngine.addFloatingText('🩸 DEVOURING! 😱 AAAAAAAAHHHH!', heroPos.x, heroPos.y - 35, '#ef4444', 30);
+        this.renderer.particleEngine.emit(heroPos.x, heroPos.y, '#dc2626', 45, 5);
+        this.combatEngine.addLog('system', '👑 ADMIN: The zombies are eating you alive! Bloodcurdling Loud Human Scream!');
+      }, 350);
+    });
+
+    document.getElementById('admin-btn-spawn-enemy-zombies')?.addEventListener('click', () => {
+      this.soundEngine.unlockAudio();
+      let count = 0;
+      const neighbors = this.grid.getNeighbors(this.hero.coord);
+      for (const coord of neighbors) {
+        if (!this.grid.getTile(coord)?.isObstacle && this.combatEngine.getUnitAt(coord) === null) {
+          this.combatEngine.spawnZombie(coord, 60, 4, 'Enemy');
+          count++;
+          if (count >= 4) break;
+        }
+      }
+      this.soundEngine.playZombieSpawn();
+      setTimeout(() => this.soundEngine.playZombieScream(), 150);
+      this.combatEngine.addLog('system', `👑 ADMIN: Summoned ${count} Hostile Enemy Zombies surrounding you! Prepare to be eaten!`);
+      this.renderer.particleEngine.triggerScreenShake(10, 300);
+      this.closeAdminPanel();
+      this.updateHUD();
     });
 
     // Canvas Interactions
@@ -1577,8 +2089,41 @@ export class GameApp {
       this.characterSelectModal.classList.remove('hidden');
     });
 
+    // Resume Run Modal Actions
+    this.resumeGameBtn?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      this.resumeSavedGame();
+    });
+
+    this.discardSaveBtn?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      this.saveManager.clearSave();
+      this.resumeRunModal.classList.add('hidden');
+      this.renderCharacterSelectModal();
+      this.characterSelectModal.classList.remove('hidden');
+    });
+
+    // Auto-save on page exit or tab switch
+    window.addEventListener('beforeunload', () => {
+      this.autoSaveGame();
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        this.autoSaveGame();
+      }
+    });
+
     window.addEventListener('keydown', (e) => {
       if (this.isBusy) return;
+
+      const targetTag = (e.target as HTMLElement)?.tagName;
+      if (targetTag === 'INPUT' || targetTag === 'TEXTAREA' || targetTag === 'SELECT') {
+        if (e.key === 'Escape') {
+          (e.target as HTMLElement).blur();
+        }
+        return;
+      }
 
       if (e.key === 'F1' || e.key === '`' || e.key === '~') {
         e.preventDefault();
@@ -1589,8 +2134,9 @@ export class GameApp {
       const activeUnit = this.getActivePlayerUnit();
       if ((e.key >= '1' && e.key <= '9') || e.key === '0') {
         const idx = e.key === '0' ? 9 : parseInt(e.key) - 1;
-        if (activeUnit.abilities[idx]) {
-          this.selectAbility(activeUnit.abilities[idx]);
+        const visibleAbility = this.hud.getVisibleAbility(idx) || activeUnit.abilities[idx];
+        if (visibleAbility) {
+          this.selectAbility(visibleAbility);
         }
       } else if (e.key === ' ' || e.code === 'Space') {
         e.preventDefault();
@@ -1726,6 +2272,7 @@ export class GameApp {
           this.soundEngine.playZombieDeathScream();
         } else if (unit.faction === 'Player') {
           this.soundEngine.playHeroDeathScream();
+          this.soundEngine.playHumanScream(1.0, true);
         } else {
           this.soundEngine.playEnemyDeathScream();
         }
@@ -1895,7 +2442,22 @@ export class GameApp {
           if (step.type === 'move') {
             this.combatEngine.moveUnit(minion, step.destination);
           } else if (step.type === 'cast') {
+            const targetedUnit = this.combatEngine.getUnitAt(step.targetCoord);
             this.combatEngine.executeAbility(minion, step.ability, step.targetCoord);
+            if (targetedUnit && (minion.isZombie || step.ability.id === 'zombie_bite')) {
+              this.soundEngine.playZombieBite();
+              this.soundEngine.playLoudHumanScream(true);
+              const screenPos = this.renderer.gridToScreen(step.targetCoord);
+              this.renderer.particleEngine.triggerScreenShake(12, 450);
+              this.renderer.particleEngine.emit(screenPos.x, screenPos.y, '#dc2626', 25, 4);
+              this.renderer.particleEngine.addFloatingText(
+                '🩸 CHOMPED! 😱 AAAAAAAHHH!',
+                screenPos.x,
+                screenPos.y - 35,
+                '#ef4444',
+                26
+              );
+            }
           }
         }
       }
@@ -2040,7 +2602,12 @@ export class GameApp {
     // 2. Sequential Enemy AI Turns
     this.turnManager.startEnemyTurn(this.enemies);
 
-    for (const enemy of this.enemies) {
+    const enemyCombatants = [
+      ...this.enemies.filter((e) => !e.isDead),
+      ...this.combatEngine.zombies.filter((z) => !z.isDead && z.faction === 'Enemy'),
+    ];
+
+    for (const enemy of enemyCombatants) {
       if (enemy.isDead) continue;
 
       this.focusedUnitId = enemy.id;
@@ -2087,13 +2654,30 @@ export class GameApp {
 
           await new Promise<void>((resolve) => {
             this.renderer.projManager.spawnProjectile(startPos, targetPos, step.ability.element, color, 260, () => {
+              const targetUnitBefore = this.combatEngine.getUnitAt(step.targetCoord);
+              const isTargetPlayer = targetUnitBefore && targetUnitBefore.faction === 'Player';
+              const isZombieEating = isTargetPlayer && (enemy.isZombie || step.ability.id === 'zombie_bite');
+
               const logCountBefore = this.combatEngine.logs.length;
               this.combatEngine.executeAbility(enemy, step.ability, step.targetCoord);
 
               const isAoE = step.ability.aoeRadius > 0;
               this.renderer.triggerSpellImpact(step.targetCoord, step.ability.element, isAoE);
 
-              if (step.ability.baseDamage > 0) {
+              if (isZombieEating) {
+                // THE ZOMBIES ARE EATING YOU!
+                this.soundEngine.playZombieBite();
+                this.soundEngine.playLoudHumanScream(true);
+                this.renderer.particleEngine.triggerScreenShake(12, 450);
+                this.renderer.particleEngine.emit(targetPos.x, targetPos.y, '#dc2626', 30, 4);
+                this.renderer.particleEngine.addFloatingText(
+                  '🩸 CHOMPED! 😱 AAAAAAAHHH!',
+                  targetPos.x,
+                  targetPos.y - 35,
+                  '#ef4444',
+                  26
+                );
+              } else if (step.ability.baseDamage > 0) {
                 this.soundEngine.playHit();
                 this.renderer.particleEngine.addFloatingText(
                   `-${step.ability.baseDamage}`,
@@ -2285,9 +2869,11 @@ export class GameApp {
     this.isBusy = false;
     this.updateReachableTiles();
     this.updateHUD();
+    this.autoSaveGame();
   }
 
   private showVictoryModal(): void {
+    this.saveManager.clearSave();
     this.soundEngine.playVictoryFanfare();
     this.turnManager.setPhase('VICTORY');
     this.outcomeTitle.textContent = 'GAUNTLET CONQUERED!';
@@ -2297,6 +2883,7 @@ export class GameApp {
   }
 
   private showDefeatModal(): void {
+    this.saveManager.clearSave();
     this.turnManager.setPhase('GAME_OVER');
     this.outcomeTitle.textContent = 'DEFEATED IN BATTLE';
     this.outcomeSubtitle.textContent = `You fell on Round ${this.currentRound.toLocaleString()}. Re-arm and try again!`;
@@ -2323,8 +2910,165 @@ export class GameApp {
     `;
   }
 
+  public promptResumeRun(): void {
+    const summary = this.saveManager.getSaveSummary();
+    if (!summary) return;
+
+    this.resumeRunDetails.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 14px;">
+        <span style="font-size: 2.6rem; filter: drop-shadow(0 0 12px rgba(251, 191, 36, 0.6));">${summary.heroAvatar}</span>
+        <div>
+          <div style="font-weight: 800; font-size: 1.25rem; color: #f8fafc;">${summary.heroName}</div>
+          <div style="font-size: 0.9rem; color: #38bdf8; font-weight: 600;">Affinity: ${summary.element}</div>
+        </div>
+        <div style="margin-left: auto; text-align: right;">
+          <span style="background: rgba(245, 158, 11, 0.2); border: 1px solid #f59e0b; color: #fbbf24; font-weight: 800; padding: 5px 12px; border-radius: 8px; font-size: 0.95rem;">
+            ROUND ${summary.round.toLocaleString()}
+          </span>
+        </div>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.95rem; color: #cbd5e1; background: rgba(0, 0, 0, 0.35); padding: 12px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.08);">
+        <div>❤️ HP: <strong style="color: #4ade80;">${summary.heroCurrentHp} / ${summary.heroMaxHp}</strong></div>
+        <div>⚡ AP: <strong style="color: #60a5fa;">${summary.heroCurrentAp} / ${summary.heroMaxAp} AP</strong></div>
+        <div>👾 Living Enemies: <strong style="color: #f87171;">${summary.enemiesAlive}</strong></div>
+        <div>🧟 Active Zombies: <strong style="color: #a3e635;">${summary.zombiesAlive}</strong></div>
+        <div style="grid-column: span 2;">✨ Essence: <strong style="color: #fbbf24;">${summary.essence.toLocaleString()}</strong></div>
+      </div>
+      <div style="margin-top: 12px; font-size: 0.8rem; color: #94a3b8; text-align: right;">
+        Session Saved: ${new Date(summary.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+      </div>
+    `;
+
+    this.resumeRunModal.classList.remove('hidden');
+  }
+
+  public resumeSavedGame(): boolean {
+    const saveData = this.saveManager.loadGame();
+    if (!saveData || !saveData.hero || saveData.hero.isDead) {
+      this.resumeRunModal.classList.add('hidden');
+      return false;
+    }
+
+    this.hideHomeScreen();
+    this.resumeRunModal.classList.add('hidden');
+    this.characterSelectModal.classList.add('hidden');
+    this.hotseatSelectModal.classList.add('hidden');
+    this.codexModal.classList.add('hidden');
+    this.guideModal.classList.add('hidden');
+    this.gameOverModal.classList.add('hidden');
+    this.upgradeModal.classList.add('hidden');
+
+    this.currentRound = saveData.round;
+    this.totalEssence = saveData.totalEssence || 0;
+    this.totalXp = saveData.totalXp || 0;
+    this.selectedElement = saveData.selectedElement || saveData.hero.stats.elementalAffinity || 'Fire';
+    this.isHotseatMode = false;
+    this.isHeroDeathAnimating = false;
+    this.isRoundVictoryAnimating = false;
+    this.deadUnitIds.clear();
+
+    this.hero = saveData.hero;
+    this.enemies = saveData.enemies;
+
+    this.grid = new Grid(10);
+    this.hazardManager = new TileHazardManager(this.grid);
+    this.setupObstacles();
+
+    // Restore saved hazards onto the grid
+    if (saveData.hazards && saveData.hazards.length > 0) {
+      for (const h of saveData.hazards) {
+        const tile = this.grid.getTile(h.coord);
+        if (tile) {
+          tile.hazard = { ...h.hazard };
+        }
+      }
+    }
+
+    this.combatEngine = new CombatEngine(this.grid, this.hazardManager, this.hero, this.enemies);
+    this.combatEngine.onZombieSpawn = () => {
+      this.soundEngine.playZombieSpawn();
+      this.soundEngine.playZombieScream();
+    };
+
+    // Restore zombies and beings of life
+    if (saveData.zombies && saveData.zombies.length > 0) {
+      this.combatEngine.zombies = saveData.zombies;
+    }
+    if (saveData.lifeBeings && saveData.lifeBeings.length > 0) {
+      this.combatEngine.lifeBeings = saveData.lifeBeings;
+    }
+
+    // Restore logs
+    if (saveData.logs && saveData.logs.length > 0) {
+      this.combatEngine.logs = saveData.logs;
+    }
+    this.combatEngine.addLog('system', `🔄 Resumed battle on Round ${this.currentRound}!`);
+
+    const canvas = document.getElementById('battlefield-canvas') as HTMLCanvasElement;
+    this.renderer = new BattlefieldRenderer(canvas, this.combatEngine);
+    this.enemyAI = new EnemyAI(this.combatEngine);
+
+    const roundBadge = document.getElementById('round-indicator');
+    if (roundBadge) {
+      const isBoss = this.currentRound % 5 === 0;
+      roundBadge.textContent = isBoss
+        ? `👑 BOSS ROUND ${this.currentRound.toLocaleString()} / ${this.maxRoundsStr}`
+        : `ROUND ${this.currentRound.toLocaleString()} / ${this.maxRoundsStr}`;
+      roundBadge.style.color = isBoss ? '#fbbf24' : '#38bdf8';
+    }
+
+    this.turnManager.startPlayerTurn([this.hero, ...this.combatEngine.getAllAllies()]);
+    this.hud.updatePhaseBanner('PLAYER PHASE');
+
+    this.isBusy = false;
+    this.updateReachableTiles();
+    this.updateHUD();
+    return true;
+  }
+
+  public autoSaveGame(): void {
+    if (this.isHotseatMode) return;
+    if (!this.hero || this.hero.isDead || this.hero.stats.currentHp <= 0) {
+      this.saveManager.clearSave();
+      return;
+    }
+    if (!this.combatEngine || !this.grid) return;
+
+    // Collect all active hazards from grid
+    const savedHazards: SavedHazardTile[] = [];
+    for (let x = 0; x < this.grid.size; x++) {
+      for (let y = 0; y < this.grid.size; y++) {
+        const tile = this.grid.getTile({ x, y });
+        if (tile && tile.hazard && tile.hazard.type !== 'None') {
+          savedHazards.push({
+            coord: { x, y },
+            hazard: { ...tile.hazard },
+          });
+        }
+      }
+    }
+
+    const saveData: GameSaveData = {
+      round: this.currentRound,
+      selectedElement: this.selectedElement,
+      hero: JSON.parse(JSON.stringify(this.hero)),
+      enemies: JSON.parse(JSON.stringify(this.enemies)),
+      zombies: JSON.parse(JSON.stringify(this.combatEngine.zombies)),
+      lifeBeings: JSON.parse(JSON.stringify(this.combatEngine.lifeBeings)),
+      hazards: savedHazards,
+      totalEssence: this.totalEssence,
+      totalXp: this.totalXp,
+      turnPhase: this.turnManager.getPhase(),
+      logs: this.combatEngine.logs.slice(-20),
+      timestamp: Date.now(),
+    };
+
+    this.saveManager.saveGame(saveData);
+  }
+
   private restartGame(element: ElementType): void {
     this.hideHomeScreen();
+    this.resumeRunModal.classList.add('hidden');
     this.characterSelectModal.classList.add('hidden');
     this.hotseatSelectModal.classList.add('hidden');
     this.codexModal.classList.add('hidden');
@@ -2366,6 +3110,7 @@ export class GameApp {
     this.isBusy = false;
     this.updateReachableTiles();
     this.updateHUD();
+    this.autoSaveGame();
   }
 
   private updateReachableTiles(): void {

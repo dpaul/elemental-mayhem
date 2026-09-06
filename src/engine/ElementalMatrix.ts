@@ -8,6 +8,16 @@ export class ElementalMatrix {
       return 1.0;
     }
 
+    if (attacker === 'Admin' && defender === 'Admin') {
+      return 1.0;
+    }
+    if (attacker === 'Admin') {
+      return 1.5; // Admin deals 1.5x damage against all affinities
+    }
+    if (defender === 'Admin') {
+      return 0.75; // Admin resists all incoming elements
+    }
+
     const attackerData = CORE_ELEMENTS[attacker];
     if (!attackerData) return 1.0;
 

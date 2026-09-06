@@ -43,6 +43,12 @@ export type ElementType =
   | 'Magma'
   | 'Glass'
   | 'Crystal'
+  | 'Iron'
+  | 'War'
+  | 'Rage'
+  | 'Titan'
+  | 'Blast'
+  | 'Admin'
   | 'Undead'
   | 'Neutral';
 

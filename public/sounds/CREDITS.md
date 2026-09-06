@@ -28,3 +28,13 @@ All audio samples utilized in Elemental Mayhem are 100% free, unencumbered, and 
    - Sound: `zombie_bite.ogg` (flesh crunch & bite)
    - License: CC0 1.0 Universal (Public Domain)
    - Link: https://opengameart.org/content/7-eating-crunches
+
+5. **WuxiaScrub, AuraVoice, HaelDB (OpenGameArt)**
+   - Sounds: `human_scream_1.ogg` (WuxiaScrub), `human_scream_2.ogg` (AuraVoice), `human_scream_3.ogg` (HaelDB)
+   - Description: Loud agonizing human terror and pain screams
+   - License: CC0 1.0 Universal (Public Domain Dedication)
+   - Links:
+     - https://opengameart.org/content/female-high-pitched-scream-sfx
+     - https://opengameart.org/content/female-scream-1
+     - https://opengameart.org/content/male-gruntyelling-sounds
+

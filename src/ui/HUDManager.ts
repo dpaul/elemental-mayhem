@@ -18,6 +18,17 @@ export class HUDManager {
   private essenceCounter: HTMLElement;
   private xpCounter: HTMLElement;
   private roundIndicator: HTMLElement;
+  private actionBarControls: HTMLElement | null = null;
+  private searchInput: HTMLInputElement | null = null;
+  private elementFilter: HTMLSelectElement | null = null;
+  private countBadge: HTMLElement | null = null;
+  private visibleAbilities: Ability[] = [];
+  private searchQuery: string = '';
+  private filterElement: string = 'All';
+  private onSelectCallback: ((ability: Ability) => void) | null = null;
+  private cachedAbilities: Ability[] = [];
+  private cachedSelectedId: string | null = null;
+  private cachedCurrentAp: number = 0;
 
   constructor() {
     this.heroAvatar = document.getElementById('hero-avatar-icon');
@@ -35,6 +46,32 @@ export class HUDManager {
     this.essenceCounter = document.getElementById('essence-counter')!;
     this.xpCounter = document.getElementById('xp-counter')!;
     this.roundIndicator = document.getElementById('round-indicator')!;
+
+    this.actionBarControls = document.getElementById('action-bar-controls');
+    this.searchInput = document.getElementById('ability-search-input') as HTMLInputElement | null;
+    this.elementFilter = document.getElementById('ability-element-filter') as HTMLSelectElement | null;
+    this.countBadge = document.getElementById('ability-count-badge');
+
+    // Horizontal wheel scrolling for action bar
+    if (this.actionBar) {
+      this.actionBar.addEventListener('wheel', (e) => {
+        if (e.deltaY !== 0) {
+          e.preventDefault();
+          this.actionBar.scrollLeft += e.deltaY;
+        }
+      }, { passive: false });
+    }
+
+    // Search and filter input handlers
+    this.searchInput?.addEventListener('input', () => {
+      this.searchQuery = (this.searchInput?.value || '').trim().toLowerCase();
+      this.reRenderFilteredAbilities();
+    });
+
+    this.elementFilter?.addEventListener('change', () => {
+      this.filterElement = this.elementFilter?.value || 'All';
+      this.reRenderFilteredAbilities();
+    });
   }
 
   public updateHeroStatus(hero: Unit): void {
@@ -46,12 +83,30 @@ export class HUDManager {
     this.heroHpText.textContent = `${hero.stats.currentHp} / ${hero.stats.maxHp} HP`;
     this.heroApText.textContent = `${hero.stats.currentAp} / ${hero.stats.maxAp} AP`;
 
-    // Render AP pips
+    // Render AP pips (capped at 20 pips for sleek high-AP display)
     this.heroApPips.innerHTML = '';
-    for (let i = 0; i < hero.stats.maxAp; i++) {
+    const maxPips = Math.min(hero.stats.maxAp, 20);
+    const filledRatio = hero.stats.maxAp > 0 ? hero.stats.currentAp / hero.stats.maxAp : 0;
+    const filledCount = Math.round(filledRatio * maxPips);
+    for (let i = 0; i < maxPips; i++) {
       const pip = document.createElement('span');
-      pip.className = `ap-pip ${i < hero.stats.currentAp ? 'filled' : ''}`;
+      pip.className = `ap-pip ${i < filledCount ? 'filled' : ''}`;
       this.heroApPips.appendChild(pip);
+    }
+  }
+
+  public getVisibleAbility(idx: number): Ability | undefined {
+    return this.visibleAbilities[idx];
+  }
+
+  private reRenderFilteredAbilities(): void {
+    if (this.onSelectCallback) {
+      this.renderAbilities(
+        this.cachedAbilities,
+        this.cachedSelectedId,
+        this.cachedCurrentAp,
+        this.onSelectCallback
+      );
     }
   }
 
@@ -61,9 +116,61 @@ export class HUDManager {
     currentAp: number,
     onSelect: (ability: Ability) => void
   ): void {
+    this.cachedAbilities = abilities;
+    this.cachedSelectedId = selectedAbilityId;
+    this.cachedCurrentAp = currentAp;
+    this.onSelectCallback = onSelect;
+
     this.actionBar.innerHTML = '';
 
-    abilities.forEach((ability, idx) => {
+    const hasLargeKit = abilities.length > 10;
+    if (this.actionBarControls) {
+      this.actionBarControls.style.display = hasLargeKit ? 'flex' : 'none';
+    }
+
+    if (hasLargeKit) {
+      this.actionBar.classList.add('scrolling-mode');
+      // Populate unique elements if filter exists
+      if (this.elementFilter && this.elementFilter.options.length <= 1) {
+        const uniqueElements = Array.from(new Set(abilities.map((a) => a.element))).sort();
+        this.elementFilter.innerHTML = '<option value="All">🌟 All Elements</option>';
+        uniqueElements.forEach((elem) => {
+          const opt = document.createElement('option');
+          opt.value = elem;
+          opt.textContent = `${elem}`;
+          this.elementFilter!.appendChild(opt);
+        });
+      }
+    } else {
+      this.actionBar.classList.remove('scrolling-mode');
+    }
+
+    let filtered = abilities;
+    if (hasLargeKit) {
+      if (this.filterElement !== 'All') {
+        filtered = filtered.filter((a) => a.element === this.filterElement);
+      }
+      if (this.searchQuery) {
+        filtered = filtered.filter(
+          (a) =>
+            a.name.toLowerCase().includes(this.searchQuery) ||
+            a.description.toLowerCase().includes(this.searchQuery) ||
+            a.element.toLowerCase().includes(this.searchQuery) ||
+            (a.appliesStatus && a.appliesStatus.toLowerCase().includes(this.searchQuery))
+        );
+      }
+    }
+
+    this.visibleAbilities = filtered;
+
+    if (this.countBadge) {
+      this.countBadge.textContent = `${filtered.length} / ${abilities.length} Powers`;
+    }
+
+    // Limit DOM rendering to at most 100 abilities at once for instant performance
+    const renderList = filtered.slice(0, 100);
+
+    renderList.forEach((ability, idx) => {
       const card = document.createElement('div');
       const isSelected = ability.id === selectedAbilityId;
       const isDisabled = ability.apCost > currentAp || ability.currentCooldown > 0;
@@ -75,9 +182,11 @@ export class HUDManager {
         card.style.borderColor = isSelected ? elemData.color : 'rgba(255, 255, 255, 0.08)';
       }
 
-      const hotkeyLabel = idx === 9 ? '0' : `${idx + 1}`;
+      const hotkeyLabel = idx < 10 ? (idx === 9 ? '0' : `${idx + 1}`) : '';
+      const hotkeyHtml = hotkeyLabel ? `<span class="ability-hotkey">[${hotkeyLabel}]</span>` : '';
+
       card.innerHTML = `
-        <span class="ability-hotkey">[${hotkeyLabel}]</span>
+        ${hotkeyHtml}
         <span class="ability-ap">${ability.apCost} AP</span>
         <span class="ability-icon">${ability.icon}</span>
         <span class="ability-name">${ability.name}</span>
