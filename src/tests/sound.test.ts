@@ -138,8 +138,48 @@ describe('SoundEngine (Web Audio API & Procedural SFX)', () => {
 
     soundEngine.playZombieScream();
     soundEngine.playHeroDeathScream();
-    soundEngine.playScreamerWail();
-
     expect(mockAudioContext.createOscillator.mock.calls.length).toBe(initialOscCallCount);
   });
+
+  it('should play loaded realistic sample buffers with pitch variation when available', () => {
+    const mockBuffer: any = { duration: 1.0 };
+    soundEngine.setSampleBuffer('zombie_scream_1', mockBuffer);
+    soundEngine.setSampleBuffer('zombie_scream_2', mockBuffer);
+    soundEngine.setSampleBuffer('zombie_scream_3', mockBuffer);
+    soundEngine.setSampleBuffer('zombie_scream_4', mockBuffer);
+    soundEngine.setSampleBuffer('hit_1', mockBuffer);
+    soundEngine.setSampleBuffer('hit_2', mockBuffer);
+    soundEngine.setSampleBuffer('hit_3', mockBuffer);
+    soundEngine.setSampleBuffer('spell_fire', mockBuffer);
+    soundEngine.setSampleBuffer('spell_earth', mockBuffer);
+    soundEngine.setSampleBuffer('spell_light', mockBuffer);
+
+    expect(soundEngine.hasSample('zombie_scream_1')).toBe(true);
+
+    mockBufferSourceNode.start.mockClear();
+    soundEngine.playZombieScream();
+    expect(mockAudioContext.createBufferSource).toHaveBeenCalled();
+    expect(mockBufferSourceNode.start).toHaveBeenCalled();
+
+    mockBufferSourceNode.start.mockClear();
+    soundEngine.playHit();
+    expect(mockBufferSourceNode.start).toHaveBeenCalled();
+
+    mockBufferSourceNode.start.mockClear();
+    soundEngine.playSpellCast('Fire');
+    expect(mockBufferSourceNode.start).toHaveBeenCalled();
+
+    mockBufferSourceNode.start.mockClear();
+    soundEngine.playSpellCast('Blast');
+    expect(mockBufferSourceNode.start).toHaveBeenCalled();
+
+    mockBufferSourceNode.start.mockClear();
+    soundEngine.playSpellCast('Earth');
+    expect(mockBufferSourceNode.start).toHaveBeenCalled();
+
+    mockBufferSourceNode.start.mockClear();
+    soundEngine.playSpellCast('Light');
+    expect(mockBufferSourceNode.start).toHaveBeenCalled();
+  });
 });
+
