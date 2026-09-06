@@ -267,6 +267,10 @@ export class GameApp {
   private resumeRunDetails: HTMLElement;
   private resumeGameBtn: HTMLElement;
   private discardSaveBtn: HTMLElement;
+  private homeBtnResume: HTMLElement | null;
+  private homeBtnResumeCta: HTMLElement | null;
+  private homeResumeActionBtn: HTMLElement | null;
+  private homeResumeDiscardBtn: HTMLElement | null;
 
   constructor() {
     const canvas = document.getElementById('battlefield-canvas') as HTMLCanvasElement;
@@ -342,6 +346,10 @@ export class GameApp {
     this.resumeRunDetails = document.getElementById('resume-run-details')!;
     this.resumeGameBtn = document.getElementById('resume-game-btn')!;
     this.discardSaveBtn = document.getElementById('discard-save-btn')!;
+    this.homeBtnResume = document.getElementById('home-btn-resume');
+    this.homeBtnResumeCta = document.getElementById('home-btn-resume-cta');
+    this.homeResumeActionBtn = document.getElementById('home-resume-action-btn');
+    this.homeResumeDiscardBtn = document.getElementById('home-resume-discard-btn');
 
     // Hotseat modal elements
     this.hotseatSelectModal = document.getElementById('hotseat-select-modal')!;
@@ -410,10 +418,8 @@ export class GameApp {
     this.lastFrameTime = performance.now();
     this.gameLoop();
 
-    // Check for unfinished active run on startup
-    if (this.saveManager.hasActiveSave()) {
-      this.promptResumeRun();
-    }
+    // Check for unfinished active run on startup and display menu tile
+    this.updateHomeResumeTile();
   }
 
   private initHomeParticles(): void {
@@ -1077,6 +1083,7 @@ export class GameApp {
     this.guideModal.classList.add('hidden');
     this.gameOverModal.classList.add('hidden');
     this.upgradeModal.classList.add('hidden');
+    this.updateHomeResumeTile();
   }
 
   public hideHomeScreen(): void {
@@ -2297,10 +2304,6 @@ export class GameApp {
 
     document.getElementById('home-btn-element-card')?.addEventListener('click', () => {
       this.soundEngine.playClick();
-      if (this.saveManager.hasActiveSave()) {
-        this.promptResumeRun();
-        return;
-      }
       this.hideHomeScreen();
       this.renderCharacterSelectModal();
       this.characterSelectModal.classList.remove('hidden');
@@ -2308,10 +2311,6 @@ export class GameApp {
 
     this.homeBtnCampaign?.addEventListener('click', () => {
       this.soundEngine.playClick();
-      if (this.saveManager.hasActiveSave()) {
-        this.promptResumeRun();
-        return;
-      }
       this.hideHomeScreen();
       this.renderCharacterSelectModal();
       this.characterSelectModal.classList.remove('hidden');
@@ -2873,6 +2872,33 @@ export class GameApp {
       this.characterSelectModal.classList.remove('hidden');
     });
 
+    // Home Menu Resume Tile Actions
+    this.homeBtnResume?.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).closest('#home-resume-discard-btn')) {
+        return;
+      }
+      this.soundEngine.playClick();
+      this.resumeSavedGame();
+    });
+
+    this.homeResumeActionBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.soundEngine.playClick();
+      this.resumeSavedGame();
+    });
+
+    this.homeBtnResumeCta?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      this.resumeSavedGame();
+    });
+
+    this.homeResumeDiscardBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.soundEngine.playClick();
+      this.saveManager.clearSave();
+      this.updateHomeResumeTile();
+    });
+
     // Resume Run Modal Actions
     this.resumeGameBtn?.addEventListener('click', () => {
       this.soundEngine.playClick();
@@ -2883,6 +2909,7 @@ export class GameApp {
       this.soundEngine.playClick();
       this.saveManager.clearSave();
       this.resumeRunModal.classList.add('hidden');
+      this.updateHomeResumeTile();
       this.renderCharacterSelectModal();
       this.characterSelectModal.classList.remove('hidden');
     });
@@ -4068,6 +4095,7 @@ export class GameApp {
   private showVictoryModal(): void {
     this.cancelAutoTurnCountdown();
     this.saveManager.clearSave();
+    this.updateHomeResumeTile();
     this.soundEngine.playVictoryFanfare();
     this.turnManager.setPhase('VICTORY');
     this.outcomeTitle.textContent = 'GAUNTLET CONQUERED!';
@@ -4079,6 +4107,7 @@ export class GameApp {
   private showDefeatModal(): void {
     this.cancelAutoTurnCountdown();
     this.saveManager.clearSave();
+    this.updateHomeResumeTile();
     this.turnManager.setPhase('GAME_OVER');
     this.outcomeTitle.textContent = 'DEFEATED IN BATTLE';
     this.outcomeSubtitle.textContent = `You fell on Round ${this.currentRound.toLocaleString()}. Re-arm and try again!`;
@@ -4103,6 +4132,43 @@ export class GameApp {
         <strong>${this.totalXp.toLocaleString()}</strong>
       </div>
     `;
+  }
+
+  public updateHomeResumeTile(): void {
+    const summary = this.saveManager.getSaveSummary();
+
+    if (!summary) {
+      if (this.homeBtnResume) this.homeBtnResume.classList.add('hidden');
+      if (this.homeBtnResumeCta) this.homeBtnResumeCta.classList.add('hidden');
+      return;
+    }
+
+    if (this.homeBtnResume) {
+      this.homeBtnResume.classList.remove('hidden');
+      const iconEl = document.getElementById('home-resume-icon');
+      const descEl = document.getElementById('home-resume-desc');
+      const detailsEl = document.getElementById('home-resume-details');
+      const badgeEl = document.getElementById('home-resume-badge');
+
+      if (iconEl) iconEl.textContent = summary.heroAvatar || '⚔️';
+      if (badgeEl) badgeEl.textContent = `Round ${summary.round.toLocaleString()}`;
+      if (descEl) {
+        descEl.textContent = `${summary.heroName} (${summary.element}) • In-progress battle`;
+      }
+      if (detailsEl) {
+        detailsEl.innerHTML = `
+          <div>❤️ HP: <strong style="color: #4ade80;">${summary.heroCurrentHp} / ${summary.heroMaxHp}</strong></div>
+          <div>⚡ AP: <strong style="color: #60a5fa;">${summary.heroCurrentAp} / ${summary.heroMaxAp}</strong></div>
+          <div>👾 Foes: <strong style="color: #f87171;">${summary.enemiesAlive}</strong></div>
+          <div>✨ Essence: <strong style="color: #fbbf24;">${summary.essence.toLocaleString()}</strong></div>
+        `;
+      }
+    }
+
+    if (this.homeBtnResumeCta) {
+      this.homeBtnResumeCta.classList.remove('hidden');
+      this.homeBtnResumeCta.innerHTML = `<span>▶️</span> RESUME RUN (Round ${summary.round.toLocaleString()})`;
+    }
   }
 
   public promptResumeRun(): void {
@@ -4140,6 +4206,8 @@ export class GameApp {
   public resumeSavedGame(): boolean {
     const saveData = this.saveManager.loadGame();
     if (!saveData || !saveData.hero || saveData.hero.isDead) {
+      this.saveManager.clearSave();
+      this.updateHomeResumeTile();
       this.resumeRunModal.classList.add('hidden');
       return false;
     }

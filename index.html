@@ -198,6 +198,9 @@
 
           <!-- Primary Hero Actions -->
           <div class="home-cta-row">
+            <button id="home-btn-resume-cta" class="btn-hero-action btn-hero-resume hidden">
+              <span>▶️</span> RESUME RUN
+            </button>
             <button id="home-btn-coop" class="btn-hero-action btn-hero-coop" style="background: linear-gradient(135deg, #06b6d4, #8b5cf6); border-color: #67e8f9; box-shadow: 0 0 24px rgba(6, 182, 212, 0.45);">
               <span>🤝</span> PLAY CO-OP (Online P2P)
             </button>
@@ -215,6 +218,21 @@
 
         <!-- Mode Cards Grid -->
         <div class="home-modes-grid">
+          <!-- Resume Run Card (Visible when an active run exists) -->
+          <div class="home-mode-card card-resume hidden" id="home-btn-resume">
+            <div class="card-badge badge-resume" id="home-resume-badge">Active Save</div>
+            <div class="card-icon" id="home-resume-icon">⚔️</div>
+            <h3 class="card-title" id="home-resume-title" style="color: #fbbf24;">RESUME RUN</h3>
+            <p class="card-desc" id="home-resume-desc">
+              Continue your saved battle in progress.
+            </p>
+            <div id="home-resume-details" class="resume-card-details"></div>
+            <div class="resume-card-actions">
+              <button class="btn-primary card-action-btn btn-resume-action" id="home-resume-action-btn">Resume Battle →</button>
+              <button class="btn-text btn-discard-card" id="home-resume-discard-btn" title="Discard this saved run">🗑️ Discard</button>
+            </div>
+          </div>
+
           <!-- Co-op Gauntlet Card -->
           <div class="home-mode-card card-coop" id="home-btn-coop-card">
             <div class="card-badge badge-coop" style="background: rgba(6, 182, 212, 0.2); color: #67e8f9; border-color: rgba(6, 182, 212, 0.4);">2-Player Online</div>
