@@ -25,6 +25,14 @@ describe('OriginCutsceneManager', () => {
     vi.spyOn(soundEngine, 'playMagicSurge').mockImplementation(() => {});
     vi.spyOn(soundEngine, 'playDarkSiphon').mockImplementation(() => {});
     vi.spyOn(soundEngine, 'playBossWarhorn').mockImplementation(() => {});
+    vi.spyOn(soundEngine, 'playCutsceneTitanClash').mockImplementation(() => {});
+    vi.spyOn(soundEngine, 'playCutsceneCosmicRift').mockImplementation(() => {});
+    vi.spyOn(soundEngine, 'playCutsceneWormholeFall').mockImplementation(() => {});
+    vi.spyOn(soundEngine, 'playCutsceneWizardBlessing').mockImplementation(() => {});
+    vi.spyOn(soundEngine, 'playCutscenePowerStolen').mockImplementation(() => {});
+    vi.spyOn(soundEngine, 'playCutsceneBossBraam').mockImplementation(() => {});
+    vi.spyOn(soundEngine, 'playCutscenePipBlip').mockImplementation(() => {});
+    vi.spyOn(soundEngine, 'playCutsceneModeSwitch').mockImplementation(() => {});
 
     cutsceneManager = new OriginCutsceneManager(soundEngine);
   });
@@ -61,19 +69,22 @@ describe('OriginCutsceneManager', () => {
 
   it('should trigger chapter specific sound effects', () => {
     cutsceneManager.goToChapter(0);
-    expect(soundEngine.playExplosion).toHaveBeenCalled();
+    expect(soundEngine.playCutsceneTitanClash).toHaveBeenCalled();
 
     cutsceneManager.goToChapter(1);
-    expect(soundEngine.playWarp).toHaveBeenCalled();
+    expect(soundEngine.playCutsceneCosmicRift).toHaveBeenCalled();
+
+    cutsceneManager.goToChapter(2);
+    expect(soundEngine.playCutsceneWormholeFall).toHaveBeenCalled();
 
     cutsceneManager.goToChapter(3);
-    expect(soundEngine.playSpellCast).toHaveBeenCalledWith('Arcane');
+    expect(soundEngine.playCutsceneWizardBlessing).toHaveBeenCalled();
 
     cutsceneManager.goToChapter(4);
-    expect(soundEngine.playScreamerWail).toHaveBeenCalled();
+    expect(soundEngine.playCutscenePowerStolen).toHaveBeenCalled();
 
     cutsceneManager.goToChapter(5);
-    expect(soundEngine.playBossWarhorn).toHaveBeenCalled();
+    expect(soundEngine.playCutsceneBossBraam).toHaveBeenCalled();
   });
 
   it('should toggle view mode between video and stage', () => {

@@ -155,7 +155,7 @@ export class OriginCutsceneManager {
     // View mode toggle
     if (this.modeBtnEl) {
       this.modeBtnEl.addEventListener('click', () => {
-        this.soundEngine.playClick();
+        this.soundEngine.playCutsceneModeSwitch();
         this.toggleViewMode();
       });
       this.updateModeBtn();
@@ -170,7 +170,7 @@ export class OriginCutsceneManager {
         pip.className = `cutscene-pip ${idx === 0 ? 'active' : ''}`;
         pip.setAttribute('title', `Go to Chapter ${ch.id}: ${ch.title}`);
         pip.addEventListener('click', () => {
-          this.soundEngine.playClick();
+          this.soundEngine.playCutscenePipBlip();
           this.goToChapter(idx, true);
         });
         pipsContainer.appendChild(pip);
@@ -487,85 +487,81 @@ export class OriginCutsceneManager {
       switch (index) {
         case 0:
           // Chapter 1: Titans clash with earth shattering collisions & rumble
-          this.soundEngine.playExplosion();
-          this.scheduleSound(() => this.soundEngine.playSpellCast('Earth'), 250);
-          this.scheduleSound(() => this.soundEngine.playEarthquakeRumble(), 650);
+          this.soundEngine.playCutsceneTitanClash();
+          this.scheduleSound(() => this.soundEngine.playSpellCast('Earth'), 350);
           this.scheduleSound(() => {
             this.soundEngine.playHit();
             this.soundEngine.playSpellCast('Fire');
-          }, 1500);
+          }, 1100);
+          this.scheduleSound(() => this.soundEngine.playCutsceneTitanClash(), 1800);
           this.scheduleSound(() => {
             this.soundEngine.playSpellCast('Lightning');
             this.soundEngine.playExplosion();
-          }, 2500);
+          }, 2700);
           this.scheduleSound(() => this.soundEngine.playEarthquakeRumble(), 3600);
           break;
 
         case 1:
           // Chapter 2: The Cosmic Rift tears open with gravitational singularity
-          this.soundEngine.playWarp();
-          this.scheduleSound(() => this.soundEngine.playCosmicSingularity(), 350);
-          this.scheduleSound(() => this.soundEngine.playExplosion(), 1000);
-          this.scheduleSound(() => {
-            this.soundEngine.playSpellCast('Void');
-            this.soundEngine.playWarp();
-          }, 1900);
-          this.scheduleSound(() => this.soundEngine.playCosmicSingularity(), 2800);
-          this.scheduleSound(() => this.soundEngine.playSpellCast('Lightning'), 3800);
+          this.soundEngine.playCutsceneCosmicRift();
+          this.scheduleSound(() => this.soundEngine.playSpellCast('Void'), 700);
+          this.scheduleSound(() => this.soundEngine.playWarp(), 1400);
+          this.scheduleSound(() => this.soundEngine.playCosmicSingularity(), 2100);
+          this.scheduleSound(() => this.soundEngine.playSpellCast('Lightning'), 2900);
+          this.scheduleSound(() => this.soundEngine.playSpellCast('Sound'), 3700);
           break;
 
         case 2:
           // Chapter 3: Falling through the rift & crash landing on small world
-          this.soundEngine.playWarp();
-          this.scheduleSound(() => this.soundEngine.playSpellCast('Sound'), 750);
-          this.scheduleSound(() => this.soundEngine.playWarp(), 1600);
-          this.scheduleSound(() => this.soundEngine.playSpellCast('Arcane'), 2500);
-          this.scheduleSound(() => {
-            this.soundEngine.playHit();
-            this.soundEngine.playEarthquakeRumble();
-          }, 3400);
+          this.soundEngine.playCutsceneWormholeFall();
+          this.scheduleSound(() => this.soundEngine.playWarp(), 600);
+          this.scheduleSound(() => this.soundEngine.playSpellCast('Sound'), 1300);
+          this.scheduleSound(() => this.soundEngine.playEarthquakeRumble(), 2000);
+          this.scheduleSound(() => this.soundEngine.playSpellCast('Arcane'), 2800);
+          this.scheduleSound(() => this.soundEngine.playHit(), 3500);
           break;
 
         case 3:
           // Chapter 4: Grand Wizard channels godlike elemental magic
-          this.soundEngine.playSpellCast('Arcane');
-          this.scheduleSound(() => this.soundEngine.playMagicSurge(), 600);
+          this.soundEngine.playCutsceneWizardBlessing();
+          this.scheduleSound(() => this.soundEngine.playSpellCast('Arcane'), 600);
           this.scheduleSound(() => {
-            this.soundEngine.playSpellCast('Fire');
-            this.soundEngine.playSpellCast('Water');
-          }, 1400);
-          this.scheduleSound(() => {
-            this.soundEngine.playSpellCast('Earth');
             this.soundEngine.playUnlock();
-          }, 2200);
+            this.soundEngine.playSpellCast('Fire');
+          }, 1300);
+          this.scheduleSound(() => {
+            this.soundEngine.playMagicSurge();
+            this.soundEngine.playSpellCast('Water');
+          }, 2000);
           this.scheduleSound(() => {
             this.soundEngine.playLevelUp();
-            this.soundEngine.playMagicSurge();
-          }, 3200);
+            this.soundEngine.playSpellCast('Earth');
+          }, 2800);
+          this.scheduleSound(() => this.soundEngine.playSpellCast('Light'), 3500);
           break;
 
         case 4:
           // Chapter 5: Ambushed! Power violently stolen by Void Overlord
-          this.soundEngine.playScreamerWail();
-          this.scheduleSound(() => this.soundEngine.playDarkSiphon(), 550);
-          this.scheduleSound(() => this.soundEngine.playHeroDeathScream(), 1400);
+          this.soundEngine.playCutscenePowerStolen();
+          this.scheduleSound(() => this.soundEngine.playDarkSiphon(), 500);
+          this.scheduleSound(() => this.soundEngine.playHeroDeathScream(), 1200);
           this.scheduleSound(() => {
             this.soundEngine.playExplosion();
             this.soundEngine.playDarkSiphon();
-          }, 2300);
-          this.scheduleSound(() => this.soundEngine.playSpellCast('Fire'), 3400);
+          }, 2000);
+          this.scheduleSound(() => this.soundEngine.playSpellCast('Fire'), 2700);
+          this.scheduleSound(() => this.soundEngine.playSpellCast('Water'), 3300);
+          this.scheduleSound(() => this.soundEngine.playSpellCast('Earth'), 3800);
           break;
 
         case 5:
           // Chapter 6: Mission: Round 1000 Ultimate Boss!
-          this.soundEngine.playBossWarhorn();
-          this.scheduleSound(() => this.soundEngine.playVictoryFanfare(), 750);
-          this.scheduleSound(() => this.soundEngine.playLevelUp(), 1700);
-          this.scheduleSound(() => {
-            this.soundEngine.playBossWarhorn();
-            this.soundEngine.playMagicSurge();
-          }, 2700);
-          this.scheduleSound(() => this.soundEngine.playVictoryFanfare(), 3800);
+          this.soundEngine.playCutsceneBossBraam();
+          this.scheduleSound(() => this.soundEngine.playBossWarhorn(), 800);
+          this.scheduleSound(() => this.soundEngine.playVictoryFanfare(), 1500);
+          this.scheduleSound(() => this.soundEngine.playLevelUp(), 2300);
+          this.scheduleSound(() => this.soundEngine.playCutsceneBossBraam(), 3000);
+          this.scheduleSound(() => this.soundEngine.playVictoryFanfare(), 3900);
           break;
       }
     } catch (err) {

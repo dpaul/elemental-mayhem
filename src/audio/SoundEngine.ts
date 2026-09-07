@@ -131,6 +131,14 @@ export class SoundEngine {
       ['zombie_scream_3', 'zombie_scream_3.ogg'],
       ['zombie_scream_4', 'zombie_scream_4.ogg'],
       ['zombie_spawn', 'zombie_spawn.ogg'],
+      ['cutscene_titan_clash', 'cutscene_titan_clash.ogg'],
+      ['cutscene_cosmic_rift', 'cutscene_cosmic_rift.ogg'],
+      ['cutscene_wormhole_fall', 'cutscene_wormhole_fall.ogg'],
+      ['cutscene_wizard_blessing', 'cutscene_wizard_blessing.ogg'],
+      ['cutscene_power_stolen', 'cutscene_power_stolen.ogg'],
+      ['cutscene_boss_braam', 'cutscene_boss_braam.ogg'],
+      ['cutscene_pip_blip', 'cutscene_pip_blip.ogg'],
+      ['cutscene_mode_switch', 'cutscene_mode_switch.ogg'],
     ];
 
     for (const [key, file] of samples) {
@@ -1222,6 +1230,76 @@ export class SoundEngine {
     osc2.start(t);
     osc1.stop(t + 1.9);
     osc2.stop(t + 1.9);
+  }
+
+  public playCutsceneTitanClash(): void {
+    if (this.isMuted) return;
+    const played = this.playSample('cutscene_titan_clash', 0.9, 0.02);
+    this.playEarthquakeRumble();
+    if (!played) {
+      this.playExplosion();
+    }
+  }
+
+  public playCutsceneCosmicRift(): void {
+    if (this.isMuted) return;
+    const played = this.playSample('cutscene_cosmic_rift', 0.88, 0.02);
+    this.playCosmicSingularity();
+    if (!played) {
+      this.playWarp();
+    }
+  }
+
+  public playCutsceneWormholeFall(): void {
+    if (this.isMuted) return;
+    const played = this.playSample('cutscene_wormhole_fall', 0.88, 0.02);
+    if (!played) {
+      this.playWarp();
+      this.playEarthquakeRumble();
+    }
+  }
+
+  public playCutsceneWizardBlessing(): void {
+    if (this.isMuted) return;
+    const played = this.playSample('cutscene_wizard_blessing', 0.92, 0.01);
+    this.playMagicSurge();
+    if (!played) {
+      this.playLevelUp();
+    }
+  }
+
+  public playCutscenePowerStolen(): void {
+    if (this.isMuted) return;
+    const played = this.playSample('cutscene_power_stolen', 0.9, 0.02);
+    this.playDarkSiphon();
+    if (!played) {
+      this.playScreamerWail();
+    }
+  }
+
+  public playCutsceneBossBraam(): void {
+    if (this.isMuted) return;
+    const played = this.playSample('cutscene_boss_braam', 0.95, 0.01);
+    this.playBossWarhorn();
+    if (!played) {
+      this.playVictoryFanfare();
+    }
+  }
+
+  public playCutscenePipBlip(): void {
+    if (this.isMuted) return;
+    const played = this.playSample('cutscene_pip_blip', 0.55, 0.04);
+    if (!played) {
+      this.playClick();
+    }
+  }
+
+  public playCutsceneModeSwitch(): void {
+    if (this.isMuted) return;
+    const played = this.playSample('cutscene_mode_switch', 0.7, 0.03);
+    if (!played) {
+      this.playWarp();
+    }
   }
 
   // ==========================================

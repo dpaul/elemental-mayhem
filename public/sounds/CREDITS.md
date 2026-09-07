@@ -38,3 +38,7 @@ All audio samples utilized in Elemental Mayhem are 100% free, unencumbered, and 
      - https://opengameart.org/content/female-scream-1
      - https://opengameart.org/content/male-gruntyelling-sounds
 
+6. **Elemental Mayhem Procedural & Synthesized Audio (Creative Commons Zero / CC0)**
+   - Sounds: `cutscene_titan_clash.ogg`, `cutscene_cosmic_rift.ogg`, `cutscene_wormhole_fall.ogg`, `cutscene_wizard_blessing.ogg`, `cutscene_power_stolen.ogg`, `cutscene_boss_braam.ogg`, `cutscene_pip_blip.ogg`, `cutscene_mode_switch.ogg`
+   - Description: Custom procedural acoustics and cinematic synthesis modeling colossal titan impacts, spacetime singularities, angelic chord choirs, and trailer brass braams.
+   - License: CC0 1.0 Universal (Public Domain Dedication)
