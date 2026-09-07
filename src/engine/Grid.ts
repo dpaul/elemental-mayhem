@@ -67,6 +67,25 @@ export class Grid {
     return count;
   }
 
+  public clearFloorHazards(): number {
+    let count = 0;
+    for (let x = 0; x < this.size; x++) {
+      for (let y = 0; y < this.size; y++) {
+        if (this.tiles[x][y].hazard && this.tiles[x][y].hazard.type !== 'None') {
+          this.tiles[x][y].hazard = { type: 'None', duration: 0, damagePerTurn: 0, element: 'Neutral' };
+          count++;
+        }
+      }
+    }
+    return count;
+  }
+
+  public clearWallsAndFloor(): { clearedWalls: number; clearedFloor: number } {
+    const clearedWalls = this.clearWalls();
+    const clearedFloor = this.clearFloorHazards();
+    return { clearedWalls, clearedFloor };
+  }
+
   public isWalkable(coord: GridCoord): boolean {
     const tile = this.getTile(coord);
     return tile !== null && !tile.isObstacle;

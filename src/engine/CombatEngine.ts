@@ -663,15 +663,13 @@ export class CombatEngine {
   }
 
   public executeMassResurrection(
-    caster?: Unit,
-    targetCoord?: GridCoord
-  ): { clearedWalls: number; resurrectedCount: number } {
-    const actor = caster || this.hero;
+    _caster?: Unit,
+    _targetCoord?: GridCoord
+  ): { clearedWalls: number; clearedFloor: number; resurrectedCount: number } {
+    // 1. Clear all walls, obstacles, and ground hazards on the floor across the entire arena
+    const { clearedWalls, clearedFloor } = this.grid.clearWallsAndFloor();
 
-    // 1. Clear all walls and obstacles from the battlefield grid
-    const clearedWalls = this.grid.clearWalls();
-
-    // 2. Revive hero or coop hero if dead
+    // 2. Revive hero or coop hero if fallen
     if (this.hero.isDead) {
       this.hero.isDead = false;
       this.hero.stats.currentHp = this.hero.stats.maxHp;
@@ -681,39 +679,15 @@ export class CombatEngine {
       this.coopHero.stats.currentHp = this.coopHero.stats.maxHp;
     }
 
-    // 3. Resurrect/summon a formation of allied undead minions across the board
-    const center = targetCoord || actor.coord;
-    const candidates: GridCoord[] = [];
-    for (let dx = -3; dx <= 3; dx++) {
-      for (let dy = -3; dy <= 3; dy++) {
-        const c = { x: center.x + dx, y: center.y + dy };
-        if (
-          this.grid.isInBounds(c) &&
-          !this.grid.getTile(c)?.isObstacle &&
-          this.getUnitAt(c) === null
-        ) {
-          candidates.push(c);
-        }
-      }
-    }
-    // Sort by proximity to center
-    candidates.sort(
-      (a, b) => this.grid.manhattanDistance(center, a) - this.grid.manhattanDistance(center, b)
-    );
-
-    const spawnCount = Math.min(6, candidates.length);
-    const classes: ZombieClass[] = ['Walker', 'Wizard', 'DeathKnight', 'Brute', 'Runner', 'Electro'];
-    for (let i = 0; i < spawnCount; i++) {
-      const zClass = classes[i % classes.length];
-      this.spawnZombie(candidates[i], 80, 4, actor.faction, zClass, true);
-    }
+    // 3. User requested: DO NOT summon zombies!
+    // No zombie minions are spawned on the battlefield.
 
     this.addLog(
       'system',
-      `👑 ADMIN POWER: Mass Resurrection shattered & cleared ${clearedWalls} walls, and raised ${spawnCount} Reanimated Legionnaires!`
+      `👑 ADMIN POWER: Mass Resurrection shattered & cleared ${clearedWalls} walls and removed ${clearedFloor} hazards from the floor!`
     );
 
-    return { clearedWalls, resurrectedCount: spawnCount };
+    return { clearedWalls, clearedFloor, resurrectedCount: 0 };
   }
 
   public spawnLifeBeing(coord: GridCoord, faction: UnitFaction = 'Player'): Unit {

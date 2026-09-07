@@ -3896,7 +3896,7 @@ export class GameApp {
           this.renderer.particleEngine.triggerScreenShake(12, 350);
           const casterPos = this.renderer.gridToScreen(activeUnit.coord);
           this.renderer.particleEngine.addFloatingText(
-            '👑 MASS RESURRECTION: CLEARED ALL WALLS!',
+            '👑 MASS RESURRECTION: CLEARED WALLS & FLOOR!',
             casterPos.x,
             casterPos.y - 45,
             '#c084fc',
@@ -6084,14 +6084,14 @@ export class GameApp {
     this.soundEngine.playLevelUp();
     const screenPos = this.renderer.gridToScreen(this.hero.coord);
     this.renderer.particleEngine.addFloatingText(
-      '👑 MASS RESURRECTION!',
+      '👑 MASS RESURRECTION: CLEARED WALLS & FLOOR!',
       screenPos.x,
       screenPos.y - 40,
       '#c084fc',
       22
     );
     this.renderer.particleEngine.addFloatingText(
-      `🧹 Cleared ${result.clearedWalls} Walls!`,
+      `🧹 Cleared ${result.clearedWalls} Walls & ${result.clearedFloor} Floor Hazards!`,
       screenPos.x,
       screenPos.y - 15,
       '#6ee7b7',
@@ -6099,7 +6099,7 @@ export class GameApp {
     );
     return {
       success: true,
-      message: `Mass Resurrection invoked! Cleared ${result.clearedWalls} walls and summoned ${result.resurrectedCount} allied legionnaires!`,
+      message: `Mass Resurrection invoked! Cleared ${result.clearedWalls} walls and ${result.clearedFloor} floor hazards!`,
     };
   }
 

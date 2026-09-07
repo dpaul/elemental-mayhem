@@ -97,19 +97,26 @@ describe('Admin Mass Resurrection Power', () => {
     combatEngine = new CombatEngine(grid, hazardManager, hero, []);
   });
 
-  it('should clear all walls and obstacles from the battlefield when Mass Resurrection is executed', () => {
+  it('should clear all walls, obstacles, and floor hazards without summoning zombies when Mass Resurrection is executed', () => {
     // Place walls across the arena
     grid.setObstacle({ x: 3, y: 3 }, true);
     grid.setObstacle({ x: 4, y: 4 }, true);
     grid.setObstacle({ x: 5, y: 5 }, true);
     grid.setObstacle({ x: 6, y: 6 }, true);
 
+    // Place floor hazards
+    hazardManager.applyHazard({ x: 2, y: 2 }, 'LavaPool', 3, 20, 'Fire');
+    hazardManager.applyHazard({ x: 7, y: 7 }, 'Burning', 3, 10, 'Fire');
+    hazardManager.applyHazard({ x: 1, y: 8 }, 'Puddle', 3, 0, 'Water');
+
     expect(grid.getTile({ x: 3, y: 3 })?.isObstacle).toBe(true);
-    expect(grid.getTile({ x: 4, y: 4 })?.isObstacle).toBe(true);
+    expect(grid.getTile({ x: 2, y: 2 })?.hazard.type).toBe('LavaPool');
+    expect(grid.getTile({ x: 7, y: 7 })?.hazard.type).toBe('Burning');
 
     const result = combatEngine.executeMassResurrection();
     expect(result.clearedWalls).toBe(4);
-    expect(result.resurrectedCount).toBeGreaterThan(0);
+    expect(result.clearedFloor).toBe(3);
+    expect(result.resurrectedCount).toBe(0);
 
     // All walls must be gone
     expect(grid.getTile({ x: 3, y: 3 })?.isObstacle).toBe(false);
@@ -117,25 +124,32 @@ describe('Admin Mass Resurrection Power', () => {
     expect(grid.getTile({ x: 5, y: 5 })?.isObstacle).toBe(false);
     expect(grid.getTile({ x: 6, y: 6 })?.isObstacle).toBe(false);
 
-    // Allied minions must be raised
-    expect(combatEngine.zombies.length).toBeGreaterThan(0);
-    expect(combatEngine.zombies[0].faction).toBe('Player');
+    // All floor hazards must be cleared
+    expect(grid.getTile({ x: 2, y: 2 })?.hazard.type).toBe('None');
+    expect(grid.getTile({ x: 7, y: 7 })?.hazard.type).toBe('None');
+    expect(grid.getTile({ x: 1, y: 8 })?.hazard.type).toBe('None');
+
+    // User requested: NO zombies summoned!
+    expect(combatEngine.zombies.length).toBe(0);
   });
 
-  it('should clear all walls and wall hazards across the board when casting admin_mass_resurrection ability', () => {
+  it('should clear all walls and floor hazards across the board and not summon zombies when casting admin_mass_resurrection ability', () => {
     // Place standard walls
     grid.setObstacle({ x: 2, y: 2 }, true);
     grid.setObstacle({ x: 7, y: 7 }, true);
     grid.setObstacle({ x: 3, y: 4 }, true, '⬛');
     grid.setObstacle({ x: 6, y: 5 }, true, '🗿');
 
-    // Place a MudWall hazard
+    // Place floor hazards (MudWall, LavaPool, ToxicMire)
     hazardManager.applyHazard({ x: 4, y: 4 }, 'MudWall', 3, 0, 'Earth');
+    hazardManager.applyHazard({ x: 1, y: 1 }, 'LavaPool', 3, 20, 'Fire');
+    hazardManager.applyHazard({ x: 8, y: 8 }, 'ToxicMire', 3, 10, 'Poison');
     expect(grid.getTile({ x: 4, y: 4 })?.hazard.type).toBe('MudWall');
+    expect(grid.getTile({ x: 1, y: 1 })?.hazard.type).toBe('LavaPool');
+    expect(grid.getTile({ x: 8, y: 8 })?.hazard.type).toBe('ToxicMire');
 
     const massResAbility = HERO_CLASSES.Admin.abilities.find((a) => a.id === 'admin_mass_resurrection');
     expect(massResAbility).toBeDefined();
-    expect(massResAbility?.createsHazard).toBeUndefined();
 
     const castRes = combatEngine.executeAbility(combatEngine.hero, massResAbility!, { x: 5, y: 5 });
     expect(castRes.success).toBe(true);
@@ -145,12 +159,14 @@ describe('Admin Mass Resurrection Power', () => {
     expect(grid.getTile({ x: 7, y: 7 })?.isObstacle).toBe(false);
     expect(grid.getTile({ x: 3, y: 4 })?.isObstacle).toBe(false);
     expect(grid.getTile({ x: 6, y: 5 })?.isObstacle).toBe(false);
-    // MudWall hazard also completely cleared!
-    expect(grid.getTile({ x: 4, y: 4 })?.hazard.type).toBe('None');
 
-    // Allied legion resurrected
-    expect(combatEngine.zombies.length).toBeGreaterThan(0);
-    expect(combatEngine.zombies.every((z) => z.faction === 'Player')).toBe(true);
+    // All floor hazards completely cleared!
+    expect(grid.getTile({ x: 4, y: 4 })?.hazard.type).toBe('None');
+    expect(grid.getTile({ x: 1, y: 1 })?.hazard.type).toBe('None');
+    expect(grid.getTile({ x: 8, y: 8 })?.hazard.type).toBe('None');
+
+    // NO zombies spawned
+    expect(combatEngine.zombies.length).toBe(0);
   });
 });
 

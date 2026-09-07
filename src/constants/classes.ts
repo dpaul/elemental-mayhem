@@ -8457,7 +8457,7 @@ export const HERO_CLASSES: Record<ElementType, HeroClassConfig> = {
         id: 'admin_mass_resurrection',
         name: 'Mass Resurrection',
         element: 'Admin',
-        icon: '🧟‍♂️',
+        icon: '🧹',
         apCost: 1,
         cooldown: 0,
         currentCooldown: 0,
@@ -8465,7 +8465,7 @@ export const HERO_CLASSES: Record<ElementType, HeroClassConfig> = {
         aoeRadius: 3,
         targeting: 'AnyTile',
         baseDamage: 0,
-        description: 'Admin Power: Shatters and clears ALL walls and obstacles across the battlefield, and resurrects a mighty allied undead legion!',
+        description: 'Admin Power: Shatters and clears ALL walls, obstacles, and floor hazards across the entire battlefield grid!',
         level: 1,
       },
       {
