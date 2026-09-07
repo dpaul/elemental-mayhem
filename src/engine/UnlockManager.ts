@@ -2,7 +2,7 @@
 import { ElementType } from '../types';
 
 const STORAGE_KEY = 'elemental_mayhem_unlocked_elements';
-export const DEFAULT_STARTER_ELEMENTS: ElementType[] = ['Fire', 'Water', 'Earth', 'Nature', 'Light'];
+export const DEFAULT_STARTER_ELEMENTS: ElementType[] = ['Fire', 'Water', 'Earth', 'Nature', 'Light', 'Wind'];
 
 export const ALL_42_ELEMENTS: ElementType[] = [
   'Fire', 'Water', 'Lightning', 'Earth', 'Poison', 'Void', 'Love', 'Sky', 'Nature', 'Ice',
@@ -51,7 +51,7 @@ export class UnlockManager {
   }
 
   public isAdminOnly(element: ElementType): boolean {
-    return element === 'Wind' || element === 'Undead' || element === 'Neutral';
+    return element === 'Undead' || element === 'Neutral';
   }
 
   public setAdminOverride(active: boolean): void {
@@ -100,7 +100,7 @@ export class UnlockManager {
     const newlyUnlocked: ElementType[] = [];
 
     if (round === 5) {
-      const tier1: ElementType[] = ['Ice', 'Magma', 'Crystal', 'Poison', 'Acid', 'Sky', 'Heat', 'Cold'];
+      const tier1: ElementType[] = ['Wind', 'Ice', 'Magma', 'Crystal', 'Poison', 'Acid', 'Sky', 'Heat', 'Cold'];
       tier1.forEach((elem) => {
         if (this.unlockElement(elem)) newlyUnlocked.push(elem);
       });

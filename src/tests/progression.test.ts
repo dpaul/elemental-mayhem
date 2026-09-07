@@ -203,13 +203,13 @@ describe('UnlockManager & Boss Elemental Progression (TDD Red -> Green)', () => 
     unlockManager.resetUnlocks();
   });
 
-  it('should start with default starter elements (Fire, Water, Earth, Nature, Light) and Wind/Undead/other elements locked', () => {
+  it('should start with default starter elements (Fire, Water, Earth, Nature, Light, Wind) and other elements locked', () => {
     expect(unlockManager.isElementUnlocked('Fire')).toBe(true);
     expect(unlockManager.isElementUnlocked('Water')).toBe(true);
     expect(unlockManager.isElementUnlocked('Earth')).toBe(true);
     expect(unlockManager.isElementUnlocked('Nature')).toBe(true);
     expect(unlockManager.isElementUnlocked('Light')).toBe(true);
-    expect(unlockManager.isElementUnlocked('Wind')).toBe(false); // Admin only
+    expect(unlockManager.isElementUnlocked('Wind')).toBe(true); // Starter element, not admin power
     expect(unlockManager.isElementUnlocked('Undead')).toBe(false); // Admin only
     expect(unlockManager.isElementUnlocked('Ice')).toBe(false);
     expect(unlockManager.isElementUnlocked('Poison')).toBe(false);
@@ -217,17 +217,15 @@ describe('UnlockManager & Boss Elemental Progression (TDD Red -> Green)', () => 
     expect(unlockManager.isElementUnlocked('Void')).toBe(false);
   });
 
-  it('should designate Wind, Undead (Necromancer), and Neutral (Omnipotent Avatar) as Admin Only that players cannot unlock normally', () => {
-    expect(unlockManager.isAdminOnly('Wind')).toBe(true);
+  it('should designate Undead (Necromancer) and Neutral (Omnipotent Avatar) as Admin Only, but NOT Wind', () => {
+    expect(unlockManager.isAdminOnly('Wind')).toBe(false); // Wind is NOT an admin power
     expect(unlockManager.isAdminOnly('Undead')).toBe(true);
     expect(unlockManager.isAdminOnly('Neutral')).toBe(true);
     expect(unlockManager.isAdminOnly('Fire')).toBe(false);
 
     // Attempting to unlock admin elements returns false and keeps them locked
-    expect(unlockManager.unlockElement('Wind')).toBe(false);
     expect(unlockManager.unlockElement('Undead')).toBe(false);
     expect(unlockManager.unlockElement('Neutral')).toBe(false);
-    expect(unlockManager.isElementUnlocked('Wind')).toBe(false);
     expect(unlockManager.isElementUnlocked('Undead')).toBe(false);
     expect(unlockManager.isElementUnlocked('Neutral')).toBe(false);
   });
@@ -257,17 +255,15 @@ describe('UnlockManager & Boss Elemental Progression (TDD Red -> Green)', () => 
     expect(unlockManager.isElementUnlocked('Storm')).toBe(true);
   });
 
-  it('should unlock Tier 3 elements (Void, Time, Love, Death, Chaos, Life) when defeating Round 15 Final Boss without Wind', () => {
+  it('should unlock Tier 3 elements (Void, Time, Love, Death, Chaos, Life) when defeating Round 15 Final Boss', () => {
     const unlocked = unlockManager.checkBossDefeatUnlocks(15);
     expect(unlocked).toContain('Void');
     expect(unlocked).toContain('Time');
     expect(unlocked).toContain('Love');
     expect(unlocked).toContain('Death');
     expect(unlocked).toContain('Chaos');
-    expect(unlocked).not.toContain('Wind');
     expect(unlockManager.isElementUnlocked('Void')).toBe(true);
     expect(unlockManager.isElementUnlocked('Time')).toBe(true);
-    expect(unlockManager.isElementUnlocked('Wind')).toBe(false);
   });
 
   it('should not unlock elements on non-boss rounds or if already unlocked', () => {

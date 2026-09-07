@@ -47,6 +47,20 @@ export class Grid {
     }
   }
 
+  public clearWalls(): number {
+    let count = 0;
+    for (let x = 0; x < this.size; x++) {
+      for (let y = 0; y < this.size; y++) {
+        if (this.tiles[x][y].isObstacle) {
+          this.tiles[x][y].isObstacle = false;
+          this.tiles[x][y].obstacleIcon = undefined;
+          count++;
+        }
+      }
+    }
+    return count;
+  }
+
   public isWalkable(coord: GridCoord): boolean {
     const tile = this.getTile(coord);
     return tile !== null && !tile.isObstacle;

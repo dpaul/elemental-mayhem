@@ -570,6 +570,7 @@ export const HERO_CLASSES: Record<ElementType, HeroClassConfig> = {
     tagline: 'Slice with aerodynamic velocity and blow away battlefield hazards.',
     description: 'High AP efficiency, ranged gale slices, and ability to fan flames into raging firestorms.',
     category: 'Primal',
+    isStarter: true,
     abilities: [
       {
         id: 'wind_cutter',
@@ -8459,13 +8460,11 @@ export const HERO_CLASSES: Record<ElementType, HeroClassConfig> = {
         apCost: 1,
         cooldown: 0,
         currentCooldown: 0,
-        range: 5,
-        aoeRadius: 2,
+        range: 9,
+        aoeRadius: 3,
         targeting: 'AnyTile',
         baseDamage: 0,
-        createsHazard: 'MudWall',
-        hazardDuration: 4,
-        description: 'Rouses an army of barricades and minions across the arena.',
+        description: 'Admin Power: Shatters and clears ALL walls and obstacles across the battlefield, and resurrects a mighty allied undead legion!',
         level: 1,
       },
       {

@@ -662,6 +662,60 @@ export class CombatEngine {
     return zombie;
   }
 
+  public executeMassResurrection(
+    caster?: Unit,
+    targetCoord?: GridCoord
+  ): { clearedWalls: number; resurrectedCount: number } {
+    const actor = caster || this.hero;
+
+    // 1. Clear all walls and obstacles from the battlefield grid
+    const clearedWalls = this.grid.clearWalls();
+
+    // 2. Revive hero or coop hero if dead
+    if (this.hero.isDead) {
+      this.hero.isDead = false;
+      this.hero.stats.currentHp = this.hero.stats.maxHp;
+    }
+    if (this.coopHero && this.coopHero.isDead) {
+      this.coopHero.isDead = false;
+      this.coopHero.stats.currentHp = this.coopHero.stats.maxHp;
+    }
+
+    // 3. Resurrect/summon a formation of allied undead minions across the board
+    const center = targetCoord || actor.coord;
+    const candidates: GridCoord[] = [];
+    for (let dx = -3; dx <= 3; dx++) {
+      for (let dy = -3; dy <= 3; dy++) {
+        const c = { x: center.x + dx, y: center.y + dy };
+        if (
+          this.grid.isInBounds(c) &&
+          !this.grid.getTile(c)?.isObstacle &&
+          this.getUnitAt(c) === null
+        ) {
+          candidates.push(c);
+        }
+      }
+    }
+    // Sort by proximity to center
+    candidates.sort(
+      (a, b) => this.grid.manhattanDistance(center, a) - this.grid.manhattanDistance(center, b)
+    );
+
+    const spawnCount = Math.min(6, candidates.length);
+    const classes: ZombieClass[] = ['Walker', 'Wizard', 'DeathKnight', 'Brute', 'Runner', 'Electro'];
+    for (let i = 0; i < spawnCount; i++) {
+      const zClass = classes[i % classes.length];
+      this.spawnZombie(candidates[i], 80, 4, actor.faction, zClass, true);
+    }
+
+    this.addLog(
+      'system',
+      `👑 ADMIN POWER: Mass Resurrection shattered & cleared ${clearedWalls} walls, and raised ${spawnCount} Reanimated Legionnaires!`
+    );
+
+    return { clearedWalls, resurrectedCount: spawnCount };
+  }
+
   public spawnLifeBeing(coord: GridCoord, faction: UnitFaction = 'Player'): Unit {
     const being: Unit = {
       id: `lifebeing_${Date.now()}_${Math.random()}`,
@@ -862,11 +916,17 @@ export class CombatEngine {
     if (caster.stats.currentAp < ability.apCost) return { success: false, message: 'Not enough AP.' };
     if (ability.currentCooldown > 0) return { success: false, message: 'Ability on cooldown.' };
 
-    const dist = this.grid.manhattanDistance(caster.coord, targetCoord);
-    if (dist > ability.range && ability.targeting !== 'Self') return { success: false, message: 'Target out of range.' };
+    const isMassRes =
+      ability.id === 'admin_mass_resurrection' ||
+      ability.name.toLowerCase() === 'mass resurrection';
 
-    if (ability.targeting !== 'Self' && !this.grid.hasLineOfSight(caster.coord, targetCoord)) {
-      return { success: false, message: 'Line of sight blocked by obstacle.' };
+    if (!isMassRes) {
+      const dist = this.grid.manhattanDistance(caster.coord, targetCoord);
+      if (dist > ability.range && ability.targeting !== 'Self') return { success: false, message: 'Target out of range.' };
+
+      if (ability.targeting !== 'Self' && !this.grid.hasLineOfSight(caster.coord, targetCoord)) {
+        return { success: false, message: 'Line of sight blocked by obstacle.' };
+      }
     }
 
     // Deduct AP and set cooldown
@@ -877,6 +937,15 @@ export class CombatEngine {
       caster.faction === 'Player' ? 'player' : 'enemy',
       `${caster.name} casts ${ability.name} (${ability.element})!`
     );
+
+    // 0. Special Ability: Mass Resurrection (Admin Power: Clears all walls & raises allied minions)
+    if (
+      ability.id === 'admin_mass_resurrection' ||
+      ability.name.toLowerCase() === 'mass resurrection'
+    ) {
+      this.executeMassResurrection(caster, targetCoord);
+      return { success: true };
+    }
 
     // 1. Special Ability: Raise Undead Horde (raises 4 zombies in adjacent free tiles)
     if (ability.id === 'raise_undead_horde') {

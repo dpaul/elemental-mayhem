@@ -2597,6 +2597,15 @@ export class GameApp {
       this.checkCombatState();
     });
 
+    document.getElementById('admin-btn-mass-resurrection')?.addEventListener('click', () => {
+      if (!this.adminManager.canUseAdminCommands(this.isHotseatMode, this.hotseatCurrentPlayer)) {
+        this.openAdminPanel();
+        return;
+      }
+      this.invokeAdminMassResurrection();
+      this.closeAdminPanel();
+    });
+
     document.getElementById('admin-btn-spawn-zombies')?.addEventListener('click', () => {
       if (!this.adminManager.canUseAdminCommands(this.isHotseatMode, this.hotseatCurrentPlayer)) {
         this.openAdminPanel();
@@ -4437,6 +4446,19 @@ export class GameApp {
       return { success: true, message: 'All hazards cleansed!' };
     }
 
+    // 6b. Mass Resurrection (Clears all walls & resurrects undead legion)
+    if (
+      cmd === 'mass resurrection' ||
+      cmd === 'resurrection' ||
+      cmd === 'mass resurrect' ||
+      cmd === 'resurrect' ||
+      cmd === 'revive' ||
+      cmd === 'revive all' ||
+      cmd === 'clear walls'
+    ) {
+      return this.invokeAdminMassResurrection();
+    }
+
     // 7. Sandbox
     if (cmd === 'sandbox' || cmd === 'enter sandbox') {
       this.closeAdminPanel();
@@ -5726,6 +5748,32 @@ export class GameApp {
     }
   }
 
+  public invokeAdminMassResurrection(): { success: boolean; message: string } {
+    const result = this.combatEngine.executeMassResurrection(this.hero, this.hero.coord);
+    this.updateReachableTiles();
+    this.updateHUD();
+    this.soundEngine.playLevelUp();
+    const screenPos = this.renderer.gridToScreen(this.hero.coord);
+    this.renderer.particleEngine.addFloatingText(
+      '👑 MASS RESURRECTION!',
+      screenPos.x,
+      screenPos.y - 40,
+      '#c084fc',
+      22
+    );
+    this.renderer.particleEngine.addFloatingText(
+      `🧹 Cleared ${result.clearedWalls} Walls!`,
+      screenPos.x,
+      screenPos.y - 15,
+      '#6ee7b7',
+      18
+    );
+    return {
+      success: true,
+      message: `Mass Resurrection invoked! Cleared ${result.clearedWalls} walls and summoned ${result.resurrectedCount} allied legionnaires!`,
+    };
+  }
+
   public clearAllWalls(): void {
     let count = 0;
     for (let x = 0; x < this.grid.size; x++) {
@@ -5952,4 +6000,5 @@ window.addEventListener('DOMContentLoaded', () => {
   (window as any).goToLastLevel = (round?: number) => game.goToLastLevel(round ?? 15, true);
   (window as any).executeAdminCommand = (cmd: string) => game.executeAdminCommand(cmd);
   (window as any).adminCommand = (cmd: string) => game.executeAdminCommand(cmd);
+  (window as any).massResurrection = () => game.invokeAdminMassResurrection();
 });

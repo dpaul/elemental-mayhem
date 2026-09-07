@@ -79,3 +79,65 @@ describe('Last Level Encounter (Round 15 Boss)', () => {
     expect(voidArchon?.stats.maxHp).toBeGreaterThanOrEqual(400);
   });
 });
+
+import { Grid } from '../engine/Grid';
+import { TileHazardManager } from '../engine/TileHazardManager';
+import { CombatEngine } from '../engine/CombatEngine';
+import { createHeroForElement, HERO_CLASSES } from '../constants/classes';
+
+describe('Admin Mass Resurrection Power', () => {
+  let grid: Grid;
+  let hazardManager: TileHazardManager;
+  let combatEngine: CombatEngine;
+
+  beforeEach(() => {
+    grid = new Grid(10);
+    hazardManager = new TileHazardManager(grid);
+    const hero = createHeroForElement('Admin');
+    combatEngine = new CombatEngine(grid, hazardManager, hero, []);
+  });
+
+  it('should clear all walls and obstacles from the battlefield when Mass Resurrection is executed', () => {
+    // Place walls across the arena
+    grid.setObstacle({ x: 3, y: 3 }, true);
+    grid.setObstacle({ x: 4, y: 4 }, true);
+    grid.setObstacle({ x: 5, y: 5 }, true);
+    grid.setObstacle({ x: 6, y: 6 }, true);
+
+    expect(grid.getTile({ x: 3, y: 3 })?.isObstacle).toBe(true);
+    expect(grid.getTile({ x: 4, y: 4 })?.isObstacle).toBe(true);
+
+    const result = combatEngine.executeMassResurrection();
+    expect(result.clearedWalls).toBe(4);
+    expect(result.resurrectedCount).toBeGreaterThan(0);
+
+    // All walls must be gone
+    expect(grid.getTile({ x: 3, y: 3 })?.isObstacle).toBe(false);
+    expect(grid.getTile({ x: 4, y: 4 })?.isObstacle).toBe(false);
+    expect(grid.getTile({ x: 5, y: 5 })?.isObstacle).toBe(false);
+    expect(grid.getTile({ x: 6, y: 6 })?.isObstacle).toBe(false);
+
+    // Allied minions must be raised
+    expect(combatEngine.zombies.length).toBeGreaterThan(0);
+    expect(combatEngine.zombies[0].faction).toBe('Player');
+  });
+
+  it('should clear walls and NOT create MudWall when casting admin_mass_resurrection ability', () => {
+    grid.setObstacle({ x: 2, y: 2 }, true);
+    grid.setObstacle({ x: 7, y: 7 }, true);
+
+    const massResAbility = HERO_CLASSES.Admin.abilities.find((a) => a.id === 'admin_mass_resurrection');
+    expect(massResAbility).toBeDefined();
+    expect(massResAbility?.createsHazard).toBeUndefined();
+
+    const castRes = combatEngine.executeAbility(combatEngine.hero, massResAbility!, { x: 5, y: 5 });
+    expect(castRes.success).toBe(true);
+
+    // Walls cleared
+    expect(grid.getTile({ x: 2, y: 2 })?.isObstacle).toBe(false);
+    expect(grid.getTile({ x: 7, y: 7 })?.isObstacle).toBe(false);
+    // MudWall was NOT created
+    expect(grid.getTile({ x: 5, y: 5 })?.hazard.type).not.toBe('MudWall');
+  });
+});
+
