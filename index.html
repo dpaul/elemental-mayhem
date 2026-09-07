@@ -138,8 +138,8 @@
         <button class="element-chip" data-element="Admin">👑 Admin</button>
       </div>
 
-      <!-- Expandable Arena Builder & Placement Menu -->
-      <div id="sandbox-placement-panel" class="sandbox-placement-panel">
+      <!-- Expandable Arena Builder & Placement Menu (Collapsed by default so battlefield is fully visible) -->
+      <div id="sandbox-placement-panel" class="sandbox-placement-panel collapsed">
         <div class="placement-panel-header">
           <div class="placement-header-left">
             <span class="panel-icon">🏗️</span>
@@ -185,6 +185,47 @@
     <main class="battlefield-layout">
       <!-- Battlefield Area -->
       <section class="canvas-wrapper glass-card">
+        <!-- Floating Board Placement Bar (Visible in Sandbox Mode) -->
+        <div id="sandbox-board-placement-bar" class="sandbox-board-placement-bar hidden">
+          <div class="board-placement-label">
+            <span class="pulse-dot"></span>
+            <span>👾 Place Enemy on Board:</span>
+          </div>
+          <select id="sandbox-quick-enemy-select" class="sandbox-select" title="Choose which enemy to drop on the board">
+            <!-- Dynamically populated with all enemies -->
+          </select>
+          <button id="sandbox-board-place-enemy-btn" class="sandbox-btn btn-action active-toggle" title="Click anywhere on the battlefield board to place this enemy!">
+            🎯 Click Board to Place
+          </button>
+          <button id="sandbox-board-quick-wall-btn" class="sandbox-btn" title="Place Rock Wall">🪨 Wall</button>
+          <button id="sandbox-board-quick-lava-btn" class="sandbox-btn" title="Place Lava Pool">🌋 Lava</button>
+          <button id="sandbox-board-quick-eraser-btn" class="sandbox-btn" title="Erase tile">🧹 Eraser</button>
+          <button id="sandbox-board-open-palette-btn" class="sandbox-btn" title="Open Full Palette of 40+ Entities">📋 Full Palette</button>
+          <span class="board-hint">💡 Right-click any tile for instant spawn</span>
+        </div>
+
+        <!-- Custom Context Menu for Right-Click on Board -->
+        <div id="sandbox-board-context-menu" class="sandbox-context-menu hidden">
+          <div class="context-menu-header" id="context-menu-header">👾 Spawn on Board (x, y)</div>
+          <div class="context-menu-section">
+            <div class="context-section-title">Spawn Enemy</div>
+            <div class="context-menu-items" id="context-enemy-items">
+              <!-- Dynamically populated with fast enemy options -->
+            </div>
+          </div>
+          <div class="context-menu-divider"></div>
+          <div class="context-menu-section">
+            <div class="context-section-title">Quick Obstacles & Actions</div>
+            <div class="context-menu-items" id="context-quick-items">
+              <button class="context-item" data-action="wall-rock">🪨 Rock Wall</button>
+              <button class="context-item" data-action="wall-crystal">💎 Crystal Barrier</button>
+              <button class="context-item" data-action="hazard-lava">🌋 Lava Pool</button>
+              <button class="context-item" data-action="hazard-shock">⚡ Shock Puddle</button>
+              <button class="context-item item-danger" data-action="clear-tile">🧹 Clear Tile</button>
+            </div>
+          </div>
+        </div>
+
         <canvas id="battlefield-canvas" width="800" height="800"></canvas>
         <div id="combat-floating-text" class="floating-text-container"></div>
       </section>

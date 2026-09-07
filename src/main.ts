@@ -230,6 +230,11 @@ export class GameApp {
   private sandboxActiveBrushBar: HTMLElement | null = null;
   private activeBrushBadge: HTMLElement | null = null;
   private placementGrid: HTMLElement | null = null;
+  private sandboxBoardPlacementBar: HTMLElement | null = null;
+  private sandboxQuickEnemySelect: HTMLSelectElement | null = null;
+  private sandboxBoardPlaceEnemyBtn: HTMLButtonElement | null = null;
+  private sandboxContextMenu: HTMLElement | null = null;
+  private contextMenuCoord: GridCoord | null = null;
 
   // Online Co-op Mode
   private networkManager: NetworkManager;
@@ -414,6 +419,10 @@ export class GameApp {
     this.sandboxActiveBrushBar = document.getElementById('sandbox-active-brush-bar');
     this.activeBrushBadge = document.getElementById('active-brush-badge');
     this.placementGrid = document.getElementById('placement-items-grid');
+    this.sandboxBoardPlacementBar = document.getElementById('sandbox-board-placement-bar');
+    this.sandboxQuickEnemySelect = document.getElementById('sandbox-quick-enemy-select') as HTMLSelectElement | null;
+    this.sandboxBoardPlaceEnemyBtn = document.getElementById('sandbox-board-place-enemy-btn') as HTMLButtonElement | null;
+    this.sandboxContextMenu = document.getElementById('sandbox-board-context-menu');
     this.initSandboxUI();
 
     this.hero = this.createHero(this.selectedElement);
@@ -2947,8 +2956,25 @@ export class GameApp {
       this.lastPlacedCoord = null;
     });
 
+    canvas.addEventListener('contextmenu', (e) => {
+      if (!this.isSandboxMode) return;
+      e.preventDefault();
+      const gridCoord = this.renderer.screenToGrid(e.clientX, e.clientY);
+      if (!gridCoord) return;
+
+      this.openSandboxContextMenu(e.clientX, e.clientY, gridCoord);
+    });
+
+    window.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      if (this.sandboxContextMenu && !this.sandboxContextMenu.contains(target)) {
+        this.hideSandboxContextMenu();
+      }
+    });
+
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
+        this.hideSandboxContextMenu();
         if (this.activePlacementItem) {
           this.deselectPlacementBrush();
         }
@@ -2957,6 +2983,7 @@ export class GameApp {
 
     canvas.addEventListener('click', async (e) => {
       if (this.isBusy) return;
+      this.hideSandboxContextMenu();
       const gridCoord = this.renderer.screenToGrid(e.clientX, e.clientY);
       if (!gridCoord) return;
 
@@ -4903,19 +4930,27 @@ export class GameApp {
     // Default filter to selected element
     this.hud.setElementFilter(initialElement);
 
-    // Initialize placement palette
-    this.deselectPlacementBrush();
-    this.sandboxPlacementPanel?.classList.remove('collapsed');
+    // Initialize placement palette and board placement bar
+    this.sandboxPlacementPanel?.classList.add('collapsed');
+    this.sandboxBoardPlacementBar?.classList.remove('hidden');
     this.renderPlacementGrid();
+
+    // Default to Water Dummy for instant board placement
+    const defaultEnemy = this.placementManager.getItemById('dummy_water');
+    if (defaultEnemy) {
+      this.selectPlacementBrush(defaultEnemy);
+    }
 
     this.combatEngine.addLog(
       'system',
-      '🧪 Welcome to the Elemental Sandbox! All 50 elements, 500+ abilities, and the Arena Placement Menu are ready.'
+      '🧪 Welcome to the Elemental Sandbox! Click anywhere on the board to place enemies, or right-click any tile for instant spawn.'
     );
   }
 
   public exitSandboxMode(): void {
     this.deselectPlacementBrush();
+    this.hideSandboxContextMenu();
+    this.sandboxBoardPlacementBar?.classList.add('hidden');
     this.isSandboxMode = false;
     this.sandboxToolbar?.classList.add('hidden');
     this.showHomeScreen();
@@ -5334,6 +5369,65 @@ export class GameApp {
       this.clearAllEnemies();
     });
 
+    // Populate Quick Enemy Select on Board Toolbar
+    if (this.sandboxQuickEnemySelect) {
+      this.sandboxQuickEnemySelect.innerHTML = '';
+      const enemies = this.placementManager.getItemsByCategory('enemy');
+      enemies.forEach((enemy) => {
+        const opt = document.createElement('option');
+        opt.value = enemy.id;
+        opt.textContent = `${enemy.icon} ${enemy.name} (${enemy.hp ? enemy.hp + ' HP' : enemy.element || ''})`;
+        this.sandboxQuickEnemySelect!.appendChild(opt);
+      });
+      this.sandboxQuickEnemySelect.value = 'dummy_water';
+
+      this.sandboxQuickEnemySelect.addEventListener('change', () => {
+        const item = this.placementManager.getItemById(this.sandboxQuickEnemySelect!.value);
+        if (item) {
+          this.selectPlacementBrush(item);
+        }
+      });
+    }
+
+    // Board Place Enemy Toggle Button
+    this.sandboxBoardPlaceEnemyBtn?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      const selectedId = this.sandboxQuickEnemySelect?.value || 'dummy_water';
+      const item = this.placementManager.getItemById(selectedId);
+      if (this.activePlacementItem && this.activePlacementItem.id === selectedId) {
+        this.deselectPlacementBrush();
+      } else if (item) {
+        this.selectPlacementBrush(item);
+      }
+    });
+
+    // Board Toolbar Quick Shortcuts
+    document.getElementById('sandbox-board-quick-wall-btn')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      const wall = this.placementManager.getItemById('wall_rock');
+      if (wall) this.selectPlacementBrush(wall);
+    });
+
+    document.getElementById('sandbox-board-quick-lava-btn')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      const lava = this.placementManager.getItemById('hazard_lava');
+      if (lava) this.selectPlacementBrush(lava);
+    });
+
+    document.getElementById('sandbox-board-quick-eraser-btn')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      const eraser = this.placementManager.getItemById('tool_eraser');
+      if (eraser) this.selectPlacementBrush(eraser);
+    });
+
+    document.getElementById('sandbox-board-open-palette-btn')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      this.sandboxPlacementPanel?.classList.toggle('collapsed');
+    });
+
+    // Initialize Canvas Context Menu Items
+    this.initContextMenuItems();
+
     this.renderPlacementGrid();
 
     // Exit Button
@@ -5341,6 +5435,142 @@ export class GameApp {
       this.soundEngine.playClick();
       this.exitSandboxMode();
     });
+  }
+
+  private initContextMenuItems(): void {
+    const enemyContainer = document.getElementById('context-enemy-items');
+    if (!enemyContainer) return;
+    enemyContainer.innerHTML = '';
+
+    const quickEnemyIds = [
+      'dummy_water',
+      'dummy_fire',
+      'dummy_lightning',
+      'enemy_toxic_mire_adept',
+      'enemy_pyroclast_sorcerer',
+      'enemy_frost_archer',
+      'undead_wizard',
+      'undead_death_knight',
+      'boss_void_archon',
+      'boss_titan_golem',
+    ];
+
+    quickEnemyIds.forEach((id) => {
+      const item = this.placementManager.getItemById(id);
+      if (!item) return;
+
+      const btn = document.createElement('button');
+      btn.className = 'context-item';
+      btn.innerHTML = `<span>${item.icon}</span> <span>${item.name}</span>`;
+      btn.addEventListener('click', () => {
+        if (this.contextMenuCoord) {
+          const res = this.placementManager.executePlacement(
+            item,
+            this.contextMenuCoord,
+            this.grid,
+            this.hazardManager,
+            this.combatEngine
+          );
+          if (res.success) {
+            const screenPos = this.renderer.gridToScreen(this.contextMenuCoord);
+            this.soundEngine.playZombieSpawn();
+            this.renderer.particleEngine.addFloatingText(
+              `+${item.name}`,
+              screenPos.x,
+              screenPos.y - 20,
+              item.color || '#34d399',
+              20
+            );
+            this.renderer.particleEngine.emit(screenPos.x, screenPos.y, item.color || '#34d399', 12, 2.0, 'spark');
+            this.combatEngine.addLog('system', `🔨 Spawned ${item.name} at (${this.contextMenuCoord.x}, ${this.contextMenuCoord.y})`);
+            this.updateReachableTiles();
+            this.updateHUD();
+          }
+        }
+        this.hideSandboxContextMenu();
+      });
+      enemyContainer.appendChild(btn);
+    });
+
+    // More Enemies option
+    const moreBtn = document.createElement('button');
+    moreBtn.className = 'context-item';
+    moreBtn.style.color = '#c084fc';
+    moreBtn.innerHTML = `<span>📋</span> <span>All 35+ Enemies...</span>`;
+    moreBtn.addEventListener('click', () => {
+      this.hideSandboxContextMenu();
+      this.placementCategory = 'enemy';
+      this.sandboxPlacementPanel?.classList.remove('collapsed');
+      this.renderPlacementGrid();
+    });
+    enemyContainer.appendChild(moreBtn);
+
+    // Quick objects in context menu
+    document.querySelectorAll('#context-quick-items .context-item').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const action = btn.getAttribute('data-action');
+        if (!this.contextMenuCoord) return;
+
+        let item: PlacementItem | undefined;
+        if (action === 'wall-rock') item = this.placementManager.getItemById('wall_rock');
+        else if (action === 'wall-crystal') item = this.placementManager.getItemById('wall_crystal');
+        else if (action === 'hazard-lava') item = this.placementManager.getItemById('hazard_lava');
+        else if (action === 'hazard-shock') item = this.placementManager.getItemById('hazard_electrified');
+        else if (action === 'clear-tile') item = this.placementManager.getItemById('tool_eraser');
+
+        if (item) {
+          const res = this.placementManager.executePlacement(
+            item,
+            this.contextMenuCoord,
+            this.grid,
+            this.hazardManager,
+            this.combatEngine
+          );
+          if (res.success) {
+            const screenPos = this.renderer.gridToScreen(this.contextMenuCoord);
+            this.soundEngine.playHit();
+            this.renderer.particleEngine.addFloatingText(
+              `+${item.name}`,
+              screenPos.x,
+              screenPos.y - 15,
+              item.color || '#94a3b8',
+              18
+            );
+            this.combatEngine.addLog('system', `🔨 ${res.message}`);
+            this.updateReachableTiles();
+            this.updateHUD();
+          }
+        }
+        this.hideSandboxContextMenu();
+      });
+    });
+  }
+
+  public openSandboxContextMenu(clientX: number, clientY: number, coord: GridCoord): void {
+    if (!this.sandboxContextMenu) return;
+    this.contextMenuCoord = coord;
+
+    const header = document.getElementById('context-menu-header');
+    if (header) {
+      header.textContent = `👾 Spawn at (${coord.x}, ${coord.y})`;
+    }
+
+    this.sandboxContextMenu.classList.remove('hidden');
+
+    const rect = this.sandboxContextMenu.getBoundingClientRect();
+    const maxX = window.innerWidth - (rect.width || 240) - 10;
+    const maxY = window.innerHeight - (rect.height || 300) - 10;
+    const posX = Math.min(clientX, maxX);
+    const posY = Math.min(clientY, maxY);
+
+    this.sandboxContextMenu.style.left = `${posX}px`;
+    this.sandboxContextMenu.style.top = `${posY}px`;
+  }
+
+  public hideSandboxContextMenu(): void {
+    if (this.sandboxContextMenu) {
+      this.sandboxContextMenu.classList.add('hidden');
+    }
   }
 
   public selectPlacementBrush(item: PlacementItem): void {
@@ -5351,6 +5581,13 @@ export class GameApp {
     if (this.activeBrushBadge) {
       this.activeBrushBadge.innerHTML = `${item.icon} ${item.name}`;
       this.activeBrushBadge.style.borderColor = item.color || '#c084fc';
+    }
+    if (this.sandboxBoardPlaceEnemyBtn) {
+      this.sandboxBoardPlaceEnemyBtn.classList.add('active');
+      this.sandboxBoardPlaceEnemyBtn.textContent = `🎯 Placing: ${item.name} (Click Board)`;
+    }
+    if (this.sandboxQuickEnemySelect && item.category === 'enemy') {
+      this.sandboxQuickEnemySelect.value = item.id;
     }
     document.querySelectorAll('.placement-card').forEach((card) => {
       card.classList.toggle('active-brush', card.querySelector('.placement-card-title')?.textContent === item.name);
@@ -5363,6 +5600,10 @@ export class GameApp {
     this.renderer.activePlacementPreview = null;
     if (this.sandboxActiveBrushBar) {
       this.sandboxActiveBrushBar.classList.add('hidden');
+    }
+    if (this.sandboxBoardPlaceEnemyBtn) {
+      this.sandboxBoardPlaceEnemyBtn.classList.remove('active');
+      this.sandboxBoardPlaceEnemyBtn.textContent = '🎯 Click Board to Place';
     }
     document.querySelectorAll('.placement-card').forEach((card) => {
       card.classList.remove('active-brush');
