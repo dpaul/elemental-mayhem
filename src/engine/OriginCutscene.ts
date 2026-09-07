@@ -100,6 +100,7 @@ export class OriginCutsceneManager {
   // Callbacks
   public onEnterArena?: () => void;
   public onOpenSandbox?: () => void;
+  public onWarpToVoidOverlord?: () => void;
   public onClose?: () => void;
 
   constructor(soundEngine: SoundEngine) {
@@ -216,6 +217,12 @@ export class OriginCutsceneManager {
       this.soundEngine.playClick();
       this.close();
       if (this.onOpenSandbox) this.onOpenSandbox();
+    });
+
+    document.getElementById('cutscene-btn-warp-overlord')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      this.close();
+      if (this.onWarpToVoidOverlord) this.onWarpToVoidOverlord();
     });
 
     document.getElementById('cutscene-btn-replay')?.addEventListener('click', () => {

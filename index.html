@@ -765,10 +765,10 @@
           <div class="admin-command-bar" style="margin: 14px 0; padding: 12px 16px; background: rgba(15, 23, 42, 0.85); border: 1px solid #f59e0b; border-radius: 10px; display: flex; flex-direction: column; gap: 8px;">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
               <span style="font-size: 0.85rem; font-weight: 700; color: #fde68a;">⚡ Admin Command Console:</span>
-              <span style="font-size: 0.74rem; color: #94a3b8;">Type <code style="color: #67e8f9;">go to last level</code>, <code style="color: #67e8f9;">last</code>, <code style="color: #67e8f9;">round 15</code>, <code style="color: #67e8f9;">smite</code>, <code style="color: #67e8f9;">heal</code></span>
+              <span style="font-size: 0.74rem; color: #94a3b8;">Type <code style="color: #c084fc; font-weight: 700;">round 1000</code>, <code style="color: #c084fc; font-weight: 700;">void overlord</code>, <code style="color: #67e8f9;">go to last level</code>, <code style="color: #67e8f9;">smite</code>, <code style="color: #67e8f9;">heal</code></span>
             </div>
             <form id="admin-command-form" style="display: flex; gap: 10px;">
-              <input type="text" id="admin-command-input" placeholder="Enter command (e.g. 'go to last level', 'last level', 'level 15')..." style="flex: 1; padding: 10px 14px; background: rgba(10, 15, 26, 0.95); border: 1px solid rgba(251, 191, 36, 0.4); border-radius: 8px; color: #ffffff; font-size: 0.92rem; font-family: var(--font-mono); outline: none;" autocomplete="off" />
+              <input type="text" id="admin-command-input" placeholder="Enter command (e.g. 'round 1000', 'void overlord', 'go to last level')..." style="flex: 1; padding: 10px 14px; background: rgba(10, 15, 26, 0.95); border: 1px solid rgba(251, 191, 36, 0.4); border-radius: 8px; color: #ffffff; font-size: 0.92rem; font-family: var(--font-mono); outline: none;" autocomplete="off" />
               <button type="submit" id="admin-command-exec-btn" class="btn-primary" style="background: linear-gradient(135deg, #f59e0b, #ef4444); border: 1px solid #fde68a; font-weight: 800; padding: 10px 20px; border-radius: 8px; cursor: pointer;">Execute ⚡</button>
             </form>
             <div id="admin-command-feedback" style="font-size: 0.82rem; min-height: 18px; color: #86efac; font-weight: 600;"></div>
@@ -869,6 +869,12 @@
             <button class="admin-power-btn" id="admin-btn-last-level" style="border-color: #f59e0b; background: rgba(245, 158, 11, 0.15);">
               <div class="admin-btn-header" style="color: #fbbf24;">👑 Go to Last Level (Round 15 Final Boss)</div>
               <div class="admin-btn-desc">Instantly teleports directly to the ultimate final encounter: Round 15: The Void Archon (Supreme Boss)!</div>
+            </button>
+
+            <!-- Power 8c: Go to Round 1000: The Void Overlord -->
+            <button class="admin-power-btn" id="admin-btn-void-overlord" style="border-color: #c084fc; background: rgba(192, 132, 252, 0.18); box-shadow: 0 0 20px rgba(192, 132, 252, 0.3);">
+              <div class="admin-btn-header" style="color: #e9d5ff;">👑😈 Round 1,000: The Void Overlord (Supreme Nemesis)</div>
+              <div class="admin-btn-desc">Warp directly to Round 1,000 to confront THE VOID OVERLORD and reclaim the stolen powers!</div>
             </button>
 
             <!-- Power 9: Mega Round Warp -->
@@ -1175,6 +1181,9 @@
             <p class="quest-desc">Conquer the 1000-round arena, defeat the Ultimate Boss, and take back the wizard's stolen magic!</p>
           </div>
           <div class="awakening-action-buttons">
+            <button id="cutscene-btn-warp-overlord" class="btn-hero-action" style="background: linear-gradient(135deg, #7c3aed, #db2777); border-color: #c084fc; box-shadow: 0 0 25px rgba(192,132,252,0.6);">
+              <span>😈</span> WARP TO ROUND 1000: VOID OVERLORD
+            </button>
             <button id="cutscene-btn-enter-arena" class="btn-hero-action" style="background: linear-gradient(135deg, #ec4899, #8b5cf6); border-color: #f472b6; box-shadow: 0 0 25px rgba(236,72,153,0.5);">
               <span>⚔️</span> ACCEPT MISSION: ENTER ARENA
             </button>

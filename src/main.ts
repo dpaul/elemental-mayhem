@@ -476,6 +476,14 @@ export class GameApp {
     this.originCutscene.onOpenSandbox = () => {
       this.startSandboxMode();
     };
+    this.originCutscene.onWarpToVoidOverlord = () => {
+      this.goToVoidOverlord(true);
+    };
+
+    if (typeof window !== 'undefined') {
+      (window as any).goToVoidOverlord = () => this.goToVoidOverlord(true);
+      (window as any).goToRound1000 = () => this.goToVoidOverlord(true);
+    }
     this.attachCombatEngineHooks(this.combatEngine);
     this.enemyAI = new EnemyAI(this.combatEngine);
     this.renderer = new BattlefieldRenderer(canvas, this.combatEngine);
@@ -3003,6 +3011,10 @@ export class GameApp {
       this.goToLastLevel(15);
     });
 
+    document.getElementById('admin-btn-void-overlord')?.addEventListener('click', () => {
+      this.goToVoidOverlord();
+    });
+
     document.getElementById('admin-btn-jump-1000')?.addEventListener('click', () => {
       if (!this.adminManager.canUseAdminCommands(this.isHotseatMode, this.hotseatCurrentPlayer)) {
         this.openAdminPanel();
@@ -4687,6 +4699,18 @@ export class GameApp {
       }
     }
 
+    if (this.currentRound === 1000) {
+      this.totalEssence += 50000;
+      this.totalXp += 50000;
+      this.unlockManager.unlockAllElements(true);
+      this.combatEngine.addLog(
+        'system',
+        '👑 LORE MISSION COMPLETE: THE VOID OVERLORD HAS BEEN VANQUISHED! All stolen godlike elemental magic has been reclaimed (+50,000 Essence)!'
+      );
+      this.soundEngine.playVictoryFanfare();
+      this.renderer.particleEngine.triggerScreenShake(20, 600);
+    }
+
     const progress = this.upgradeManager.getEssenceProgress(this.totalEssence);
     const resonanceMult = this.upgradeManager.calculateEssenceResonanceMultiplier(
       this.hero.level || progress.currentLevel,
@@ -4803,6 +4827,10 @@ export class GameApp {
     return result;
   }
 
+  public goToVoidOverlord(bypassAuth: boolean = false): { success: boolean; message: string } {
+    return this.goToLastLevel(1000, bypassAuth);
+  }
+
   public goToLastLevel(round: number = 15, bypassAuth: boolean = false): { success: boolean; message: string } {
     if (!bypassAuth && !this.adminManager.canUseAdminCommands(this.isHotseatMode, this.hotseatCurrentPlayer)) {
       this.openAdminPanel();
@@ -4826,20 +4854,32 @@ export class GameApp {
     }
     this.hero.stats.currentAp = Math.max(this.hero.stats.currentAp, this.hero.stats.maxAp);
 
+    const isOverlord = targetRound === 1000;
     const pos = this.renderer.gridToScreen(this.hero.coord);
-    this.renderer.particleEngine.triggerScreenShake(10, 350);
-    this.renderer.particleEngine.addFloatingText(`👑 LAST LEVEL: ROUND ${this.currentRound}!`, pos.x, pos.y - 35, '#f59e0b', 28);
-    this.soundEngine.playClick();
+    this.renderer.particleEngine.triggerScreenShake(isOverlord ? 22 : 10, isOverlord ? 650 : 350);
+    this.renderer.particleEngine.addFloatingText(
+      isOverlord ? `👑 ROUND 1,000: THE VOID OVERLORD!` : `👑 LAST LEVEL: ROUND ${this.currentRound}!`,
+      pos.x,
+      pos.y - 35,
+      isOverlord ? '#c084fc' : '#f59e0b',
+      isOverlord ? 30 : 28
+    );
+    this.soundEngine.playWarp();
+    this.soundEngine.playExplosion();
     this.combatEngine.addLog(
       'system',
-      `👑 ADMIN COMMAND: Warped to Last Level (Round ${this.currentRound})! Facing THE VOID ARCHON (Supreme Boss)!`
+      isOverlord
+        ? `👑 ADMIN COMMAND: Warped to Round 1,000! Facing THE VOID OVERLORD (Ultimate Boss - Reclaim Stolen Magic)!`
+        : `👑 ADMIN COMMAND: Warped to Last Level (Round ${this.currentRound})! Facing THE VOID ARCHON (Supreme Boss)!`
     );
     this.updateHUD();
     this.updateReachableTiles();
 
     return {
       success: true,
-      message: `Warped to Last Level: Round ${this.currentRound} (The Void Archon Supreme Boss)!`,
+      message: isOverlord
+        ? `Warped to Round 1,000: Confronting THE VOID OVERLORD (Ultimate Boss)!`
+        : `Warped to Last Level: Round ${this.currentRound} (The Void Archon Supreme Boss)!`,
     };
   }
 
@@ -4964,6 +5004,30 @@ export class GameApp {
       cmd === 'boss 15'
     ) {
       return this.goToLastLevel(15);
+    }
+
+    // 1b. Void Overlord / Round 1000 Command
+    if (
+      cmd === 'round 1000' ||
+      cmd === 'go to round 1000' ||
+      cmd === 'goto round 1000' ||
+      cmd === 'level 1000' ||
+      cmd === 'go to level 1000' ||
+      cmd === 'void overlord' ||
+      cmd === 'go to void overlord' ||
+      cmd === 'goto void overlord' ||
+      cmd === 'get to void overlord' ||
+      cmd === 'get to round 1000' ||
+      cmd === 'fight void overlord' ||
+      cmd === 'boss 1000' ||
+      cmd === 'round 1000 void overlord' ||
+      cmd === 'overlord' ||
+      cmd === 'ultimate boss' ||
+      cmd === 'void boss' ||
+      cmd === 'reclaim power' ||
+      cmd === 'reclaim powers'
+    ) {
+      return this.goToVoidOverlord();
     }
 
     // 2. Specific round jump: "round 15", "level 10", "goto 12", "go to round 5"

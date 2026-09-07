@@ -1796,6 +1796,156 @@ export class EscalationManager {
         });
         break;
 
+      case 1000:
+        // Round 1000: THE VOID OVERLORD (Ultimate Boss - Reclaim Stolen Magic)
+        enemies.push({
+          id: 'boss_void_overlord_r1000',
+          name: 'THE VOID OVERLORD (Ultimate Boss)',
+          faction: 'Enemy',
+          avatar: '😈🌌👑',
+          coord: { x: 8, y: 5 },
+          stats: {
+            maxHp: 25000,
+            currentHp: 25000,
+            maxAp: 8,
+            currentAp: 8,
+            moveCostPerTile: 1,
+            elementalAffinity: 'Void',
+          },
+          abilities: [
+            {
+              id: 'overlord_siphon_stolen_magic',
+              name: 'Siphon of Stolen Magic',
+              element: 'Void',
+              icon: '😈',
+              apCost: 2,
+              cooldown: 0,
+              currentCooldown: 0,
+              range: 6,
+              aoeRadius: 1,
+              targeting: 'SingleUnit',
+              baseDamage: 150,
+              appliesStatus: 'Burning',
+              statusDuration: 3,
+              createsHazard: 'VoidRift',
+              hazardDuration: 3,
+              description: 'Channels the stolen primal magic of the Grand Wizard into a devastating cosmic beam.',
+              level: 10,
+            },
+            {
+              id: 'overlord_singularity_crush',
+              name: 'Cosmic Singularity Crush',
+              element: 'Void',
+              icon: '🌌',
+              apCost: 3,
+              cooldown: 0,
+              currentCooldown: 0,
+              range: 5,
+              aoeRadius: 2,
+              targeting: 'SingleUnit',
+              baseDamage: 180,
+              createsHazard: 'VoidRift',
+              hazardDuration: 4,
+              description: 'Collapses spacetime around the hero with crushing void gravity.',
+              level: 10,
+            },
+            {
+              id: 'overlord_void_cataclysm',
+              name: 'Void Sovereign Cataclysm',
+              element: 'Void',
+              icon: '👑',
+              apCost: 3,
+              cooldown: 0,
+              currentCooldown: 0,
+              range: 7,
+              aoeRadius: 2,
+              targeting: 'SingleUnit',
+              baseDamage: 220,
+              description: 'The supreme reality-shattering finishing strike of the Void Overlord.',
+              level: 10,
+            },
+          ],
+          statusEffects: [],
+          isDead: false,
+          isBoss: true,
+        });
+
+        // Two Void Rift Colossi escorts
+        enemies.push({
+          id: 'enemy_r1000_escort_1',
+          name: 'Void Rift Colossus',
+          faction: 'Enemy',
+          avatar: '👹🌌',
+          coord: { x: 7, y: 2 },
+          stats: {
+            maxHp: 3500,
+            currentHp: 3500,
+            maxAp: 5,
+            currentAp: 5,
+            moveCostPerTile: 1,
+            elementalAffinity: 'Void',
+          },
+          abilities: [
+            {
+              id: 'colossus_rift_strike_1',
+              name: 'Dimensional Rift Cleave',
+              element: 'Void',
+              icon: '⚡',
+              apCost: 2,
+              cooldown: 0,
+              currentCooldown: 0,
+              range: 4,
+              aoeRadius: 0,
+              targeting: 'SingleUnit',
+              baseDamage: 85,
+              createsHazard: 'VoidRift',
+              hazardDuration: 2,
+              description: 'Cleaves reality open with dimensional energy.',
+              level: 8,
+            },
+          ],
+          statusEffects: [],
+          isDead: false,
+        });
+
+        enemies.push({
+          id: 'enemy_r1000_escort_2',
+          name: 'Void Rift Colossus',
+          faction: 'Enemy',
+          avatar: '👹🌌',
+          coord: { x: 7, y: 8 },
+          stats: {
+            maxHp: 3500,
+            currentHp: 3500,
+            maxAp: 5,
+            currentAp: 5,
+            moveCostPerTile: 1,
+            elementalAffinity: 'Void',
+          },
+          abilities: [
+            {
+              id: 'colossus_rift_strike_2',
+              name: 'Dimensional Rift Cleave',
+              element: 'Void',
+              icon: '⚡',
+              apCost: 2,
+              cooldown: 0,
+              currentCooldown: 0,
+              range: 4,
+              aoeRadius: 0,
+              targeting: 'SingleUnit',
+              baseDamage: 85,
+              createsHazard: 'VoidRift',
+              hazardDuration: 2,
+              description: 'Cleaves reality open with dimensional energy.',
+              level: 8,
+            },
+          ],
+          statusEffects: [],
+          isDead: false,
+        });
+        break;
+
       default:
         // Procedural generation for round > 15 up to 10000000000000000000000000000000000000000000000000 rounds
         const isBossRound = round % 5 === 0;

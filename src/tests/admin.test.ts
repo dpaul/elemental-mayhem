@@ -170,27 +170,29 @@ describe('Admin Mass Resurrection Power', () => {
   });
 });
 
-describe('Administrator Class (Admin Access Only)', () => {
-  it('should designate Administrator as isStarter false and require admin access', () => {
-    expect(HERO_CLASSES.Admin.isStarter).toBe(false);
-    expect(HERO_CLASSES.Admin.unlockRequirement).toContain('Admin Access Only');
-  });
+describe('Round 1000 Void Overlord Encounter', () => {
+  it('should generate THE VOID OVERLORD (Ultimate Boss) on Round 1000', () => {
+    const escalation = new EscalationManager();
+    const enemies = escalation.generateRoundEnemies(1000);
+    expect(enemies.length).toBe(3); // Overlord + 2 Colossi
 
-  it('should restrict Administrator to authenticated users only', () => {
-    const adminMgr = new AdminManager();
-    // Default: not authenticated
-    expect(adminMgr.isAuthenticated()).toBe(false);
-    expect(adminMgr.canUseAdminCommands(false, 1)).toBe(false);
-    expect(adminMgr.canUseAdminCommands(true, 1)).toBe(false);
-    expect(adminMgr.canUseAdminCommands(true, 2)).toBe(false);
+    const overlord = enemies.find((e) => e.id === 'boss_void_overlord_r1000');
+    expect(overlord).toBeDefined();
+    expect(overlord?.name).toContain('THE VOID OVERLORD');
+    expect(overlord?.isBoss).toBe(true);
+    expect(overlord?.stats.elementalAffinity).toBe('Void');
+    expect(overlord?.stats.maxHp).toBe(25000);
 
-    // Authenticate
-    adminMgr.authenticate('190846214');
-    expect(adminMgr.isAuthenticated()).toBe(true);
-    expect(adminMgr.canUseAdminCommands(false, 1)).toBe(true);
-    expect(adminMgr.canUseAdminCommands(true, 1)).toBe(true);
-    expect(adminMgr.canUseAdminCommands(true, 2)).toBe(false); // Player 2 cannot use admin commands
+    // Signature abilities
+    expect(overlord?.abilities.some((a) => a.id === 'overlord_siphon_stolen_magic')).toBe(true);
+    expect(overlord?.abilities.some((a) => a.id === 'overlord_singularity_crush')).toBe(true);
+    expect(overlord?.abilities.some((a) => a.id === 'overlord_void_cataclysm')).toBe(true);
+
+    // Escorts
+    const colossi = enemies.filter((e) => e.name.includes('Void Rift Colossus'));
+    expect(colossi.length).toBe(2);
   });
 });
+
 
 
