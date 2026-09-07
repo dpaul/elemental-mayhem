@@ -15,6 +15,7 @@ import { HUDManager } from './ui/HUDManager';
 import { SoundEngine } from './audio/SoundEngine';
 import { SaveManager, GameSaveData, SavedHazardTile } from './engine/SaveManager';
 import { PlacementManager } from './engine/PlacementManager';
+import { OriginCutsceneManager } from './engine/OriginCutscene';
 import { ElementType, Unit, Ability, GridCoord, ZombieClass, TileHazardType, PlacementItem, PlacementCategory } from './types';
 import { CORE_ELEMENTS } from './constants/elements';
 import { HERO_CLASSES, createHeroForElement, createSandboxHero, registerAdminAbility, createAdminPower, onAdminAbilityRegistered, populateAdminAbilities, auditAndPromoteOverpoweredAbilities, isOverpoweredAbility } from './constants/classes';
@@ -238,6 +239,7 @@ export class GameApp {
 
   // Online Co-op Mode
   private networkManager: NetworkManager;
+  public originCutscene: OriginCutsceneManager;
   private isCoopMode: boolean = false;
   private coopLocalPlayer: 1 | 2 = 1;
   private coopP1Element: ElementType = 'Fire';
@@ -464,6 +466,16 @@ export class GameApp {
 
     this.combatEngine = new CombatEngine(this.grid, this.hazardManager, this.hero, this.enemies);
     this.soundEngine = new SoundEngine();
+    this.originCutscene = new OriginCutsceneManager(this.soundEngine);
+    this.originCutscene.initDOM();
+    this.originCutscene.onEnterArena = () => {
+      this.hideHomeScreen();
+      this.renderCharacterSelectModal();
+      this.characterSelectModal.classList.remove('hidden');
+    };
+    this.originCutscene.onOpenSandbox = () => {
+      this.startSandboxMode();
+    };
     this.attachCombatEngineHooks(this.combatEngine);
     this.enemyAI = new EnemyAI(this.combatEngine);
     this.renderer = new BattlefieldRenderer(canvas, this.combatEngine);
@@ -2500,6 +2512,16 @@ export class GameApp {
       });
     }
 
+    document.getElementById('home-quick-cutscene-btn')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      this.originCutscene.open();
+    });
+
+    document.getElementById('home-btn-origin-cta')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      this.originCutscene.open();
+    });
+
     document.getElementById('home-quick-admin-btn')?.addEventListener('click', () => {
       this.soundEngine.playClick();
       this.openAdminPanel();
@@ -3454,8 +3476,7 @@ export class GameApp {
         themeColor: '#38bdf8',
         actionLabel: '🔮 Absorb +50 Cosmic Essence',
         onAction: () => {
-          this.progression.addEssence(50);
-          this.updateHeroLevelHeader();
+          this.addEssence(50);
           this.soundEngine.playLevelUp();
           modal.classList.add('hidden');
         },
@@ -3472,6 +3493,20 @@ export class GameApp {
         onAction: () => {
           modal.classList.add('hidden');
           this.openCodex();
+        },
+      },
+      'origin-cutscene': {
+        badge: '🎬 THE AWAKENING MEMORIAL',
+        avatar: '🎬✨',
+        title: 'THE ORIGIN OF POWER',
+        tag: 'Cinematic Chronicle • How Mortals Gained The Primal Elements',
+        desc: 'Witness the ancient cataclysm that shattered the Primal Nexus and bound the three starter elements—Fire, Water, and Earth—to your mortal soul.',
+        stats: ['Cinematic Chronicle', '3 Starter Sparks', '50-Element Matrix', 'Creator Mandate', '+50 🔮 Essence'],
+        themeColor: '#f472b6',
+        actionLabel: '🎬 Watch Origin Cutscene',
+        onAction: () => {
+          modal.classList.add('hidden');
+          this.originCutscene.open();
         },
       },
     };
@@ -3493,8 +3528,7 @@ export class GameApp {
         if (isNew) {
           discovered.add(secretKey);
           saveDiscovered(discovered);
-          this.progression.addEssence(50);
-          this.updateHeroLevelHeader();
+          this.addEssence(50);
           updateCounterDisplay();
         }
 

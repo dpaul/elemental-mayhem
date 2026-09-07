@@ -327,42 +327,48 @@
     <div id="home-screen" class="home-screen-overlay">
       <canvas id="home-particles-canvas" class="home-particles-canvas"></canvas>
 
-      <!-- Hidden Background Easter Egg Hotspots -->
+      <!-- Hidden Background Easter Egg Hotspots (Disguised as Faint Twinkling Distant Stars) -->
       <div id="home-secrets-layer" class="home-secrets-layer">
-        <!-- Secret 1: Void Archon Cosmic Rift (Top-Left) -->
-        <button class="home-secret-spot spot-void" data-secret="void-archon" title="✨ Faint Void Gravitational Anomaly (Click to uncover)">
+        <!-- Secret 1: Void Archon Cosmic Rift (Top-Left Cosmic Deep) -->
+        <button class="home-secret-spot spot-void" data-secret="void-archon" title="✨ Faint Cosmic Starlight (Hover to reveal)">
           <span class="spot-pulse pulse-void"></span>
           <span class="spot-glyph">🌌</span>
         </button>
 
-        <!-- Secret 2: Titan Earth Monolith (Bottom-Left) -->
-        <button class="home-secret-spot spot-titan" data-secret="titan-colossus" title="🌋 Faint Volcanic Tremor (Click to uncover)">
+        <!-- Secret 2: Titan Earth Monolith (Bottom-Left Nebula Void) -->
+        <button class="home-secret-spot spot-titan" data-secret="titan-colossus" title="✨ Faint Cosmic Starlight (Hover to reveal)">
           <span class="spot-pulse pulse-titan"></span>
           <span class="spot-glyph">🗿</span>
         </button>
 
-        <!-- Secret 3: Creator Sovereign Constellation (Top-Center Right) -->
-        <button class="home-secret-spot spot-admin" data-secret="ban-hammer" title="👑 Faint Sovereign Constellation (Click to uncover)">
+        <!-- Secret 3: Creator Sovereign Constellation (Top-Right Celestial Edge) -->
+        <button class="home-secret-spot spot-admin" data-secret="ban-hammer" title="✨ Faint Cosmic Starlight (Hover to reveal)">
           <span class="spot-pulse pulse-admin"></span>
           <span class="spot-glyph">👑</span>
         </button>
 
-        <!-- Secret 4: Necromantic Soul Crypt (Bottom-Right) -->
-        <button class="home-secret-spot spot-undead" data-secret="undead-legion" title="💀 Eerie Spectral Wisp (Click to uncover)">
+        <!-- Secret 4: Necromantic Soul Crypt (Bottom-Right Deep Shadow) -->
+        <button class="home-secret-spot spot-undead" data-secret="undead-legion" title="✨ Faint Cosmic Starlight (Hover to reveal)">
           <span class="spot-pulse pulse-undead"></span>
           <span class="spot-glyph">💀</span>
         </button>
 
-        <!-- Secret 5: Chrono Time Distortion (Mid-Left) -->
-        <button class="home-secret-spot spot-time" data-secret="chrono-paradox" title="⏳ Shimmering Time Anomaly (Click to uncover)">
+        <!-- Secret 5: Chrono Time Distortion (Mid-Left Astral Veil) -->
+        <button class="home-secret-spot spot-time" data-secret="chrono-paradox" title="✨ Faint Cosmic Starlight (Hover to reveal)">
           <span class="spot-pulse pulse-time"></span>
           <span class="spot-glyph">⏳</span>
         </button>
 
-        <!-- Secret 6: Primal Alchemy Core (Mid-Right) -->
-        <button class="home-secret-spot spot-reaction" data-secret="reaction-matrix" title="⚡ Crackling Elemental Fusion (Click to uncover)">
+        <!-- Secret 6: Primal Alchemy Core (Mid-Right Star Cluster) -->
+        <button class="home-secret-spot spot-reaction" data-secret="reaction-matrix" title="✨ Faint Cosmic Starlight (Hover to reveal)">
           <span class="spot-pulse pulse-reaction"></span>
           <span class="spot-glyph">⚡</span>
+        </button>
+
+        <!-- Secret 7: The Origin of Power - Awakening Memorial (Center Bottom Cosmic Chasm) -->
+        <button class="home-secret-spot spot-origin" data-secret="origin-cutscene" title="✨ Faint Cosmic Starlight (Hover to reveal)">
+          <span class="spot-pulse pulse-origin"></span>
+          <span class="spot-glyph">🎬</span>
         </button>
       </div>
 
@@ -374,6 +380,9 @@
             <span class="status-tag-text">50 ELEMENTAL REALMS ACTIVE • v0.50 EXPANSION</span>
           </div>
           <div class="home-quick-actions">
+            <button id="home-quick-cutscene-btn" class="home-util-btn btn-cutscene-amber" title="Watch Origin Cutscene: How Mortals Gained Elemental Powers">
+              <span class="util-icon">🎬</span> Origin Cutscene
+            </button>
             <button id="home-quick-sound-btn" class="home-util-btn" title="Toggle Sound Engine">
               <span class="util-icon">🔊</span> Sound ON
             </button>
@@ -440,6 +449,9 @@
             </button>
             <button id="home-btn-quick-play" class="btn-hero-action btn-hero-quick">
               <span>🔥</span> INSTANT BATTLE (Pyromancer)
+            </button>
+            <button id="home-btn-origin-cta" class="btn-hero-action btn-hero-origin" style="background: linear-gradient(135deg, #7c3aed, #db2777); border-color: #f472b6; box-shadow: 0 0 24px rgba(219, 39, 119, 0.45);">
+              <span>🎬</span> ORIGIN: HOW POWERS AWOKE
             </button>
             <button id="home-btn-choose-element" class="btn-hero-action btn-hero-roster">
               <span>🧙</span> 50 CHAMPIONS ROSTER
@@ -1002,7 +1014,161 @@
         <button id="home-secret-dismiss-btn" class="btn-text" style="padding: 10px 20px; border-radius: 12px; font-weight: 700; background: rgba(255,255,255,0.06); color: #cbd5e1;">Close Vision</button>
       </div>
       <div id="home-secrets-counter" style="margin-top: 18px; font-size: 0.82rem; color: #64748b; font-weight: 600;">
-        Discoveries: <span id="home-secrets-found-count" style="color: #fbbf24; font-weight: 800;">1</span> / 6 Secrets Discovered
+        Discoveries: <span id="home-secrets-found-count" style="color: #fbbf24; font-weight: 800;">0</span> / 7 Secrets Discovered
+      </div>
+    </div>
+  </div>
+
+  <!-- CINEMATIC ORIGIN STORY CUTSCENE OVERLAY -->
+  <div id="origin-cutscene-overlay" class="origin-cutscene-overlay hidden" style="z-index: 300;">
+    <!-- Top Widescreen Letterbox Bar -->
+    <div class="cutscene-letterbox cutscene-letterbox-top">
+      <div class="cutscene-top-bar">
+        <div class="cutscene-title-tag">
+          <span class="cutscene-live-dot"></span>
+          <span class="cutscene-tag-text">ORIGIN OF POWER • THE PRIMAL AWAKENING</span>
+        </div>
+        <div class="cutscene-chapter-indicators" id="cutscene-chapter-pips">
+          <!-- Populated by OriginCutsceneManager -->
+        </div>
+        <div class="cutscene-top-actions">
+          <button id="cutscene-mute-btn" class="cutscene-tool-btn" title="Toggle Sound">🔊 Audio</button>
+          <button id="cutscene-skip-btn" class="cutscene-tool-btn btn-skip" title="Skip to Final Awakening">⏩ Skip</button>
+          <button id="cutscene-close-btn" class="cutscene-close-btn" title="Exit Cutscene">✕</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center Cinematic Canvas & Visual Stage -->
+    <div class="cutscene-stage" id="cutscene-stage">
+      <div class="cutscene-stage-vignette"></div>
+
+      <!-- Chapter 1: The Void & The Monolith -->
+      <div class="cutscene-scene-content" id="cutscene-scene-1">
+        <div class="scene-monolith-wrapper">
+          <div class="ancient-monolith">
+            <div class="monolith-runes">⚡ 🔥 💧 🪨 🌌</div>
+            <div class="monolith-core-dormant"></div>
+          </div>
+          <div class="mortal-seeker-silhouette">
+            <span class="seeker-icon">🚶‍♂️</span>
+            <span class="seeker-label">Mortal Seeker</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chapter 2: The Core Shatters in Blinding Supernova -->
+      <div class="cutscene-scene-content hidden" id="cutscene-scene-2">
+        <div class="scene-shatter-wrapper">
+          <div class="core-shattering-sphere">
+            <div class="core-fracture-ray ray-1"></div>
+            <div class="core-fracture-ray ray-2"></div>
+            <div class="core-fracture-ray ray-3"></div>
+            <div class="core-fracture-ray ray-4"></div>
+            <div class="core-center-burst">💥</div>
+          </div>
+          <div class="shockwave-ring wave-1"></div>
+          <div class="shockwave-ring wave-2"></div>
+        </div>
+      </div>
+
+      <!-- Chapter 3: The Three Starter Sparks (Fire, Water, Earth) -->
+      <div class="cutscene-scene-content hidden" id="cutscene-scene-3">
+        <div class="scene-starter-vortex">
+          <div class="vortex-center-hero">
+            <div class="hero-soul-core">✨</div>
+            <div class="hero-silhouette">🧙‍♂️</div>
+          </div>
+          <div class="vortex-orbit orbit-fire">
+            <span class="vortex-spark spark-fire">🔥</span>
+            <span class="spark-label">PRIMAL FIRE</span>
+          </div>
+          <div class="vortex-orbit orbit-water">
+            <span class="vortex-spark spark-water">💧</span>
+            <span class="spark-label">LIVING WATER</span>
+          </div>
+          <div class="vortex-orbit orbit-earth">
+            <span class="vortex-spark spark-earth">🪨</span>
+            <span class="spark-label">IMMOVABLE EARTH</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chapter 4: The 50 Elemental Matrix Awakening -->
+      <div class="cutscene-scene-content hidden" id="cutscene-scene-4">
+        <div class="scene-fusion-constellation">
+          <div class="fusion-center-burst">
+            <span class="fusion-center-glyph">⚗️</span>
+            <span class="fusion-center-label">THE 50 ELEMENTS AWAKEN</span>
+          </div>
+          <div class="reaction-sparks-orbit">
+            <span class="reaction-tag react-steam">💨 STEAM (Fire+Water)</span>
+            <span class="reaction-tag react-magma">🌋 MAGMA (Earth+Fire)</span>
+            <span class="reaction-tag react-mud">🪵 MUD (Earth+Water)</span>
+            <span class="reaction-tag react-plasma">⚡ PLASMA (Fire+Lightning)</span>
+            <span class="reaction-tag react-frost">❄️ PERMAFROST</span>
+            <span class="reaction-tag react-void">🌌 VOID SINGULARITY</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chapter 5: Sovereign Creator God's Mandate & Ban Hammer -->
+      <div class="cutscene-scene-content hidden" id="cutscene-scene-5">
+        <div class="scene-sovereign-wrapper">
+          <div class="sovereign-divine-aura">
+            <div class="sovereign-crown-halo">👑</div>
+            <div class="sovereign-ban-hammer">🔨⚡</div>
+            <div class="sovereign-god-rays"></div>
+          </div>
+          <div class="sovereign-mandate-scroll">
+            <div class="mandate-title">THE CREATOR'S DECREE</div>
+            <div class="mandate-text">"Ascend through the 15 arenas. Conquering the Titans shall yield supreme Admin authority!"</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chapter 6: Final Awakening & Arena Beckons -->
+      <div class="cutscene-scene-content hidden" id="cutscene-scene-6">
+        <div class="scene-awakening-wrapper">
+          <div class="awakened-hero-visual">
+            <div class="hero-eyes-flame">✨👁️👁️✨</div>
+            <div class="hero-aura-triad">
+              <span class="triad-fire">🔥</span>
+              <span class="triad-water">💧</span>
+              <span class="triad-earth">🪨</span>
+            </div>
+            <div class="hero-awakened-title">ELEMENTAL MASTER AWAKENED</div>
+          </div>
+          <div class="awakening-action-buttons">
+            <button id="cutscene-btn-enter-arena" class="btn-hero-action" style="background: linear-gradient(135deg, #ec4899, #8b5cf6); border-color: #f472b6; box-shadow: 0 0 25px rgba(236,72,153,0.5);">
+              <span>⚔️</span> CHOOSE ELEMENT & ENTER ARENA
+            </button>
+            <button id="cutscene-btn-sandbox" class="btn-hero-action" style="background: linear-gradient(135deg, #059669, #0284c7); border-color: #34d399; box-shadow: 0 0 25px rgba(16,185,129,0.5);">
+              <span>🧪</span> TEST POWERS IN SANDBOX
+            </button>
+            <button id="cutscene-btn-replay" class="btn-hero-action" style="background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.3);">
+              <span>🔄</span> REPLAY CHRONICLE
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Widescreen Letterbox Bar with Narration & Controls -->
+    <div class="cutscene-letterbox cutscene-letterbox-bottom">
+      <div class="cutscene-bottom-content">
+        <div class="cutscene-narration-box">
+          <div class="cutscene-scene-badge" id="cutscene-chapter-badge">CHAPTER I • THE ANCIENT VOID</div>
+          <h2 class="cutscene-chapter-heading" id="cutscene-chapter-title">The Seeker in the Void</h2>
+          <p class="cutscene-narrative-text anim-narrative" id="cutscene-narrative-text">
+            Long before the arenas were forged, mortal souls lived defenseless under the shadows of cosmic titans...
+          </p>
+        </div>
+        <div class="cutscene-controls-row">
+          <button id="cutscene-prev-btn" class="cutscene-nav-btn" title="Previous Chapter">◀ PREV</button>
+          <button id="cutscene-play-pause-btn" class="cutscene-nav-btn btn-play-pause" title="Play or Pause Auto-Advance">⏸ PAUSE</button>
+          <button id="cutscene-next-btn" class="cutscene-nav-btn btn-next" title="Next Chapter">NEXT ▶</button>
+        </div>
       </div>
     </div>
   </div>
