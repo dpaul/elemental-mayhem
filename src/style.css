@@ -4377,5 +4377,209 @@ body {
   margin: 6px 0;
 }
 
+/* ===================================================
+   ROUND 30: THE CELESTIAL FUSION CRUCIBLE MODAL
+   =================================================== */
+
+.essence-fusion-modal-content {
+  background: radial-gradient(circle at top, rgba(30, 27, 75, 0.95), rgba(15, 12, 35, 0.98)) !important;
+  color: #f8fafc;
+  animation: modalPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.fusion-pedestal {
+  width: 140px;
+  height: 140px;
+  border-radius: 20px;
+  border: 2px dashed rgba(168, 85, 247, 0.5);
+  background: rgba(15, 23, 42, 0.7);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.6), 0 0 15px rgba(168, 85, 247, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.25s ease;
+}
+
+.fusion-pedestal .pedestal-filled {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.fusion-pedestal .pedestal-icon {
+  font-size: 2.8rem;
+  filter: drop-shadow(0 0 12px currentColor);
+  animation: floatOrb 3s ease-in-out infinite;
+}
+
+.fusion-pedestal .pedestal-label {
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.empty-pedestal {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #64748b;
+  text-align: center;
+  padding: 8px;
+}
+
+.fusion-essence-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(15, 23, 42, 0.6);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.fusion-essence-card:hover {
+  background: rgba(30, 41, 59, 0.8);
+  transform: translateX(4px);
+}
+
+.fusion-essence-card.selected {
+  background: rgba(168, 85, 247, 0.2);
+  border-color: #c084fc !important;
+  box-shadow: 0 0 16px rgba(168, 85, 247, 0.4);
+}
+
+.fusion-essence-card.can-merge {
+  border-color: #facc15 !important;
+  background: linear-gradient(90deg, rgba(234, 179, 8, 0.12), rgba(15, 23, 42, 0.7));
+  animation: mergePulse 2.5s infinite;
+}
+
+@keyframes mergePulse {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(250, 204, 21, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(250, 204, 21, 0.6);
+  }
+}
+
+.essence-card-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.essence-card-icon {
+  font-size: 1.8rem;
+}
+
+.essence-card-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.essence-card-name {
+  font-weight: 800;
+  font-size: 0.95rem;
+}
+
+.essence-card-desc {
+  font-size: 0.76rem;
+  color: #94a3b8;
+}
+
+.essence-card-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.essence-count-badge {
+  font-family: var(--font-mono);
+  font-size: 0.84rem;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #e2e8f0;
+}
+
+.badge-merge-ready {
+  background: linear-gradient(135deg, #eab308, #f59e0b);
+  color: #000;
+  box-shadow: 0 0 10px rgba(250, 204, 21, 0.6);
+}
+
+.fusion-quick-merge-btn {
+  background: linear-gradient(135deg, #eab308, #ca8a04);
+  color: #000;
+  border: none;
+  font-weight: 800;
+  font-size: 0.78rem;
+  padding: 4px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.fusion-quick-merge-btn:hover {
+  transform: scale(1.08);
+  box-shadow: 0 0 12px rgba(234, 179, 8, 0.8);
+}
+
+.fusion-action-btn {
+  background: linear-gradient(135deg, #64748b, #475569);
+  color: #cbd5e1;
+  border: 1px solid #475569;
+}
+
+.fusion-action-btn.fusion-btn-active {
+  background: linear-gradient(135deg, #a855f7, #3b82f6, #06b6d4) !important;
+  color: #ffffff !important;
+  border: 1px solid #d8b4fe !important;
+  box-shadow: 0 0 30px rgba(168, 85, 247, 0.7) !important;
+  animation: mergeBtnGlow 1.8s infinite alternate;
+}
+
+@keyframes mergeBtnGlow {
+  0% {
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.5);
+    transform: scale(1);
+  }
+  100% {
+    box-shadow: 0 0 35px rgba(59, 130, 246, 0.85);
+    transform: scale(1.02);
+  }
+}
+
+.fusion-feedback-banner.feedback-success {
+  background: rgba(34, 197, 94, 0.2);
+  border: 1px solid #22c55e;
+  color: #86efac;
+}
+
+.fusion-feedback-banner.feedback-empower {
+  background: rgba(168, 85, 247, 0.2);
+  border: 1px solid #c084fc;
+  color: #e9d5ff;
+}
+
+.fusion-feedback-banner.feedback-attune {
+  background: rgba(56, 189, 248, 0.2);
+  border: 1px solid #38bdf8;
+  color: #bae6fd;
+}
+
+.fusion-feedback-banner.feedback-warning {
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid #ef4444;
+  color: #fca5a5;
+}
+
+
 
 

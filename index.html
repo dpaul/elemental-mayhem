@@ -24,6 +24,7 @@
       </div>
       <div class="header-right">
         <button id="nav-sandbox-btn" class="btn-primary" style="background: linear-gradient(135deg, #10b981, #06b6d4); border: 1px solid #6ee7b7; color: #ffffff; font-weight: 800; padding: 6px 14px; border-radius: 8px; box-shadow: 0 0 16px rgba(16, 185, 129, 0.5); cursor: pointer;" title="Enter Elemental Sandbox Mode">🧪 Sandbox</button>
+        <button id="nav-fusion-btn" class="btn-primary" style="background: linear-gradient(135deg, #a855f7, #6366f1); border: 1px solid #d8b4fe; color: #ffffff; font-weight: 800; padding: 6px 14px; border-radius: 8px; box-shadow: 0 0 16px rgba(168, 85, 247, 0.6); cursor: pointer;" title="Open Round 30 Elemental Essence Fusion Crucible">🔮 Fusion Area</button>
         <button id="nav-admin-btn" class="btn-primary" style="background: linear-gradient(135deg, #f59e0b, #ec4899); border: 1px solid #fde68a; color: #000; font-weight: 800; padding: 6px 14px; border-radius: 8px; box-shadow: 0 0 16px rgba(245, 158, 11, 0.6); cursor: pointer;" title="Open Admin God Command Console">👑 Admin</button>
         <button id="nav-coop-btn" class="btn-primary" style="background: linear-gradient(135deg, #06b6d4, #8b5cf6); border: 1px solid #a5f3fc; color: #ffffff; font-weight: 800; padding: 6px 14px; border-radius: 8px; box-shadow: 0 0 16px rgba(6, 182, 212, 0.6); cursor: pointer;" title="Play 2-Player Online Co-op via WebRTC">🤝 Co-op</button>
         <button id="nav-multiplayer-btn" class="btn-text header-nav-btn" style="background: rgba(239, 68, 68, 0.25); border: 1px solid rgba(239, 68, 68, 0.5); color: #fca5a5; font-weight: 700;">⚔️ Hot Seat</button>
@@ -877,6 +878,18 @@
               <div class="admin-btn-desc">Warp directly to Round 1,000 to confront THE VOID OVERLORD and reclaim the stolen powers!</div>
             </button>
 
+            <!-- Power 8d: Round 30 Essence Fusion Area -->
+            <button class="admin-power-btn" id="admin-btn-round-30" style="border-color: #a855f7; background: rgba(168, 85, 247, 0.2); box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);">
+              <div class="admin-btn-header" style="color: #d8b4fe;">🔮 Round 30: Celestial Essence Fusion Area</div>
+              <div class="admin-btn-desc">Warp directly to Round 30: The Celestial Crucible Sanctuary to merge 2 matching essences and awaken elements!</div>
+            </button>
+
+            <!-- Power 8e: Grant Essence Pairs -->
+            <button class="admin-power-btn" id="admin-btn-grant-essence-pairs" style="border-color: #38bdf8; background: rgba(56, 189, 248, 0.18);">
+              <div class="admin-btn-header" style="color: #7dd3fc;">✨ Grant 2x All Elemental Essences (Test Merging)</div>
+              <div class="admin-btn-desc">Instantly adds 2 matching essences of Fire, Water, Lightning, Void, Ice, Nature, Chaos, etc. for instant fusion!</div>
+            </button>
+
             <!-- Power 9: Mega Round Warp -->
             <button class="admin-power-btn" id="admin-btn-jump-1000">
               <div class="admin-btn-header">🌌 Warp +1,000 Rounds</div>
@@ -1021,6 +1034,93 @@
       </div>
       <div id="home-secrets-counter" style="margin-top: 18px; font-size: 0.82rem; color: #64748b; font-weight: 600;">
         Discoveries: <span id="home-secrets-found-count" style="color: #fbbf24; font-weight: 800;">0</span> / 7 Secrets Discovered
+      </div>
+    </div>
+  </div>
+
+  <!-- Round 30 Elemental Essence Fusion Modal (The Celestial Crucible) -->
+  <div id="essence-fusion-modal" class="modal-overlay hidden" style="z-index: 280;">
+    <div class="modal-content glass-card essence-fusion-modal-content" style="max-width: 960px; width: 95%; position: relative; border-radius: 24px; padding: 28px; box-shadow: 0 25px 80px rgba(0,0,0,0.95), 0 0 60px rgba(168, 85, 247, 0.45); border: 2px solid rgba(192, 132, 252, 0.5);">
+      <button id="fusion-modal-close-btn" class="modal-close-btn" style="position: absolute; top: 16px; right: 20px; background: rgba(255,255,255,0.1); border: none; font-size: 1.3rem; color: #fff; width: 36px; height: 36px; border-radius: 50%; cursor: pointer;">✕</button>
+
+      <!-- Modal Header -->
+      <div class="modal-header text-center" style="display: flex; flex-direction: column; align-items: center; border-bottom: 1px solid rgba(168, 85, 247, 0.3); padding-bottom: 16px; margin-bottom: 20px;">
+        <div class="fusion-badge" style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.35), rgba(59, 130, 246, 0.35)); border: 1px solid #c084fc; color: #f5d0fe; padding: 5px 18px; border-radius: 999px; font-weight: 800; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 6px;">
+          🌟 ROUND 30: THE CELESTIAL FUSION CRUCIBLE
+        </div>
+        <h2 style="margin: 4px 0 6px; font-size: 2.1rem; font-weight: 900; background: linear-gradient(135deg, #fde68a, #c084fc, #60a5fa); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+          ELEMENTAL ESSENCE FUSION ALTAR
+        </h2>
+        <p style="color: #94a3b8; font-size: 0.95rem; margin: 0; max-width: 680px; text-align: center;">
+          Sanctuary of the Ancients: Collect <strong>2 matching essences of ANY element</strong> and fuse them here to permanently awaken or empower that elemental force!
+        </p>
+      </div>
+
+      <!-- Live Feedback Banner -->
+      <div id="fusion-feedback-banner" class="fusion-feedback-banner hidden" style="margin-bottom: 16px; padding: 12px 18px; border-radius: 12px; font-weight: 700; font-size: 0.95rem; text-align: center;"></div>
+
+      <!-- Main Two-Column Layout -->
+      <div class="fusion-layout-grid" style="display: grid; grid-template-columns: 1fr 1.2fr; gap: 24px;">
+        <!-- Left: The Dual Crucible Pedestal Chamber -->
+        <div class="crucible-chamber glass-card" style="padding: 20px; border: 1px solid rgba(168, 85, 247, 0.4); border-radius: 18px; background: rgba(15, 23, 42, 0.6); display: flex; flex-direction: column; align-items: center; justify-content: space-between;">
+          <div style="text-align: center; margin-bottom: 12px;">
+            <div style="font-size: 0.8rem; font-weight: 800; color: #fde68a; text-transform: uppercase; letter-spacing: 1px;">Crucible Altar Chamber</div>
+            <h3 id="fusion-target-element-name" style="margin: 4px 0; font-size: 1.5rem; font-weight: 800;">Select an Essence Pair</h3>
+            <div id="fusion-target-element-status" style="font-size: 0.85rem; color: #94a3b8;">Choose an essence type with 2 items to merge</div>
+          </div>
+
+          <!-- Dual Pedestals with Center Convergence Core -->
+          <div class="pedestals-container" style="display: flex; align-items: center; justify-content: center; gap: 16px; margin: 20px 0; width: 100%;">
+            <!-- Pedestal 1 -->
+            <div class="fusion-pedestal" id="fusion-slot-1">
+              <span class="empty-pedestal">Essence #1</span>
+            </div>
+
+            <!-- Convergence Core Vortex -->
+            <div class="fusion-vortex" style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 64px; height: 64px; border-radius: 50%; background: radial-gradient(circle, #a855f7, #3b82f6); box-shadow: 0 0 25px rgba(168, 85, 247, 0.8); font-size: 1.8rem; animation: pulse 2s infinite;">
+              ⚡
+            </div>
+
+            <!-- Pedestal 2 -->
+            <div class="fusion-pedestal" id="fusion-slot-2">
+              <span class="empty-pedestal">Essence #2</span>
+            </div>
+          </div>
+
+          <!-- Big Merge Action Button -->
+          <button id="fusion-action-btn" class="btn-primary fusion-action-btn" style="width: 100%; padding: 14px 20px; font-size: 1.05rem; font-weight: 900; border-radius: 14px; cursor: pointer; transition: all 0.3s ease;" disabled>
+            Select 2 Matching Essences to Merge
+          </button>
+        </div>
+
+        <!-- Right: Essence Pouch & Attunement Well -->
+        <div class="fusion-inventory-chamber" style="display: flex; flex-direction: column; gap: 16px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="font-weight: 800; font-size: 1rem; color: #f8fafc; display: flex; align-items: center; gap: 6px;">
+              <span>🎒 Your Essence Pouch</span>
+            </div>
+            <span style="font-size: 0.78rem; color: #a855f7; font-weight: 700;">2 of Same Type = Mergeable</span>
+          </div>
+
+          <!-- Scrollable Inventory List -->
+          <div id="fusion-inventory-list" class="fusion-inventory-list" style="max-height: 250px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 6px;">
+            <!-- Populated dynamically with owned essences -->
+          </div>
+
+          <!-- Sanctuary Attunement Well -->
+          <div class="sanctuary-attune-box glass-card" style="padding: 14px; border-radius: 14px; border: 1px dashed rgba(168, 85, 247, 0.4); background: rgba(30, 27, 75, 0.4);">
+            <div style="font-size: 0.82rem; font-weight: 800; color: #fde68a; margin-bottom: 6px;">✨ Sanctuary Attunement Well (Complete a Pair):</div>
+            <p style="font-size: 0.78rem; color: #94a3b8; margin: 0 0 10px;">Missing a second essence? Channel the Sanctuary Well to attune +1 Essence of any elemental discipline:</p>
+            <div style="display: flex; gap: 10px;">
+              <select id="fusion-attune-select" class="sandbox-select" style="flex: 1; padding: 8px 12px; font-size: 0.88rem; border-radius: 8px;">
+                <!-- Populated with all elements -->
+              </select>
+              <button id="fusion-attune-btn" class="btn-primary" style="background: linear-gradient(135deg, #a855f7, #3b82f6); border: 1px solid #d8b4fe; font-weight: 800; padding: 8px 16px; border-radius: 8px; cursor: pointer; white-space: nowrap;">
+                Channel +1 🔮
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>

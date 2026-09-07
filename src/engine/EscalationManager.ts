@@ -1946,6 +1946,172 @@ export class EscalationManager {
         });
         break;
 
+      case 30:
+        // Round 30: The Celestial Fusion Crucible (Milestone Essence Merge Sanctuary)
+        enemies.push({
+          id: 'boss_r30_crucible_archon',
+          name: 'CELESTIAL CRUCIBLE ARCHON (Fusion Altar Sovereign)',
+          faction: 'Enemy',
+          avatar: '🌟',
+          coord: { x: 8, y: 5 },
+          stats: {
+            maxHp: 2400,
+            currentHp: 2400,
+            maxAp: 8,
+            currentAp: 8,
+            moveCostPerTile: 1,
+            elementalAffinity: 'Energy',
+          },
+          abilities: [
+            {
+              id: 'crucible_cataclysm',
+              name: 'Crucible Cataclysm',
+              element: 'Energy',
+              icon: '🌟',
+              apCost: 3,
+              cooldown: 0,
+              currentCooldown: 0,
+              range: 6,
+              aoeRadius: 2,
+              targeting: 'SingleUnit',
+              baseDamage: 90,
+              description: 'Unleashes raw celestial energy across the crucible battlefield.',
+              level: 10,
+            },
+            {
+              id: 'essence_singularity',
+              name: 'Essence Singularity',
+              element: 'Void',
+              icon: '🌀',
+              apCost: 2,
+              cooldown: 1,
+              currentCooldown: 0,
+              range: 5,
+              aoeRadius: 1,
+              targeting: 'SingleUnit',
+              baseDamage: 75,
+              createsHazard: 'VoidRift',
+              hazardDuration: 3,
+              description: 'Collapses space, drawing victims into the vortex.',
+              level: 10,
+            },
+          ],
+          statusEffects: [],
+          isDead: false,
+          isBoss: true,
+        });
+
+        // 3x Crucible Essence Keepers (guaranteeing essence drops for merging)
+        enemies.push({
+          id: 'escort_r30_fire_keeper',
+          name: 'Crucible Fire Keeper',
+          faction: 'Enemy',
+          avatar: '🔥',
+          coord: { x: 7, y: 2 },
+          stats: {
+            maxHp: 650,
+            currentHp: 650,
+            maxAp: 5,
+            currentAp: 5,
+            moveCostPerTile: 1,
+            elementalAffinity: 'Fire',
+          },
+          abilities: [
+            {
+              id: 'fire_crucible_blast',
+              name: 'Infernal Blast',
+              element: 'Fire',
+              icon: '🔥',
+              apCost: 2,
+              cooldown: 0,
+              currentCooldown: 0,
+              range: 4,
+              aoeRadius: 0,
+              targeting: 'SingleUnit',
+              baseDamage: 45,
+              createsHazard: 'Burning',
+              hazardDuration: 2,
+              description: 'Strikes with concentrated molten flame.',
+              level: 8,
+            },
+          ],
+          statusEffects: [],
+          isDead: false,
+        });
+
+        enemies.push({
+          id: 'escort_r30_void_keeper',
+          name: 'Crucible Void Keeper',
+          faction: 'Enemy',
+          avatar: '🌌',
+          coord: { x: 7, y: 8 },
+          stats: {
+            maxHp: 650,
+            currentHp: 650,
+            maxAp: 5,
+            currentAp: 5,
+            moveCostPerTile: 1,
+            elementalAffinity: 'Void',
+          },
+          abilities: [
+            {
+              id: 'void_crucible_blast',
+              name: 'Void Sever',
+              element: 'Void',
+              icon: '🌌',
+              apCost: 2,
+              cooldown: 0,
+              currentCooldown: 0,
+              range: 4,
+              aoeRadius: 0,
+              targeting: 'SingleUnit',
+              baseDamage: 48,
+              description: 'Strikes with cosmic void essence.',
+              level: 8,
+            },
+          ],
+          statusEffects: [],
+          isDead: false,
+        });
+
+        enemies.push({
+          id: 'escort_r30_lightning_keeper',
+          name: 'Crucible Lightning Keeper',
+          faction: 'Enemy',
+          avatar: '⚡',
+          coord: { x: 6, y: 5 },
+          stats: {
+            maxHp: 650,
+            currentHp: 650,
+            maxAp: 5,
+            currentAp: 5,
+            moveCostPerTile: 1,
+            elementalAffinity: 'Lightning',
+          },
+          abilities: [
+            {
+              id: 'lightning_crucible_bolt',
+              name: 'Ionic Discharge',
+              element: 'Lightning',
+              icon: '⚡',
+              apCost: 2,
+              cooldown: 0,
+              currentCooldown: 0,
+              range: 4,
+              aoeRadius: 0,
+              targeting: 'SingleUnit',
+              baseDamage: 46,
+              appliesStatus: 'Shocked',
+              statusDuration: 2,
+              description: 'Discharges high-voltage ionization.',
+              level: 8,
+            },
+          ],
+          statusEffects: [],
+          isDead: false,
+        });
+        break;
+
       default:
         // Procedural generation for round > 15 up to 10000000000000000000000000000000000000000000000000 rounds
         const isBossRound = round % 5 === 0;

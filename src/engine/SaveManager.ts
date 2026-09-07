@@ -16,6 +16,7 @@ export interface GameSaveData {
   hazards: SavedHazardTile[];
   totalEssence: number;
   totalXp: number;
+  elementalEssences?: Record<string, number>;
   turnPhase: string;
   logs: CombatLogEntry[];
   timestamp: number;

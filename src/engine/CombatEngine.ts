@@ -61,6 +61,7 @@ export class CombatEngine {
   public performance: PerformanceStats;
   public onZombieSpawn?: (zombie: Unit) => void;
   public onEssenceEarned?: (amount: number, coord: GridCoord) => void;
+  public onElementalEssenceEarned?: (element: ElementType, amount: number, coord: GridCoord) => void;
   public getEssenceResonanceMultiplier?: (caster: Unit) => number;
 
   constructor(grid: Grid, hazardManager: TileHazardManager, hero: Unit, enemies: Unit[], coopHero?: Unit) {
@@ -868,6 +869,14 @@ export class CombatEngine {
             if (this.onEssenceEarned) {
               this.onEssenceEarned(essenceDrop, unit.coord);
             }
+            const elemAffinity = unit.stats.elementalAffinity;
+            if (elemAffinity && elemAffinity !== 'Neutral' && elemAffinity !== 'Admin') {
+              const elemDrop = unit.isBoss ? 2 : 1;
+              this.addLog('system', `✨ Harvested +${elemDrop}x ${elemAffinity} Essence from ${unit.name}! (Merge 2 on Round 30)`);
+              if (this.onElementalEssenceEarned) {
+                this.onElementalEssenceEarned(elemAffinity, elemDrop, unit.coord);
+              }
+            }
           }
         }
       } else if (unit.isZombie && unit.zombieClass && ZOMBIE_CLASS_FLOOR_REQUIREMENTS[unit.zombieClass]?.includes(tile.hazard.type)) {
@@ -1204,6 +1213,14 @@ export class CombatEngine {
             this.addLog('system', `🔮 Harvested +${essenceDrop} Essence from ${targetUnit.name}!`);
             if (this.onEssenceEarned) {
               this.onEssenceEarned(essenceDrop, targetUnit.coord);
+            }
+            const elemAffinity = targetUnit.stats.elementalAffinity;
+            if (elemAffinity && elemAffinity !== 'Neutral' && elemAffinity !== 'Admin') {
+              const elemDrop = targetUnit.isBoss ? 2 : 1;
+              this.addLog('system', `✨ Harvested +${elemDrop}x ${elemAffinity} Essence from ${targetUnit.name}! (Merge 2 on Round 30)`);
+              if (this.onElementalEssenceEarned) {
+                this.onElementalEssenceEarned(elemAffinity, elemDrop, targetUnit.coord);
+              }
             }
           }
 
