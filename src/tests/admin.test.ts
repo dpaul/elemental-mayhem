@@ -122,9 +122,16 @@ describe('Admin Mass Resurrection Power', () => {
     expect(combatEngine.zombies[0].faction).toBe('Player');
   });
 
-  it('should clear walls and NOT create MudWall when casting admin_mass_resurrection ability', () => {
+  it('should clear all walls and wall hazards across the board when casting admin_mass_resurrection ability', () => {
+    // Place standard walls
     grid.setObstacle({ x: 2, y: 2 }, true);
     grid.setObstacle({ x: 7, y: 7 }, true);
+    grid.setObstacle({ x: 3, y: 4 }, true, '⬛');
+    grid.setObstacle({ x: 6, y: 5 }, true, '🗿');
+
+    // Place a MudWall hazard
+    hazardManager.applyHazard({ x: 4, y: 4 }, 'MudWall', 3, 0, 'Earth');
+    expect(grid.getTile({ x: 4, y: 4 })?.hazard.type).toBe('MudWall');
 
     const massResAbility = HERO_CLASSES.Admin.abilities.find((a) => a.id === 'admin_mass_resurrection');
     expect(massResAbility).toBeDefined();
@@ -133,11 +140,17 @@ describe('Admin Mass Resurrection Power', () => {
     const castRes = combatEngine.executeAbility(combatEngine.hero, massResAbility!, { x: 5, y: 5 });
     expect(castRes.success).toBe(true);
 
-    // Walls cleared
+    // All walls completely cleared!
     expect(grid.getTile({ x: 2, y: 2 })?.isObstacle).toBe(false);
     expect(grid.getTile({ x: 7, y: 7 })?.isObstacle).toBe(false);
-    // MudWall was NOT created
-    expect(grid.getTile({ x: 5, y: 5 })?.hazard.type).not.toBe('MudWall');
+    expect(grid.getTile({ x: 3, y: 4 })?.isObstacle).toBe(false);
+    expect(grid.getTile({ x: 6, y: 5 })?.isObstacle).toBe(false);
+    // MudWall hazard also completely cleared!
+    expect(grid.getTile({ x: 4, y: 4 })?.hazard.type).toBe('None');
+
+    // Allied legion resurrected
+    expect(combatEngine.zombies.length).toBeGreaterThan(0);
+    expect(combatEngine.zombies.every((z) => z.faction === 'Player')).toBe(true);
   });
 });
 

@@ -3340,6 +3340,21 @@ export class GameApp {
 
       if (ability.targeting === 'Self') {
         this.targetableTiles.push(centerCoord);
+      } else if (
+        ability.id === 'admin_mass_resurrection' ||
+        ability.name.toLowerCase() === 'mass resurrection' ||
+        ability.targeting === 'AnyTile'
+      ) {
+        // Admin Mass Resurrection & AnyTile abilities can be cast anywhere within range ignoring walls and line of sight!
+        for (let x = 0; x < this.grid.size; x++) {
+          for (let y = 0; y < this.grid.size; y++) {
+            const coord = { x, y };
+            const dist = this.grid.manhattanDistance(centerCoord, coord);
+            if (dist <= ability.range) {
+              this.targetableTiles.push(coord);
+            }
+          }
+        }
       } else {
         for (let x = 0; x < this.grid.size; x++) {
           for (let y = 0; y < this.grid.size; y++) {
@@ -3842,6 +3857,22 @@ export class GameApp {
 
         if (ability.appliesStatus === 'Rooted') {
           this.soundEngine.playRoot();
+        }
+
+        if (
+          ability.id === 'admin_mass_resurrection' ||
+          ability.name.toLowerCase() === 'mass resurrection'
+        ) {
+          this.soundEngine.playLevelUp();
+          this.renderer.particleEngine.triggerScreenShake(12, 350);
+          const casterPos = this.renderer.gridToScreen(activeUnit.coord);
+          this.renderer.particleEngine.addFloatingText(
+            '👑 MASS RESURRECTION: CLEARED ALL WALLS!',
+            casterPos.x,
+            casterPos.y - 45,
+            '#c084fc',
+            24
+          );
         }
 
         if (reactionLog) {

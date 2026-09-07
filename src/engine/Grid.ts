@@ -51,11 +51,17 @@ export class Grid {
     let count = 0;
     for (let x = 0; x < this.size; x++) {
       for (let y = 0; y < this.size; y++) {
+        let cleared = false;
         if (this.tiles[x][y].isObstacle) {
           this.tiles[x][y].isObstacle = false;
           this.tiles[x][y].obstacleIcon = undefined;
-          count++;
+          cleared = true;
         }
+        if (this.tiles[x][y].hazard && this.tiles[x][y].hazard.type === 'MudWall') {
+          this.tiles[x][y].hazard = { type: 'None', duration: 0, damagePerTurn: 0, element: 'Neutral' };
+          cleared = true;
+        }
+        if (cleared) count++;
       }
     }
     return count;
