@@ -17,7 +17,7 @@ import { SaveManager, GameSaveData, SavedHazardTile } from './engine/SaveManager
 import { PlacementManager } from './engine/PlacementManager';
 import { ElementType, Unit, Ability, GridCoord, ZombieClass, TileHazardType, PlacementItem, PlacementCategory } from './types';
 import { CORE_ELEMENTS } from './constants/elements';
-import { HERO_CLASSES, createHeroForElement, createSandboxHero } from './constants/classes';
+import { HERO_CLASSES, createHeroForElement, createSandboxHero, registerAdminAbility, createAdminPower, onAdminAbilityRegistered, populateAdminAbilities } from './constants/classes';
 import { NetworkManager } from './network/NetworkManager';
 import { NetworkMessage } from './network/NetworkMessages';
 
@@ -329,6 +329,40 @@ export class GameApp {
     this.escalationManager = new EscalationManager();
     this.unlockManager = new UnlockManager();
     this.adminManager = new AdminManager();
+
+    // Auto-Grant Admin to User (DavePaul / Creator)
+    // Ensures all admin powers and all elements are immediately accessible.
+    // If user has not explicitly clicked "Lock Console", grant admin credentials.
+    const explicitLogout = typeof window !== 'undefined' && window.localStorage?.getItem('elemental_mayhem_admin_explicit_logout') === 'true';
+    if (!explicitLogout) {
+      this.adminManager.authenticate('190846214');
+      this.unlockManager.setAdminOverride(true);
+    }
+
+    // Live Admin Power Listener:
+    // Whenever a new admin power is created or registered, instantly grant it to the player!
+    onAdminAbilityRegistered((newAbility) => {
+      if (this.hasAdminAccess() || this.selectedElement === 'Admin' || this.hero?.stats?.elementalAffinity === 'Admin') {
+        if (this.hero && this.hero.abilities) {
+          const existingIdx = this.hero.abilities.findIndex((a) => a.id === newAbility.id);
+          if (existingIdx >= 0) {
+            this.hero.abilities[existingIdx] = { ...newAbility, currentCooldown: 0 };
+          } else {
+            this.hero.abilities.unshift({ ...newAbility, currentCooldown: 0 });
+          }
+          this.updateHUD();
+          this.combatEngine?.addLog('system', `👑 INSTANT ADMIN POWER: ${newAbility.name} added to your arsenal!`);
+          this.renderer?.particleEngine?.triggerScreenShake(6, 200);
+          if (this.renderer && this.hero.coord) {
+            const heroPos = this.renderer.gridToScreen(this.hero.coord);
+            this.renderer.particleEngine.addFloatingText(`👑 NEW POWER: ${newAbility.name}!`, heroPos.x, heroPos.y - 35, '#ec4899', 24);
+          }
+          if (this.soundEngine) {
+            this.soundEngine.playLevelUp();
+          }
+        }
+      }
+    });
 
     // Home Screen Elements
     this.homeScreen = document.getElementById('home-screen')!;
@@ -1264,6 +1298,65 @@ export class GameApp {
     } else {
       this.closeAdminPanel();
     }
+  }
+
+  public syncAdminPowers(): void {
+    if (!this.hasAdminAccess() && this.selectedElement !== 'Admin' && this.hero?.stats?.elementalAffinity !== 'Admin') {
+      return;
+    }
+    if (!this.hero || !this.hero.abilities) return;
+
+    populateAdminAbilities();
+    const adminAbilities = HERO_CLASSES.Admin.abilities;
+    const existingIds = new Set(this.hero.abilities.map((a) => a.id));
+    let newCount = 0;
+
+    for (const ab of adminAbilities) {
+      if (!existingIds.has(ab.id)) {
+        this.hero.abilities.push({ ...ab, currentCooldown: 0 });
+        existingIds.add(ab.id);
+        newCount++;
+      }
+    }
+
+    if (newCount > 0) {
+      this.updateHUD();
+    }
+  }
+
+  public grantAllAdminPowers(): { success: boolean; count: number; message: string } {
+    if (!this.hero || !this.hero.abilities) {
+      return { success: false, count: 0, message: 'No active hero found.' };
+    }
+
+    populateAdminAbilities();
+    const adminAbilities = HERO_CLASSES.Admin.abilities;
+    const existingIds = new Set(this.hero.abilities.map((a) => a.id));
+    let added = 0;
+
+    for (const ab of adminAbilities) {
+      if (!existingIds.has(ab.id)) {
+        this.hero.abilities.push({ ...ab, currentCooldown: 0 });
+        existingIds.add(ab.id);
+        added++;
+      }
+    }
+
+    this.updateHUD();
+    this.combatEngine?.addLog('system', `👑 ADMIN PRIVILEGE: Equipped all ${this.hero.abilities.length} elemental & admin powers!`);
+    this.renderer?.particleEngine?.triggerScreenShake(6, 250);
+    if (this.renderer && this.hero.coord) {
+      const pos = this.renderer.gridToScreen(this.hero.coord);
+      this.renderer.particleEngine.addFloatingText(`👑 ALL POWERS GRANTED!`, pos.x, pos.y - 35, '#ec4899', 26);
+    }
+    if (this.soundEngine) {
+      this.soundEngine.playLevelUp();
+    }
+    return {
+      success: true,
+      count: this.hero.abilities.length,
+      message: `Granted all powers! Active arsenal has ${this.hero.abilities.length} abilities.`,
+    };
   }
 
   private renderCodex(): void {
@@ -2650,6 +2743,28 @@ export class GameApp {
         return;
       }
       this.invokeAdminMassResurrection();
+      this.closeAdminPanel();
+    });
+
+    document.getElementById('admin-btn-grant-powers')?.addEventListener('click', () => {
+      if (!this.adminManager.canUseAdminCommands(this.isHotseatMode, this.hotseatCurrentPlayer)) {
+        this.openAdminPanel();
+        return;
+      }
+      this.grantAllAdminPowers();
+      this.closeAdminPanel();
+    });
+
+    document.getElementById('admin-btn-create-power')?.addEventListener('click', () => {
+      if (!this.adminManager.canUseAdminCommands(this.isHotseatMode, this.hotseatCurrentPlayer)) {
+        this.openAdminPanel();
+        return;
+      }
+      const defaultName = `Admin Obliteration ${Math.floor(Math.random() * 1000)}`;
+      const powerName = prompt('Enter a name for your new Admin Power:', defaultName) || defaultName;
+      const dmgStr = prompt('Enter base damage for this power:', '999') || '999';
+      const dmg = parseInt(dmgStr, 10) || 999;
+      createAdminPower(powerName, dmg, 7, 2, `Devastating custom admin power crafted by Creator DavePaul.`);
       this.closeAdminPanel();
     });
 
@@ -4422,6 +4537,48 @@ export class GameApp {
       return { success: false, message: '🔒 Admin Console locked. Please authenticate first.' };
     }
 
+    // 0a. Make Me Admin / Grant Admin
+    if (
+      cmd === 'make me admin' ||
+      cmd === 'admin' ||
+      cmd === 'grant admin' ||
+      cmd === 'unlock all' ||
+      cmd === 'unlock all powers'
+    ) {
+      this.adminManager.grantAdmin();
+      this.unlockManager.unlockAllElements(true);
+      this.grantAllAdminPowers();
+      this.updateAdminUI();
+      return { success: true, message: '👑 You are now an Admin! All elements & admin powers unlocked!' };
+    }
+
+    // 0b. Create New Admin Power: "create admin power <name> [damage] [range] [aoe]"
+    const createPowerMatch = raw.match(
+      /^(?:create\s+admin\s+power|new\s+admin\s+power|create\s+power|add\s+admin\s+power|add\s+power)\s+([a-zA-Z0-9\s]+?)(?:\s+(\d+))?(?:\s+(\d+))?(?:\s+(\d+))?$/i
+    );
+    if (createPowerMatch) {
+      const name = createPowerMatch[1].trim();
+      const dmg = createPowerMatch[2] ? parseInt(createPowerMatch[2], 10) : 500;
+      const range = createPowerMatch[3] ? parseInt(createPowerMatch[3], 10) : 6;
+      const aoe = createPowerMatch[4] ? parseInt(createPowerMatch[4], 10) : 1;
+      const power = createAdminPower(name, dmg, range, aoe);
+      return {
+        success: true,
+        message: `👑 Created and acquired new Admin Power "${power.name}" (${power.baseDamage} DMG)!`,
+      };
+    }
+
+    // 0c. Grant All Admin Powers to Active Hero
+    if (
+      cmd === 'grant all admin powers' ||
+      cmd === 'grant all powers' ||
+      cmd === 'get all admin powers' ||
+      cmd === 'all powers' ||
+      cmd === 'admin powers'
+    ) {
+      return this.grantAllAdminPowers();
+    }
+
     // 1. Last Level / Go to Last level
     if (
       cmd === 'go to last level' ||
@@ -4890,6 +5047,7 @@ export class GameApp {
     }
 
     this.turnManager.startPlayerTurn([this.hero]);
+    this.syncAdminPowers();
     this.isBusy = false;
     this.updateReachableTiles();
     this.updateHUD();
@@ -6058,4 +6216,15 @@ window.addEventListener('DOMContentLoaded', () => {
   (window as any).executeAdminCommand = (cmd: string) => game.executeAdminCommand(cmd);
   (window as any).adminCommand = (cmd: string) => game.executeAdminCommand(cmd);
   (window as any).massResurrection = () => game.invokeAdminMassResurrection();
+  (window as any).grantAllAdminPowers = () => game.grantAllAdminPowers();
+  (window as any).syncAdminPowers = () => game.syncAdminPowers();
+  (window as any).registerAdminAbility = registerAdminAbility;
+  (window as any).createAdminPower = (name: string, dmg?: number, range?: number, aoe?: number) => createAdminPower(name, dmg, range, aoe);
+  (window as any).makeMeAdmin = () => {
+    game.adminManager.grantAdmin();
+    (game as any).unlockManager.unlockAllElements(true);
+    game.grantAllAdminPowers();
+    game.updateAdminUI();
+    return '👑 Granted Admin! All powers & elements unlocked.';
+  };
 });

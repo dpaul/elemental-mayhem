@@ -76,14 +76,11 @@ export class UnlockManager {
   }
 
   public isElementUnlocked(element: ElementType): boolean {
-    if (element === 'Admin') {
-      return false; // Specifically requires authenticated Admin access!
-    }
     if (this.adminOverride) {
-      return true; // All powers granted to user!
+      return true; // All powers and elements granted to admin!
     }
-    if (this.isAdminOnly(element)) {
-      return false; // Admin exclusive, players are unable to get it
+    if (element === 'Admin' || this.isAdminOnly(element)) {
+      return false; // Admin exclusive, players without admin access are unable to get it
     }
     return this.unlockedElements.has(element);
   }

@@ -27,17 +27,22 @@ export class AdminManager {
     return this.authenticated;
   }
 
+  public grantAdmin(): void {
+    this.authenticated = true;
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem(this.storageKey, 'true');
+        window.localStorage.removeItem('elemental_mayhem_admin_explicit_logout');
+      }
+    } catch {
+      // Storage unavailable
+    }
+  }
+
   public authenticate(passcode: string): boolean {
     const cleaned = passcode.trim().toLowerCase();
     if (this.validPasscodes.has(cleaned)) {
-      this.authenticated = true;
-      try {
-        if (typeof window !== 'undefined' && window.localStorage) {
-          window.localStorage.setItem(this.storageKey, 'true');
-        }
-      } catch {
-        // Storage unavailable
-      }
+      this.grantAdmin();
       return true;
     }
     return false;
@@ -48,6 +53,7 @@ export class AdminManager {
     try {
       if (typeof window !== 'undefined' && window.localStorage) {
         window.localStorage.removeItem(this.storageKey);
+        window.localStorage.setItem('elemental_mayhem_admin_explicit_logout', 'true');
       }
     } catch {
       // Storage unavailable

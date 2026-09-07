@@ -8506,6 +8506,84 @@ export const HERO_CLASSES: Record<ElementType, HeroClassConfig> = {
   },
 };
 
+export type AdminAbilityListener = (ability: Ability) => void;
+const adminAbilityListeners = new Set<AdminAbilityListener>();
+
+export function onAdminAbilityRegistered(listener: AdminAbilityListener): () => void {
+  adminAbilityListeners.add(listener);
+  return () => {
+    adminAbilityListeners.delete(listener);
+  };
+}
+
+export function registerAdminAbility(ability: Partial<Ability> & { name: string }): Ability {
+  const adminConfig = HERO_CLASSES.Admin;
+  const id = ability.id || `admin_custom_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+
+  const fullAbility: Ability = {
+    id,
+    name: ability.name,
+    element: ability.element || 'Admin',
+    icon: ability.icon || '👑',
+    apCost: ability.apCost !== undefined ? ability.apCost : 1,
+    cooldown: ability.cooldown !== undefined ? ability.cooldown : 0,
+    currentCooldown: 0,
+    range: ability.range !== undefined ? ability.range : 5,
+    aoeRadius: ability.aoeRadius !== undefined ? ability.aoeRadius : 1,
+    targeting: ability.targeting || 'SingleUnit',
+    baseDamage: ability.baseDamage !== undefined ? ability.baseDamage : 500,
+    description: ability.description || `Custom Admin Power: ${ability.name} wielding absolute creator authority.`,
+    appliesStatus: ability.appliesStatus,
+    statusDuration: ability.statusDuration,
+    createsHazard: ability.createsHazard,
+    hazardDuration: ability.hazardDuration,
+    level: 1,
+  };
+
+  if (adminConfig) {
+    const existingIdx = adminConfig.abilities.findIndex((a) => a.id === fullAbility.id);
+    if (existingIdx >= 0) {
+      adminConfig.abilities[existingIdx] = fullAbility;
+    } else {
+      // Place right at the start of admin abilities so the player sees it prominently
+      adminConfig.abilities.unshift(fullAbility);
+    }
+  }
+
+  // Notify active listeners (such as the active game instance and hero)
+  adminAbilityListeners.forEach((listener) => {
+    try {
+      listener(fullAbility);
+    } catch (err) {
+      console.error('Error in admin ability listener:', err);
+    }
+  });
+
+  return fullAbility;
+}
+
+export function createAdminPower(
+  name: string,
+  baseDamage: number = 500,
+  range: number = 5,
+  aoeRadius: number = 1,
+  description?: string,
+  icon: string = '👑'
+): Ability {
+  return registerAdminAbility({
+    name,
+    baseDamage,
+    range,
+    aoeRadius,
+    description,
+    icon,
+    element: 'Admin',
+    apCost: 1,
+    cooldown: 0,
+    targeting: aoeRadius > 0 ? 'AnyTile' : 'SingleUnit',
+  });
+}
+
 // Populate the Admin element with every ability across all other elements
 export function populateAdminAbilities(): void {
   const adminConfig = HERO_CLASSES.Admin;
