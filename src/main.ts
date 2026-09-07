@@ -3323,6 +3323,229 @@ export class GameApp {
         this.updateHUD();
       }
     });
+
+    this.initHomeSecrets();
+  }
+
+  private initHomeSecrets(): void {
+    const secretSpots = document.querySelectorAll<HTMLElement>('.home-secret-spot');
+    const modal = document.getElementById('home-secret-modal');
+    const closeBtn = document.getElementById('home-secret-close-btn');
+    const dismissBtn = document.getElementById('home-secret-dismiss-btn');
+    const actionBtn = document.getElementById('home-secret-action-btn') as HTMLButtonElement | null;
+    const badgeEl = document.getElementById('home-secret-badge');
+    const avatarEl = document.getElementById('home-secret-avatar');
+    const titleEl = document.getElementById('home-secret-title');
+    const tagEl = document.getElementById('home-secret-tag');
+    const descEl = document.getElementById('home-secret-desc');
+    const statsBox = document.getElementById('home-secret-stats-box');
+    const countEl = document.getElementById('home-secrets-found-count');
+
+    if (!modal || secretSpots.length === 0) return;
+
+    const getDiscovered = (): Set<string> => {
+      try {
+        const raw = localStorage.getItem('elemental_mayhem_secrets_discovered');
+        return raw ? new Set(JSON.parse(raw)) : new Set();
+      } catch {
+        return new Set();
+      }
+    };
+
+    const saveDiscovered = (set: Set<string>): void => {
+      try {
+        localStorage.setItem('elemental_mayhem_secrets_discovered', JSON.stringify(Array.from(set)));
+      } catch (err) {
+        console.warn('Failed to save discovered secrets:', err);
+      }
+    };
+
+    const updateCounterDisplay = () => {
+      if (countEl) {
+        countEl.textContent = `${getDiscovered().size}`;
+      }
+    };
+    updateCounterDisplay();
+
+    const secretsMap: Record<
+      string,
+      {
+        badge: string;
+        avatar: string;
+        title: string;
+        tag: string;
+        desc: string;
+        stats: string[];
+        themeColor: string;
+        actionLabel: string;
+        onAction: () => void;
+      }
+    > = {
+      'void-archon': {
+        badge: '🌌 SECRET FINAL BOSS VISION',
+        avatar: '🌌👑',
+        title: 'THE VOID ARCHON',
+        tag: 'Round 15 Supreme Overlord • 480 HP • Void Singularity',
+        desc: 'The cosmic architect of the void waiting at the end of the 15-round gauntlet. Unleashes Cosmic Singularity, Dimensional Collapse, and Event Horizon Pulse to rend reality!',
+        stats: ['480 Max HP', '7 AP', 'Void Affinity', 'Event Horizon Pulse', 'Dimensional Collapse'],
+        themeColor: '#c084fc',
+        actionLabel: '🌌 Challenge Final Boss in Arena',
+        onAction: () => {
+          modal.classList.add('hidden');
+          this.goToLastLevel(15);
+        },
+      },
+      'titan-colossus': {
+        badge: '🗿 PRIMORDIAL TITAN REVEAL',
+        avatar: '🗿🌋',
+        title: 'THE TITAN COLOSSUS',
+        tag: 'Round 10 Boss • 2,500 HP in Sandbox • Earth & Magma',
+        desc: 'A monolithic primordial titan forged from the earth’s tectonic core. Smashes tectonic faults, summons molten volcanic fissures, and shrugs off mortal strikes.',
+        stats: ['2,500 Max HP', 'Earth & Magma', 'Tectonic Cataclysm', 'Volcanic Rupture', 'Unstoppable'],
+        themeColor: '#f59e0b',
+        actionLabel: '🧪 Spawn Titan in Sandbox Mode',
+        onAction: () => {
+          modal.classList.add('hidden');
+          this.startSandboxMode();
+          setTimeout(() => {
+            this.executeAdminCommand('spawn titan');
+          }, 300);
+        },
+      },
+      'ban-hammer': {
+        badge: '👑 CREATOR GOD ARTIFACT',
+        avatar: '🔨⚡',
+        title: "THE CREATOR'S BAN HAMMER",
+        tag: 'Supreme Admin Weapon • 999 Holy Damage • 0 Cooldown',
+        desc: 'The ultimate server-level execution instrument. Striking with 999 Holy Admin Damage, it permanently expels any enemy into oblivion for 1 AP.',
+        stats: ['999 Admin DMG', '1 AP Cost', '0 Cooldown', 'Instant Ban', 'Root Authority'],
+        themeColor: '#ec4899',
+        actionLabel: '👑 Open Creator Console',
+        onAction: () => {
+          modal.classList.add('hidden');
+          this.adminManager.grantAdmin();
+          this.openAdminPanel();
+        },
+      },
+      'undead-legion': {
+        badge: '🧟‍♂️ REANIMATION ARMY ARCHIVE',
+        avatar: '🧟‍♂️💀',
+        title: 'THE REANIMATED UNDEAD LEGION',
+        tag: '11 Unique Zombie Classes • Necromantic Forces',
+        desc: 'Slain warriors do not perish—they join the reanimated legion! Command Brutes, Electro Zombies, Death Knights, and Wizards with unique powers and status effects.',
+        stats: ['11 Zombie Classes', 'Brute Stun', 'Death Knight Shield', 'Electro Zap', 'Wizard Bolts'],
+        themeColor: '#10b981',
+        actionLabel: '🧟 Summon Undead in Sandbox',
+        onAction: () => {
+          modal.classList.add('hidden');
+          this.startSandboxMode();
+          setTimeout(() => {
+            this.executeAdminCommand('spawn zombies');
+          }, 300);
+        },
+      },
+      'chrono-paradox': {
+        badge: '⏳ TEMPORAL COSMIC MYSTERY',
+        avatar: '⏳✨',
+        title: 'CHRONO PARADOX & TIME MAGIC',
+        tag: '4th-Dimensional Power • Turn Acceleration & Rewind',
+        desc: 'Distorts the fabric of space-time. Accelerates Action Points, resets ability cooldowns, and rewinds turns before catastrophe strikes. You uncover ancient essence!',
+        stats: ['Grand Time Warp', 'Temporal Stasis', 'Turn Acceleration', '+50 🔮 Cosmic Essence'],
+        themeColor: '#38bdf8',
+        actionLabel: '🔮 Absorb +50 Cosmic Essence',
+        onAction: () => {
+          this.progression.addEssence(50);
+          this.updateHeroLevelHeader();
+          this.soundEngine.playLevelUp();
+          modal.classList.add('hidden');
+        },
+      },
+      'reaction-matrix': {
+        badge: '⚗️ ALCHEMICAL REACTION MATRIX',
+        avatar: '💥⚡',
+        title: 'ELEMENTAL REACTION MATRIX',
+        tag: '50 Elemental Forces • Dynamic Combat Combos',
+        desc: 'Discover explosive chain reactions: Vaporize (Fire + Water = 2.0x DMG), Superconduct (Ice + Lightning = Shockwave), and Overload (Fire + Lightning = Stun)!',
+        stats: ['Vaporize (2.0x)', 'Superconduct AOE', 'Overload Stun', 'Toxic Detonation', '+50 🔮 Essence'],
+        themeColor: '#eab308',
+        actionLabel: '📖 Open Elemental Reaction Codex',
+        onAction: () => {
+          modal.classList.add('hidden');
+          this.openCodex();
+        },
+      },
+    };
+
+    secretSpots.forEach((spot) => {
+      spot.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.soundEngine.unlockAudio();
+        const secretKey = spot.getAttribute('data-secret') || '';
+        const secret = secretsMap[secretKey];
+        if (!secret) return;
+
+        this.soundEngine.playLevelUp();
+        this.triggerHomeClickNova(e.clientX, e.clientY);
+
+        // Check if discovered for the first time
+        const discovered = getDiscovered();
+        const isNew = !discovered.has(secretKey);
+        if (isNew) {
+          discovered.add(secretKey);
+          saveDiscovered(discovered);
+          this.progression.addEssence(50);
+          this.updateHeroLevelHeader();
+          updateCounterDisplay();
+        }
+
+        // Populate modal content
+        if (badgeEl) badgeEl.textContent = secret.badge;
+        if (avatarEl) avatarEl.textContent = secret.avatar;
+        if (titleEl) {
+          titleEl.textContent = secret.title;
+          titleEl.style.background = `linear-gradient(135deg, #fff, ${secret.themeColor})`;
+          (titleEl.style as any).webkitBackgroundClip = 'text';
+          (titleEl.style as any).webkitTextFillColor = 'transparent';
+        }
+        if (tagEl) tagEl.textContent = secret.tag;
+        if (descEl) descEl.textContent = secret.desc;
+
+        if (statsBox) {
+          statsBox.innerHTML = '';
+          secret.stats.forEach((st) => {
+            const pill = document.createElement('span');
+            pill.style.cssText = `background: rgba(255,255,255,0.08); border: 1px solid ${secret.themeColor}88; color: #fff; font-size: 0.8rem; font-weight: 700; padding: 4px 12px; border-radius: 999px; box-shadow: 0 0 10px ${secret.themeColor}44;`;
+            pill.textContent = st;
+            statsBox.appendChild(pill);
+          });
+        }
+
+        if (actionBtn) {
+          actionBtn.textContent = secret.actionLabel;
+          actionBtn.style.background = `linear-gradient(135deg, ${secret.themeColor}, #8b5cf6)`;
+          actionBtn.style.borderColor = secret.themeColor;
+          actionBtn.onclick = () => {
+            this.soundEngine.playClick();
+            secret.onAction();
+          };
+        }
+
+        modal.classList.remove('hidden');
+      });
+    });
+
+    const closeModal = () => {
+      this.soundEngine.playClick();
+      modal.classList.add('hidden');
+    };
+
+    closeBtn?.addEventListener('click', closeModal);
+    dismissBtn?.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        closeModal();
+      }
+    });
   }
 
   private getLocalPlayerUnit(): Unit {

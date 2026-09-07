@@ -326,6 +326,46 @@
     <!-- ==================================================================== -->
     <div id="home-screen" class="home-screen-overlay">
       <canvas id="home-particles-canvas" class="home-particles-canvas"></canvas>
+
+      <!-- Hidden Background Easter Egg Hotspots -->
+      <div id="home-secrets-layer" class="home-secrets-layer">
+        <!-- Secret 1: Void Archon Cosmic Rift (Top-Left) -->
+        <button class="home-secret-spot spot-void" data-secret="void-archon" title="✨ Faint Void Gravitational Anomaly (Click to uncover)">
+          <span class="spot-pulse pulse-void"></span>
+          <span class="spot-glyph">🌌</span>
+        </button>
+
+        <!-- Secret 2: Titan Earth Monolith (Bottom-Left) -->
+        <button class="home-secret-spot spot-titan" data-secret="titan-colossus" title="🌋 Faint Volcanic Tremor (Click to uncover)">
+          <span class="spot-pulse pulse-titan"></span>
+          <span class="spot-glyph">🗿</span>
+        </button>
+
+        <!-- Secret 3: Creator Sovereign Constellation (Top-Center Right) -->
+        <button class="home-secret-spot spot-admin" data-secret="ban-hammer" title="👑 Faint Sovereign Constellation (Click to uncover)">
+          <span class="spot-pulse pulse-admin"></span>
+          <span class="spot-glyph">👑</span>
+        </button>
+
+        <!-- Secret 4: Necromantic Soul Crypt (Bottom-Right) -->
+        <button class="home-secret-spot spot-undead" data-secret="undead-legion" title="💀 Eerie Spectral Wisp (Click to uncover)">
+          <span class="spot-pulse pulse-undead"></span>
+          <span class="spot-glyph">💀</span>
+        </button>
+
+        <!-- Secret 5: Chrono Time Distortion (Mid-Left) -->
+        <button class="home-secret-spot spot-time" data-secret="chrono-paradox" title="⏳ Shimmering Time Anomaly (Click to uncover)">
+          <span class="spot-pulse pulse-time"></span>
+          <span class="spot-glyph">⏳</span>
+        </button>
+
+        <!-- Secret 6: Primal Alchemy Core (Mid-Right) -->
+        <button class="home-secret-spot spot-reaction" data-secret="reaction-matrix" title="⚡ Crackling Elemental Fusion (Click to uncover)">
+          <span class="spot-pulse pulse-reaction"></span>
+          <span class="spot-glyph">⚡</span>
+        </button>
+      </div>
+
       <div class="home-container glass-card">
         <!-- Top Utilities Bar -->
         <div class="home-top-bar">
@@ -939,6 +979,30 @@
             <div id="coop-join-wait-text">Connected to Host! Waiting for Host to launch match...</div>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Secret Vision Reveal Modal (Easter Eggs) -->
+  <div id="home-secret-modal" class="modal-overlay hidden" style="z-index: 250;">
+    <div class="modal-content glass-card home-secret-modal-content" style="max-width: 580px; text-align: center; position: relative; border-radius: 24px; padding: 34px 28px; box-shadow: 0 25px 80px rgba(0,0,0,0.95), 0 0 50px rgba(192, 132, 252, 0.4);">
+      <button id="home-secret-close-btn" class="modal-close-btn" style="position: absolute; top: 16px; right: 18px; background: rgba(255,255,255,0.1); border: none; font-size: 1.3rem; color: #fff; width: 36px; height: 36px; border-radius: 50%; cursor: pointer;">✕</button>
+      <div id="home-secret-badge" class="secret-badge" style="display: inline-block; background: linear-gradient(135deg, rgba(236,72,153,0.3), rgba(139,92,246,0.3)); border: 1px solid #f472b6; color: #fbcfe8; padding: 4px 14px; border-radius: 999px; font-weight: 800; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">🌟 SECRET GAME DISCOVERY</div>
+      <div id="home-secret-avatar" class="secret-avatar" style="font-size: 4.8rem; margin: 12px 0; filter: drop-shadow(0 0 30px rgba(192, 132, 252, 0.8)); transition: transform 0.3s ease;">🌌</div>
+      <h2 id="home-secret-title" style="margin: 4px 0 8px; font-size: 1.85rem; font-weight: 900; background: linear-gradient(135deg, #f472b6, #c084fc, #60a5fa); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">THE VOID ARCHON</h2>
+      <div id="home-secret-tag" style="color: #cbd5e1; font-weight: 700; font-size: 0.95rem; margin-bottom: 12px;">Round 15 Supreme Boss • 480 HP • Void Affinity</div>
+      <p id="home-secret-desc" style="color: #94a3b8; font-size: 0.92rem; line-height: 1.6; margin-bottom: 18px; padding: 0 10px;">
+        Deep in the entropic void awaits the cosmic master of gravitational singularity.
+      </p>
+      <div id="home-secret-stats-box" style="display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-bottom: 22px;">
+        <!-- Injected dynamically -->
+      </div>
+      <div style="display: flex; justify-content: center; gap: 12px; flex-wrap: wrap;">
+        <button id="home-secret-action-btn" class="btn-primary" style="padding: 10px 24px; border-radius: 12px; font-weight: 800; font-size: 0.95rem; cursor: pointer;"></button>
+        <button id="home-secret-dismiss-btn" class="btn-text" style="padding: 10px 20px; border-radius: 12px; font-weight: 700; background: rgba(255,255,255,0.06); color: #cbd5e1;">Close Vision</button>
+      </div>
+      <div id="home-secrets-counter" style="margin-top: 18px; font-size: 0.82rem; color: #64748b; font-weight: 600;">
+        Discoveries: <span id="home-secrets-found-count" style="color: #fbbf24; font-weight: 800;">1</span> / 6 Secrets Discovered
       </div>
     </div>
   </div>
