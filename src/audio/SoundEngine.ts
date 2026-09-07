@@ -993,6 +993,32 @@ export class SoundEngine {
     }
   }
 
+  public playLevelUp(): void {
+    const ctx = this.initContext();
+    if (!ctx || this.isMuted) return;
+
+    // Triumphant 5-chord celestial arpeggio: G4 -> C5 -> E5 -> G5 -> C6
+    const t = ctx.currentTime;
+    const masterGain = this.createGain(ctx, 0.5);
+    const chord = [392.0, 523.25, 659.25, 783.99, 1046.5];
+
+    chord.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, t + idx * 0.08);
+
+      const env = ctx.createGain();
+      env.gain.setValueAtTime(0.01, t + idx * 0.08);
+      env.gain.linearRampToValueAtTime(0.35, t + idx * 0.08 + 0.03);
+      env.gain.exponentialRampToValueAtTime(0.001, t + idx * 0.08 + 0.55);
+
+      osc.connect(env);
+      env.connect(masterGain);
+      osc.start(t + idx * 0.08);
+      osc.stop(t + idx * 0.08 + 0.6);
+    });
+  }
+
   public playWarp(): void {
     const ctx = this.initContext();
     if (!ctx || this.isMuted) return;

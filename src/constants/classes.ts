@@ -8560,3 +8560,48 @@ export function createHeroForElement(element: ElementType): Unit {
     isDead: false,
   };
 }
+
+export function getAllElementalAbilities(): Ability[] {
+  populateAdminAbilities();
+  const list: Ability[] = [];
+  const seen = new Set<string>();
+
+  for (const heroConfig of Object.values(HERO_CLASSES)) {
+    for (const ab of heroConfig.abilities) {
+      if (!seen.has(ab.id)) {
+        seen.add(ab.id);
+        list.push({
+          ...ab,
+          currentCooldown: 0,
+        });
+      }
+    }
+  }
+  return list;
+}
+
+export function createSandboxHero(element: ElementType = 'Fire'): Unit {
+  const config = HERO_CLASSES[element] || HERO_CLASSES.Fire;
+  const abilities = getAllElementalAbilities();
+
+  return {
+    id: 'hero',
+    name: `Sandbox ${config.className || 'Master'}`,
+    faction: 'Player',
+    avatar: config.avatar || '🧪',
+    coord: { x: 1, y: 1 },
+    level: 50,
+    stats: {
+      maxHp: 999,
+      currentHp: 999,
+      maxAp: 99,
+      currentAp: 99,
+      moveCostPerTile: 1,
+      elementalAffinity: config.element,
+    },
+    abilities,
+    statusEffects: [],
+    isDead: false,
+  };
+}
+

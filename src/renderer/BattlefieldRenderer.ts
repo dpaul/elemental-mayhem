@@ -19,6 +19,13 @@ export class BattlefieldRenderer {
   public elapsedTotalTimeMs: number = 0;
   public partnerHoverCoord: GridCoord | null = null;
   public activePings: { coord: GridCoord; label: string; playerNum: 1 | 2; age: number; maxAge: number }[] = [];
+  public activePlacementPreview: {
+    icon: string;
+    name: string;
+    category: string;
+    color?: string;
+    isValid?: boolean;
+  } | null = null;
 
   constructor(canvas: HTMLCanvasElement, combatEngine: CombatEngine) {
     this.canvas = canvas;
@@ -151,7 +158,7 @@ export class BattlefieldRenderer {
 
         // Draw Obstacles
         if (tile.isObstacle) {
-          this.renderObstacle(ctx, px, py, tileSize);
+          this.renderObstacle(ctx, px, py, tileSize, tile.obstacleIcon || '🪨');
         }
       }
     }
@@ -210,6 +217,42 @@ export class BattlefieldRenderer {
       ctx.shadowColor = '#38bdf8';
       ctx.shadowBlur = 8;
       ctx.strokeRect(hx + 1, hy + 1, tileSize - 2, tileSize - 2);
+
+      // 5a. Draw Ghost Placement Preview if in placement mode
+      if (this.activePlacementPreview) {
+        const preview = this.activePlacementPreview;
+        const isValid = preview.isValid !== false;
+
+        ctx.save();
+        if (isValid) {
+          ctx.fillStyle = 'rgba(52, 211, 153, 0.2)';
+          ctx.strokeStyle = '#34d399';
+          ctx.shadowColor = '#10b981';
+        } else {
+          ctx.fillStyle = 'rgba(239, 68, 68, 0.25)';
+          ctx.strokeStyle = '#ef4444';
+          ctx.shadowColor = '#dc2626';
+        }
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.shadowBlur = 10;
+        ctx.fillRect(hx + 2, hy + 2, tileSize - 4, tileSize - 4);
+        ctx.strokeRect(hx + 2, hy + 2, tileSize - 4, tileSize - 4);
+
+        // Preview Icon
+        ctx.font = `${Math.floor(tileSize * 0.48)}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.globalAlpha = 0.88;
+        ctx.fillText(preview.icon, hx + tileSize / 2, hy + tileSize / 2);
+
+        if (!isValid) {
+          ctx.font = 'bold 15px sans-serif';
+          ctx.fillStyle = '#ef4444';
+          ctx.fillText('🚫', hx + tileSize - 12, hy + 14);
+        }
+        ctx.restore();
+      }
     }
 
     // 5b. Draw Partner Ghost Hover Reticle (Co-op)
@@ -372,7 +415,7 @@ export class BattlefieldRenderer {
     ctx.restore();
   }
 
-  private renderObstacle(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
+  private renderObstacle(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, icon: string = '🪨'): void {
     ctx.save();
     ctx.fillStyle = '#1e293b';
     ctx.fillRect(x + 4, y + 4, size - 8, size - 8);
@@ -382,7 +425,7 @@ export class BattlefieldRenderer {
     ctx.font = `${Math.floor(size * 0.45)}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('🪨', x + size / 2, y + size / 2);
+    ctx.fillText(icon, x + size / 2, y + size / 2);
     ctx.restore();
   }
 

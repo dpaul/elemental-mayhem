@@ -7,6 +7,7 @@ export interface SpellTooltipContext {
   currentAp?: number;
   targetUnit?: Unit | null;
   casterUnit?: Unit | null;
+  essenceResonanceMultiplier?: number;
 }
 
 export class SpellTooltipManager {
@@ -62,10 +63,13 @@ export class SpellTooltipManager {
     };
 
     const isSupportOrUtility = ability.baseDamage <= 0;
+    const resonanceMult = context?.essenceResonanceMultiplier || 1;
+    const boostedDmg = Math.round(ability.baseDamage * resonanceMult);
+    const bonusPct = Math.round((resonanceMult - 1) * 100);
     const damageDisplay = isSupportOrUtility
       ? `<span class="stat-pill util-pill">🛡️ Support / Utility</span>`
       : `<span class="stat-pill dmg-pill" style="border-color: ${elemData.color}; color: ${elemData.color}">
-           💥 ${ability.baseDamage} <small>${ability.element}</small> DMG
+           💥 ${boostedDmg} <small>${ability.element}</small> DMG${bonusPct > 0 ? ` <span style="color:#fbbf24; font-size:0.75rem; font-weight:700;">(+${bonusPct}% Resonance)</span>` : ''}
          </span>`;
 
     const apCostDisplay = `<span class="stat-pill ap-pill">⚡ ${ability.apCost} AP</span>`;

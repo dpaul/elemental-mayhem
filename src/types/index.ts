@@ -102,6 +102,7 @@ export interface GridCoord {
 export interface TileState {
   coord: GridCoord;
   isObstacle: boolean;
+  obstacleIcon?: string;
   hazard: TileHazard;
 }
 
@@ -278,4 +279,34 @@ export interface GameState {
   log: CombatLogEntry[];
   performance: PerformanceStats;
   ownedRelics: PassiveRelic[];
+}
+
+export type PlacementCategory = 'enemy' | 'wall' | 'hazard' | 'eraser';
+
+export interface PlacementHazardConfig {
+  type: TileHazardType;
+  duration: number;
+  damage: number;
+  element: ElementType;
+}
+
+export interface PlacementWallConfig {
+  name: string;
+  icon: string;
+  description: string;
+}
+
+export interface PlacementItem {
+  id: string;
+  name: string;
+  category: PlacementCategory;
+  subcategory?: 'dummy' | 'campaign' | 'undead' | 'boss';
+  icon: string;
+  element?: ElementType;
+  color?: string;
+  description: string;
+  hp?: number;
+  wallConfig?: PlacementWallConfig;
+  hazardConfig?: PlacementHazardConfig;
+  enemyFactory?: (coord: GridCoord) => Unit;
 }

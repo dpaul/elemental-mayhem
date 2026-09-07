@@ -39,10 +39,11 @@ export class Grid {
     return this.tiles[coord.x][coord.y];
   }
 
-  public setObstacle(coord: GridCoord, isObstacle: boolean): void {
+  public setObstacle(coord: GridCoord, isObstacle: boolean, icon: string = '🪨'): void {
     const tile = this.getTile(coord);
     if (tile) {
       tile.isObstacle = isObstacle;
+      tile.obstacleIcon = isObstacle ? icon : undefined;
     }
   }
 

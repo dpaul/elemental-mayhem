@@ -60,6 +60,8 @@ export class CombatEngine {
   public logs: CombatLogEntry[];
   public performance: PerformanceStats;
   public onZombieSpawn?: (zombie: Unit) => void;
+  public onEssenceEarned?: (amount: number, coord: GridCoord) => void;
+  public getEssenceResonanceMultiplier?: (caster: Unit) => number;
 
   constructor(grid: Grid, hazardManager: TileHazardManager, hero: Unit, enemies: Unit[], coopHero?: Unit) {
     this.grid = grid;
@@ -830,6 +832,15 @@ export class CombatEngine {
         if (unit.stats.currentHp === 0) {
           unit.isDead = true;
           this.addLog('system', `${unit.name} perished in ${tile.hazard.type}!`);
+          if (unit.faction === 'Enemy') {
+            this.performance.enemiesKilled += 1;
+            const essenceDrop = unit.isBoss ? 150 : 25;
+            this.performance.earnedEssence = (this.performance.earnedEssence || 0) + essenceDrop;
+            this.addLog('system', `🔮 Harvested +${essenceDrop} Essence from ${unit.name}!`);
+            if (this.onEssenceEarned) {
+              this.onEssenceEarned(essenceDrop, unit.coord);
+            }
+          }
         }
       } else if (unit.isZombie && unit.zombieClass && ZOMBIE_CLASS_FLOOR_REQUIREMENTS[unit.zombieClass]?.includes(tile.hazard.type)) {
         this.addLog(
@@ -1027,6 +1038,14 @@ export class CombatEngine {
           targetUnit.stats.elementalAffinity
         );
 
+        // Apply Essence Resonance power scaling (+15% per Level, +5% per 100 Essence)
+        if (finalDamage > 0 && this.getEssenceResonanceMultiplier) {
+          const mult = this.getEssenceResonanceMultiplier(caster);
+          if (mult > 1) {
+            finalDamage = Math.round(finalDamage * mult);
+          }
+        }
+
         // Check for active status reactions
         const primaryStatus = targetUnit.statusEffects.length > 0 ? targetUnit.statusEffects[0].type : null;
         const reaction = this.reactionEngine.evaluateUnitReaction(ability.element, primaryStatus);
@@ -1137,6 +1156,12 @@ export class CombatEngine {
           this.addLog('system', `☠️ ${targetUnit.name} has been defeated!`);
           if (targetUnit.faction === 'Enemy') {
             this.performance.enemiesKilled += 1;
+            const essenceDrop = targetUnit.isBoss ? 150 : 25;
+            this.performance.earnedEssence = (this.performance.earnedEssence || 0) + essenceDrop;
+            this.addLog('system', `🔮 Harvested +${essenceDrop} Essence from ${targetUnit.name}!`);
+            if (this.onEssenceEarned) {
+              this.onEssenceEarned(essenceDrop, targetUnit.coord);
+            }
           }
 
           // --- NECROMANCER REANIMATION MECHANIC ---

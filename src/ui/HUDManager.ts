@@ -19,6 +19,12 @@ export class HUDManager {
   private essenceCounter: HTMLElement;
   private xpCounter: HTMLElement;
   private roundIndicator: HTMLElement;
+  private heroLevelDisplay: HTMLElement | null = null;
+  private essenceProgressLabel: HTMLElement | null = null;
+  private heroLevelTierLabel: HTMLElement | null = null;
+  private heroEssenceMeterText: HTMLElement | null = null;
+  private heroEssenceFill: HTMLElement | null = null;
+  private cachedResonanceMultiplier: number = 1;
   private actionBarControls: HTMLElement | null = null;
   private searchInput: HTMLInputElement | null = null;
   private elementFilter: HTMLSelectElement | null = null;
@@ -50,6 +56,11 @@ export class HUDManager {
     this.essenceCounter = document.getElementById('essence-counter')!;
     this.xpCounter = document.getElementById('xp-counter')!;
     this.roundIndicator = document.getElementById('round-indicator')!;
+    this.heroLevelDisplay = document.getElementById('hero-level-display');
+    this.essenceProgressLabel = document.getElementById('essence-progress-label');
+    this.heroLevelTierLabel = document.getElementById('hero-level-tier-label');
+    this.heroEssenceMeterText = document.getElementById('hero-essence-meter-text');
+    this.heroEssenceFill = document.getElementById('hero-essence-fill');
 
     this.actionBarControls = document.getElementById('action-bar-controls');
     this.searchInput = document.getElementById('ability-search-input') as HTMLInputElement | null;
@@ -114,6 +125,18 @@ export class HUDManager {
     }
   }
 
+  public setElementFilter(element: string): void {
+    this.filterElement = element;
+    if (this.elementFilter) {
+      this.elementFilter.value = element;
+    }
+    this.reRenderFilteredAbilities();
+  }
+
+  public getElementFilter(): string {
+    return this.filterElement;
+  }
+
   public renderAbilities(
     abilities: Ability[],
     selectedAbilityId: string | null,
@@ -135,15 +158,19 @@ export class HUDManager {
     if (hasLargeKit) {
       this.actionBar.classList.add('scrolling-mode');
       // Populate unique elements if filter exists
-      if (this.elementFilter && this.elementFilter.options.length <= 1) {
+      if (this.elementFilter) {
         const uniqueElements = Array.from(new Set(abilities.map((a) => a.element))).sort();
-        this.elementFilter.innerHTML = '<option value="All">🌟 All Elements</option>';
-        uniqueElements.forEach((elem) => {
-          const opt = document.createElement('option');
-          opt.value = elem;
-          opt.textContent = `${elem}`;
-          this.elementFilter!.appendChild(opt);
-        });
+        if (this.elementFilter.options.length <= 1 || this.elementFilter.options.length < uniqueElements.length + 1) {
+          const currentVal = this.filterElement;
+          this.elementFilter.innerHTML = '<option value="All">🌟 All Elements</option>';
+          uniqueElements.forEach((elem) => {
+            const opt = document.createElement('option');
+            opt.value = elem;
+            opt.textContent = `${elem}`;
+            this.elementFilter!.appendChild(opt);
+          });
+          this.elementFilter.value = currentVal;
+        }
       }
     } else {
       this.actionBar.classList.remove('scrolling-mode');
@@ -216,6 +243,7 @@ export class HUDManager {
       this.tooltipManager.attach(card, ability, () => ({
         currentAp,
         targetUnit: this.inspectedTargetUnit,
+        essenceResonanceMultiplier: this.cachedResonanceMultiplier,
       }));
 
       this.actionBar.appendChild(card);
@@ -272,6 +300,33 @@ export class HUDManager {
     } else {
       this.roundIndicator.textContent = `ROUND ${round.toLocaleString()} / ${maxRoundsStr}`;
       this.roundIndicator.classList.remove('boss-round');
+    }
+  }
+
+  public updateHeroLevel(
+    level: number,
+    title: string,
+    currentEssence: number,
+    nextLevelEssence: number,
+    percentage: number,
+    resonanceMultiplier: number
+  ): void {
+    this.cachedResonanceMultiplier = resonanceMultiplier;
+    if (this.heroLevelDisplay) {
+      this.heroLevelDisplay.textContent = `${level} (${title})`;
+    }
+    if (this.essenceProgressLabel) {
+      this.essenceProgressLabel.textContent = `(/ ${nextLevelEssence})`;
+    }
+    if (this.heroLevelTierLabel) {
+      const bonusPct = Math.round((resonanceMultiplier - 1) * 100);
+      this.heroLevelTierLabel.textContent = `⭐ LV. ${level} • ${title.toUpperCase()} (+${bonusPct}% PWR)`;
+    }
+    if (this.heroEssenceMeterText) {
+      this.heroEssenceMeterText.textContent = `${currentEssence} / ${nextLevelEssence} 🔮`;
+    }
+    if (this.heroEssenceFill) {
+      this.heroEssenceFill.style.width = `${Math.min(100, Math.max(0, percentage))}%`;
     }
   }
 

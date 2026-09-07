@@ -6,7 +6,7 @@ import { TurnManager } from './engine/TurnManager';
 import { TurnTimer } from './engine/TurnTimer';
 import { EnemyAI } from './engine/EnemyAI';
 import { PerformanceScorer } from './engine/PerformanceScorer';
-import { UpgradeManager } from './engine/UpgradeManager';
+import { UpgradeManager, LevelUpResult } from './engine/UpgradeManager';
 import { EscalationManager } from './engine/EscalationManager';
 import { UnlockManager } from './engine/UnlockManager';
 import { AdminManager } from './engine/AdminManager';
@@ -14,9 +14,10 @@ import { BattlefieldRenderer } from './renderer/BattlefieldRenderer';
 import { HUDManager } from './ui/HUDManager';
 import { SoundEngine } from './audio/SoundEngine';
 import { SaveManager, GameSaveData, SavedHazardTile } from './engine/SaveManager';
-import { ElementType, Unit, Ability, GridCoord, ZombieClass, TileHazardType } from './types';
+import { PlacementManager } from './engine/PlacementManager';
+import { ElementType, Unit, Ability, GridCoord, ZombieClass, TileHazardType, PlacementItem, PlacementCategory } from './types';
 import { CORE_ELEMENTS } from './constants/elements';
-import { HERO_CLASSES, createHeroForElement } from './constants/classes';
+import { HERO_CLASSES, createHeroForElement, createSandboxHero } from './constants/classes';
 import { NetworkManager } from './network/NetworkManager';
 import { NetworkMessage } from './network/NetworkMessages';
 
@@ -208,6 +209,28 @@ export class GameApp {
   private hotseatClassSelectContainer: HTMLElement;
   private pvpArenaBtn: HTMLElement | null;
 
+  // Sandbox Mode
+  private isSandboxMode: boolean = false;
+  private sandboxInfiniteAp: boolean = false;
+  private sandboxGodMode: boolean = false;
+  private sandboxAiEnabled: boolean = false;
+  private sandboxToolbar: HTMLElement | null = null;
+  private sandboxHeroAffinitySelect: HTMLSelectElement | null = null;
+  private sandboxDummyElementSelect: HTMLSelectElement | null = null;
+  private sandboxDummyHpSelect: HTMLSelectElement | null = null;
+
+  // Arena Placement & Builder
+  public placementManager: PlacementManager = new PlacementManager();
+  public activePlacementItem: PlacementItem | null = null;
+  public placementCategory: PlacementCategory = 'enemy';
+  public placementEnemySubfilter: string = 'all';
+  private lastPlacedCoord: GridCoord | null = null;
+  private isPlacementMouseDown: boolean = false;
+  private sandboxPlacementPanel: HTMLElement | null = null;
+  private sandboxActiveBrushBar: HTMLElement | null = null;
+  private activeBrushBadge: HTMLElement | null = null;
+  private placementGrid: HTMLElement | null = null;
+
   // Online Co-op Mode
   private networkManager: NetworkManager;
   private isCoopMode: boolean = false;
@@ -382,15 +405,23 @@ export class GameApp {
     this.coopJoinElementGrid = document.getElementById('coop-join-element-grid')!;
     this.navCoopBtn = document.getElementById('nav-coop-btn');
 
+    // Sandbox UI Elements
+    this.sandboxToolbar = document.getElementById('sandbox-toolbar');
+    this.sandboxHeroAffinitySelect = document.getElementById('sandbox-hero-affinity') as HTMLSelectElement | null;
+    this.sandboxDummyElementSelect = document.getElementById('sandbox-dummy-element') as HTMLSelectElement | null;
+    this.sandboxDummyHpSelect = document.getElementById('sandbox-dummy-hp') as HTMLSelectElement | null;
+    this.sandboxPlacementPanel = document.getElementById('sandbox-placement-panel');
+    this.sandboxActiveBrushBar = document.getElementById('sandbox-active-brush-bar');
+    this.activeBrushBadge = document.getElementById('active-brush-badge');
+    this.placementGrid = document.getElementById('placement-items-grid');
+    this.initSandboxUI();
+
     this.hero = this.createHero(this.selectedElement);
     this.enemies = this.escalationManager.generateRoundEnemies(1);
 
     this.combatEngine = new CombatEngine(this.grid, this.hazardManager, this.hero, this.enemies);
     this.soundEngine = new SoundEngine();
-    this.combatEngine.onZombieSpawn = () => {
-      this.soundEngine.playZombieSpawn();
-      this.soundEngine.playZombieScream();
-    };
+    this.attachCombatEngineHooks(this.combatEngine);
     this.enemyAI = new EnemyAI(this.combatEngine);
     this.renderer = new BattlefieldRenderer(canvas, this.combatEngine);
     this.hud = new HUDManager();
@@ -1074,6 +1105,8 @@ export class GameApp {
   public showHomeScreen(): void {
     this.cancelAutoTurnCountdown();
     this.autoSaveGame();
+    this.isSandboxMode = false;
+    this.sandboxToolbar?.classList.add('hidden');
     this.homeScreen.classList.remove('hidden');
     this.homeScreen.style.display = 'flex';
     this.resumeRunModal.classList.add('hidden');
@@ -1526,6 +1559,7 @@ export class GameApp {
     this.setupObstacles();
 
     this.combatEngine = new CombatEngine(this.grid, this.hazardManager, this.hero, this.enemies);
+    this.attachCombatEngineHooks(this.combatEngine);
     const canvas = document.getElementById('battlefield-canvas') as HTMLCanvasElement;
     this.renderer = new BattlefieldRenderer(canvas, this.combatEngine);
     this.enemyAI = new EnemyAI(this.combatEngine);
@@ -1947,6 +1981,7 @@ export class GameApp {
     this.setupObstacles();
 
     this.combatEngine = new CombatEngine(this.grid, this.hazardManager, this.hero, this.enemies, p2);
+    this.attachCombatEngineHooks(this.combatEngine);
     const canvas = document.getElementById('battlefield-canvas') as HTMLCanvasElement;
     this.renderer = new BattlefieldRenderer(canvas, this.combatEngine);
     this.enemyAI = new EnemyAI(this.combatEngine);
@@ -2316,6 +2351,22 @@ export class GameApp {
       this.characterSelectModal.classList.remove('hidden');
     });
 
+    // Elemental Sandbox Listeners
+    document.getElementById('nav-sandbox-btn')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      this.startSandboxMode();
+    });
+
+    document.getElementById('home-btn-sandbox')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      this.startSandboxMode();
+    });
+
+    document.getElementById('home-btn-sandbox-card')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      this.startSandboxMode();
+    });
+
     // Online Co-op Listeners
     this.navCoopBtn?.addEventListener('click', () => {
       this.soundEngine.playClick();
@@ -2469,6 +2520,24 @@ export class GameApp {
       this.adminManager.logout();
       this.updateAdminUI();
       this.combatEngine.addLog('system', '🔒 ADMIN: Console locked and creator signed out.');
+    });
+
+    const commandForm = document.getElementById('admin-command-form');
+    const commandInput = document.getElementById('admin-command-input') as HTMLInputElement | null;
+    const commandFeedback = document.getElementById('admin-command-feedback');
+    commandForm?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (!commandInput) return;
+      const cmd = commandInput.value.trim();
+      if (!cmd) return;
+      const result = this.executeAdminCommand(cmd);
+      if (commandFeedback) {
+        commandFeedback.textContent = result.message;
+        commandFeedback.style.color = result.success ? '#86efac' : '#f87171';
+      }
+      if (result.success) {
+        commandInput.value = '';
+      }
     });
 
     document.getElementById('admin-btn-ap')?.addEventListener('click', () => {
@@ -2699,6 +2768,10 @@ export class GameApp {
       this.checkCombatState();
     });
 
+    document.getElementById('admin-btn-last-level')?.addEventListener('click', () => {
+      this.goToLastLevel(15);
+    });
+
     document.getElementById('admin-btn-jump-1000')?.addEventListener('click', () => {
       if (!this.adminManager.canUseAdminCommands(this.isHotseatMode, this.hotseatCurrentPlayer)) {
         this.openAdminPanel();
@@ -2818,6 +2891,34 @@ export class GameApp {
         this.hud.inspectUnit(unit, gridCoord);
       }
 
+      // Placement Preview & Drag Painting
+      if (this.activePlacementItem && gridCoord) {
+        const canPlace = this.placementManager.canPlaceAt(
+          this.activePlacementItem,
+          gridCoord,
+          this.grid,
+          this.combatEngine
+        );
+        this.renderer.activePlacementPreview = {
+          icon: this.activePlacementItem.icon,
+          name: this.activePlacementItem.name,
+          category: this.activePlacementItem.category,
+          color: this.activePlacementItem.color,
+          isValid: canPlace.valid,
+        };
+
+        if (
+          this.isPlacementMouseDown &&
+          (!this.lastPlacedCoord ||
+            this.lastPlacedCoord.x !== gridCoord.x ||
+            this.lastPlacedCoord.y !== gridCoord.y)
+        ) {
+          this.handlePlacementAtCoord(gridCoord);
+        }
+      } else {
+        this.renderer.activePlacementPreview = null;
+      }
+
       if (this.isCoopMode && this.networkManager.isConnected()) {
         const now = performance.now();
         if (now - this.lastCursorHoverSent > 60) {
@@ -2831,10 +2932,38 @@ export class GameApp {
       }
     });
 
+    canvas.addEventListener('mousedown', (e) => {
+      if (e.button === 0 && this.activePlacementItem) {
+        this.isPlacementMouseDown = true;
+        const gridCoord = this.renderer.screenToGrid(e.clientX, e.clientY);
+        if (gridCoord) {
+          this.handlePlacementAtCoord(gridCoord);
+        }
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      this.isPlacementMouseDown = false;
+      this.lastPlacedCoord = null;
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (this.activePlacementItem) {
+          this.deselectPlacementBrush();
+        }
+      }
+    });
+
     canvas.addEventListener('click', async (e) => {
       if (this.isBusy) return;
       const gridCoord = this.renderer.screenToGrid(e.clientX, e.clientY);
       if (!gridCoord) return;
+
+      if (this.activePlacementItem) {
+        this.handlePlacementAtCoord(gridCoord);
+        return;
+      }
 
       if (this.selectedAbility) {
         await this.handlePlayerCast(this.selectedAbility, gridCoord);
@@ -3320,6 +3449,9 @@ export class GameApp {
     await new Promise<void>((resolve) => {
       this.renderer.animManager.animateMovement(activeUnit.id, path, 160, () => {
         this.combatEngine.moveUnit(activeUnit, targetCoord);
+        if (this.isSandboxMode && this.sandboxInfiniteAp) {
+          activeUnit.stats.currentAp = activeUnit.stats.maxAp;
+        }
         if (this.isCoopMode && this.networkManager.isHost()) {
           this.networkManager.send({
             type: 'EVENT_MOVE',
@@ -3480,6 +3612,9 @@ export class GameApp {
       this.renderer.projManager.spawnProjectile(startPos, targetPos, ability.element, color, 260, () => {
         const logCountBefore = this.combatEngine.logs.length;
         this.combatEngine.executeAbility(activeUnit, ability, targetCoord);
+        if (this.isSandboxMode && this.sandboxInfiniteAp) {
+          activeUnit.stats.currentAp = activeUnit.stats.maxAp;
+        }
 
         if (this.isCoopMode && this.networkManager.isHost()) {
           this.networkManager.send({
@@ -3770,20 +3905,21 @@ export class GameApp {
       ...this.combatEngine.zombies.filter((z) => !z.isDead && z.faction === 'Enemy'),
     ];
 
-    for (const enemy of enemyCombatants) {
-      if (enemy.isDead) continue;
+    if (!(this.isSandboxMode && !this.sandboxAiEnabled)) {
+      for (const enemy of enemyCombatants) {
+        if (enemy.isDead) continue;
 
-      this.focusedUnitId = enemy.id;
-      this.hud.updatePhaseBanner(`ENEMY: ${enemy.name.toUpperCase()}`);
-      await delay(350);
+        this.focusedUnitId = enemy.id;
+        this.hud.updatePhaseBanner(`ENEMY: ${enemy.name.toUpperCase()}`);
+        await delay(350);
 
-      // Target closest player unit
-      const playerTargets = this.combatEngine.getAllAllies();
-      const targetUnit = playerTargets.sort(
-        (a, b) =>
-          this.combatEngine.grid.manhattanDistance(enemy.coord, a.coord) -
-          this.combatEngine.grid.manhattanDistance(enemy.coord, b.coord)
-      )[0] || this.hero;
+        // Target closest player unit
+        const playerTargets = this.combatEngine.getAllAllies();
+        const targetUnit = playerTargets.sort(
+          (a, b) =>
+            this.combatEngine.grid.manhattanDistance(enemy.coord, a.coord) -
+            this.combatEngine.grid.manhattanDistance(enemy.coord, b.coord)
+        )[0] || this.hero;
 
       const steps = this.enemyAI.planTurnSteps(enemy, targetUnit);
 
@@ -3881,6 +4017,7 @@ export class GameApp {
       this.focusedUnitId = null;
       await delay(250);
     }
+  }
 
     // 3. Environment & Summons Ticks
     this.hud.updatePhaseBanner('ENVIRONMENT TICK');
@@ -3900,6 +4037,21 @@ export class GameApp {
     await delay(300);
 
     // Return to Player Turn
+    if (this.isSandboxMode) {
+      if (this.sandboxGodMode) {
+        this.hero.stats.currentHp = this.hero.stats.maxHp;
+        this.hero.isDead = false;
+      }
+      if (this.sandboxInfiniteAp) {
+        this.hero.stats.currentAp = this.hero.stats.maxAp;
+      }
+      this.turnManager.startPlayerTurn([this.hero]);
+      this.isBusy = false;
+      this.updateReachableTiles();
+      this.updateHUD();
+      return;
+    }
+
     if (!this.hero.isDead && !this.combatEngine.areAllEnemiesDead()) {
       this.turnManager.startPlayerTurn([this.hero]);
       this.isBusy = false;
@@ -3911,7 +4063,7 @@ export class GameApp {
   }
 
   private checkCombatState(): void {
-    if (this.isHotseatMode) return;
+    if (this.isHotseatMode || this.isSandboxMode) return;
 
     if (this.isCoopMode) {
       const p1 = this.hero;
@@ -4006,6 +4158,7 @@ export class GameApp {
     const rewards = this.scorer.calculateRoundRewards(this.combatEngine.performance);
     this.totalEssence += rewards.essence;
     this.totalXp += rewards.xp;
+    this.checkHeroLevelUp(true);
 
     // Check boss defeat unlocks
     const isBossRound = this.currentRound === 5 || this.currentRound === 10 || this.currentRound === 15;
@@ -4018,6 +4171,18 @@ export class GameApp {
         );
       }
     }
+
+    const progress = this.upgradeManager.getEssenceProgress(this.totalEssence);
+    const resonanceMult = this.upgradeManager.calculateEssenceResonanceMultiplier(
+      this.hero.level || progress.currentLevel,
+      this.totalEssence
+    );
+    const bonusPct = Math.round((resonanceMult - 1) * 100);
+
+    const modalLevel = document.getElementById('modal-hero-level');
+    if (modalLevel) modalLevel.textContent = `${progress.currentLevel} (${progress.title})`;
+    const modalPower = document.getElementById('modal-spell-power');
+    if (modalPower) modalPower.textContent = `+${bonusPct}%`;
 
     this.modalEssence.textContent = `${this.totalEssence}`;
     this.modalXp.textContent = `${this.totalXp}`;
@@ -4048,6 +4213,256 @@ export class GameApp {
     });
 
     this.upgradeModal.classList.remove('hidden');
+  }
+
+  private attachCombatEngineHooks(engine: CombatEngine): void {
+    engine.onZombieSpawn = () => {
+      this.soundEngine.playZombieSpawn();
+      this.soundEngine.playZombieScream();
+    };
+    engine.onEssenceEarned = (amount: number, coord: GridCoord) => {
+      this.addEssence(amount, coord);
+    };
+    engine.getEssenceResonanceMultiplier = (caster: Unit) => {
+      const level = caster.level ?? this.upgradeManager.getLevelFromEssence(this.totalEssence);
+      return this.upgradeManager.calculateEssenceResonanceMultiplier(level, this.totalEssence);
+    };
+  }
+
+  public addEssence(amount: number, coord?: GridCoord): void {
+    if (amount <= 0) return;
+    this.totalEssence += amount;
+    if (coord && this.renderer) {
+      const pos = this.renderer.gridToScreen(coord);
+      this.renderer.particleEngine.addFloatingText(`+${amount} 🔮 Essence!`, pos.x, pos.y - 25, '#c084fc', 22);
+    }
+    this.checkHeroLevelUp(true);
+    this.updateHUD();
+  }
+
+  public checkHeroLevelUp(showEffects: boolean = true): LevelUpResult {
+    if (!this.hero) {
+      return {
+        leveledUp: false,
+        oldLevel: 0,
+        newLevel: 0,
+        hpGain: 0,
+        apGain: 0,
+        title: 'Initiate',
+      };
+    }
+
+    const result = this.upgradeManager.checkAndApplyLevelUp(this.hero, this.totalEssence);
+
+    if (result.leveledUp) {
+      this.soundEngine.playLevelUp();
+
+      if (showEffects && this.renderer) {
+        this.renderer.particleEngine.triggerScreenShake(8, 300);
+        const heroPos = this.renderer.gridToScreen(this.hero.coord);
+        this.renderer.particleEngine.addFloatingText(
+          `🌟 LEVEL UP! Lv. ${result.newLevel} ${result.title}!`,
+          heroPos.x,
+          heroPos.y - 45,
+          '#fbbf24',
+          30
+        );
+        this.renderer.particleEngine.addFloatingText(
+          `+${result.hpGain} HP • +${result.newLevel * 15}% Spell Power!`,
+          heroPos.x,
+          heroPos.y - 18,
+          '#38bdf8',
+          22
+        );
+      }
+
+      const powerBonus = result.newLevel * 15;
+      this.combatEngine.addLog(
+        'system',
+        `🌟 LEVEL UP! You reached Level ${result.newLevel} (${result.title})! Max HP +${result.hpGain}, Spell Power +${powerBonus}%!`
+      );
+
+      this.updateHUD();
+    }
+
+    return result;
+  }
+
+  public goToLastLevel(round: number = 15, bypassAuth: boolean = false): { success: boolean; message: string } {
+    if (!bypassAuth && !this.adminManager.canUseAdminCommands(this.isHotseatMode, this.hotseatCurrentPlayer)) {
+      this.openAdminPanel();
+      return { success: false, message: '🔒 Admin access required. Please enter admin passcode first.' };
+    }
+    this.closeAdminPanel();
+    this.cancelAutoTurnCountdown();
+
+    if (this.isSandboxMode) {
+      this.exitSandboxMode();
+    }
+    this.hideHomeScreen();
+
+    const targetRound = Math.max(1, round);
+    this.currentRound = targetRound - 1;
+    this.advanceToNextRound();
+
+    if (this.hero.isDead || this.hero.stats.currentHp <= 0) {
+      this.hero.isDead = false;
+      this.hero.stats.currentHp = this.hero.stats.maxHp;
+    }
+    this.hero.stats.currentAp = Math.max(this.hero.stats.currentAp, this.hero.stats.maxAp);
+
+    const pos = this.renderer.gridToScreen(this.hero.coord);
+    this.renderer.particleEngine.triggerScreenShake(10, 350);
+    this.renderer.particleEngine.addFloatingText(`👑 LAST LEVEL: ROUND ${this.currentRound}!`, pos.x, pos.y - 35, '#f59e0b', 28);
+    this.soundEngine.playClick();
+    this.combatEngine.addLog(
+      'system',
+      `👑 ADMIN COMMAND: Warped to Last Level (Round ${this.currentRound})! Facing THE VOID ARCHON (Supreme Boss)!`
+    );
+    this.updateHUD();
+    this.updateReachableTiles();
+
+    return {
+      success: true,
+      message: `Warped to Last Level: Round ${this.currentRound} (The Void Archon Supreme Boss)!`,
+    };
+  }
+
+  public executeAdminCommand(input: string): { success: boolean; message: string } {
+    const raw = input.trim();
+    if (!raw) return { success: false, message: 'Command is empty.' };
+    const cmd = raw.toLowerCase();
+
+    // Check admin permissions
+    if (!this.adminManager.canUseAdminCommands(this.isHotseatMode, this.hotseatCurrentPlayer)) {
+      this.openAdminPanel();
+      return { success: false, message: '🔒 Admin Console locked. Please authenticate first.' };
+    }
+
+    // 1. Last Level / Go to Last level
+    if (
+      cmd === 'go to last level' ||
+      cmd === 'goto last level' ||
+      cmd === 'last level' ||
+      cmd === 'last round' ||
+      cmd === 'final level' ||
+      cmd === 'final boss' ||
+      cmd === 'last' ||
+      cmd === 'level 15' ||
+      cmd === 'round 15' ||
+      cmd === 'boss 15'
+    ) {
+      return this.goToLastLevel(15);
+    }
+
+    // 2. Specific round jump: "round 15", "level 10", "goto 12", "go to round 5"
+    const roundMatch = cmd.match(/^(?:(?:go\s*to|goto)\s+)?(?:round|level)\s+(\d+)$/i);
+    if (roundMatch) {
+      const r = parseInt(roundMatch[1], 10);
+      if (isNaN(r) || r < 1) {
+        return { success: false, message: `Invalid round number: ${roundMatch[1]}` };
+      }
+      return this.goToLastLevel(r);
+    }
+
+    // 3. Smite / Kill all
+    if (cmd === 'smite' || cmd === 'kill all' || cmd === 'kill enemies' || cmd === 'nuke') {
+      this.enemies.forEach((e) => {
+        e.stats.currentHp = 0;
+        e.isDead = true;
+      });
+      this.combatEngine.addLog('system', '👑 ADMIN COMMAND: Smote all enemies on the battlefield!');
+      this.checkCombatState();
+      return { success: true, message: 'All enemies eliminated!' };
+    }
+
+    // 4. Heal / God HP
+    if (cmd === 'heal' || cmd === 'full heal' || cmd === 'god hp' || cmd === 'hp') {
+      this.hero.stats.maxHp = 9999;
+      this.hero.stats.currentHp = 9999;
+      this.hero.isDead = false;
+      this.combatEngine.addLog('system', '👑 ADMIN COMMAND: Granted 9999 God HP!');
+      this.updateHUD();
+      return { success: true, message: 'HP set to 9,999 God Health!' };
+    }
+
+    // 5. AP / God AP
+    if (cmd === 'ap' || cmd === 'refill ap' || cmd === 'max ap' || cmd === '99 ap') {
+      this.hero.stats.maxAp = 99;
+      this.hero.stats.currentAp = 99;
+      this.combatEngine.addLog('system', '👑 ADMIN COMMAND: Granted 99 Action Points!');
+      this.updateReachableTiles();
+      this.updateHUD();
+      return { success: true, message: 'AP refilled to 99!' };
+    }
+
+    // 6. Cleanse
+    if (cmd === 'cleanse' || cmd === 'clear hazards' || cmd === 'clean') {
+      for (let x = 0; x < this.grid.size; x++) {
+        for (let y = 0; y < this.grid.size; y++) {
+          const tile = this.grid.getTile({ x, y });
+          if (tile) {
+            tile.hazard = { type: 'None', duration: 0, damagePerTurn: 0, element: 'Neutral' };
+          }
+        }
+      }
+      this.combatEngine.addLog('system', '👑 ADMIN COMMAND: Cleansed all environmental hazards!');
+      return { success: true, message: 'All hazards cleansed!' };
+    }
+
+    // 7. Sandbox
+    if (cmd === 'sandbox' || cmd === 'enter sandbox') {
+      this.closeAdminPanel();
+      this.startSandboxMode();
+      return { success: true, message: 'Entered Sandbox Mode with all elements unlocked!' };
+    }
+
+    // 8. Essence & Level Up Commands
+    if (cmd === 'level up' || cmd === 'lvl up') {
+      const currentLvl = this.hero.level || this.upgradeManager.getLevelFromEssence(this.totalEssence);
+      const nextReq = this.upgradeManager.getEssenceRequiredForLevel(currentLvl + 1);
+      const diff = Math.max(50, nextReq - this.totalEssence);
+      this.addEssence(diff);
+      return {
+        success: true,
+        message: `⭐ Leveled up to Level ${this.hero.level} (${this.upgradeManager.getLevelTitle(this.hero.level || 0)})!`,
+      };
+    }
+
+    const addEssenceMatch = cmd.match(/^(?:add\s+essence|essence|add\s+esense)\s+(\d+)$/i);
+    if (addEssenceMatch) {
+      const amt = parseInt(addEssenceMatch[1], 10);
+      if (!isNaN(amt) && amt > 0) {
+        this.addEssence(amt);
+        return { success: true, message: `🔮 Added +${amt} Essence! Total: ${this.totalEssence}` };
+      }
+    }
+
+    const setLevelMatch = cmd.match(/^(?:set\s+level|set\s+lvl)\s+(\d+)$/i);
+    if (setLevelMatch) {
+      const targetLvl = parseInt(setLevelMatch[1], 10);
+      if (!isNaN(targetLvl) && targetLvl >= 0) {
+        const needed = this.upgradeManager.getEssenceRequiredForLevel(targetLvl);
+        this.totalEssence = needed;
+        this.checkHeroLevelUp(true);
+        this.updateHUD();
+        return { success: true, message: `⭐ Set Hero Level to ${targetLvl}!` };
+      }
+    }
+
+    // 9. Help
+    if (cmd === 'help' || cmd === '?') {
+      return {
+        success: true,
+        message:
+          'Commands: "go to last level", "round <N>", "smite", "heal", "ap", "cleanse", "level up", "add essence <N>", "sandbox"',
+      };
+    }
+
+    return {
+      success: false,
+      message: `Unknown command "${raw}". Try "go to last level", "level up", "add essence 100", "smite", "heal", or "ap".`,
+    };
   }
 
   private advanceToNextRound(): void {
@@ -4248,10 +4663,8 @@ export class GameApp {
     }
 
     this.combatEngine = new CombatEngine(this.grid, this.hazardManager, this.hero, this.enemies);
-    this.combatEngine.onZombieSpawn = () => {
-      this.soundEngine.playZombieSpawn();
-      this.soundEngine.playZombieScream();
-    };
+    this.attachCombatEngineHooks(this.combatEngine);
+    this.checkHeroLevelUp(false);
 
     // Restore zombies and beings of life
     if (saveData.zombies && saveData.zombies.length > 0) {
@@ -4290,7 +4703,7 @@ export class GameApp {
   }
 
   public autoSaveGame(): void {
-    if (this.isHotseatMode) return;
+    if (this.isHotseatMode || this.isSandboxMode) return;
     if (!this.hero || this.hero.isDead || this.hero.stats.currentHp <= 0) {
       this.saveManager.clearSave();
       return;
@@ -4344,6 +4757,8 @@ export class GameApp {
     this.totalXp = 0;
     this.selectedElement = element;
     this.isHotseatMode = false;
+    this.isSandboxMode = false;
+    this.sandboxToolbar?.classList.add('hidden');
     this.isHeroDeathAnimating = false;
     this.isRoundVictoryAnimating = false;
     this.deadUnitIds.clear();
@@ -4356,10 +4771,8 @@ export class GameApp {
     this.setupObstacles();
 
     this.combatEngine = new CombatEngine(this.grid, this.hazardManager, this.hero, this.enemies);
-    this.combatEngine.onZombieSpawn = () => {
-      this.soundEngine.playZombieSpawn();
-      this.soundEngine.playZombieScream();
-    };
+    this.attachCombatEngineHooks(this.combatEngine);
+    this.checkHeroLevelUp(false);
     const canvas = document.getElementById('battlefield-canvas') as HTMLCanvasElement;
     this.renderer = new BattlefieldRenderer(canvas, this.combatEngine);
     this.enemyAI = new EnemyAI(this.combatEngine);
@@ -4375,6 +4788,743 @@ export class GameApp {
     this.updateReachableTiles();
     this.updateHUD();
     this.autoSaveGame();
+  }
+
+  public startSandboxMode(initialElement: ElementType = 'Fire'): void {
+    this.cancelAutoTurnCountdown();
+    this.hideHomeScreen();
+    this.resumeRunModal.classList.add('hidden');
+    this.characterSelectModal.classList.add('hidden');
+    this.hotseatSelectModal.classList.add('hidden');
+    this.codexModal.classList.add('hidden');
+    this.guideModal.classList.add('hidden');
+    this.gameOverModal.classList.add('hidden');
+    this.upgradeModal.classList.add('hidden');
+
+    this.isSandboxMode = true;
+    this.isHotseatMode = false;
+    this.isCoopMode = false;
+    this.isHeroDeathAnimating = false;
+    this.isRoundVictoryAnimating = false;
+    this.deadUnitIds.clear();
+    this.selectedElement = initialElement;
+
+    // Build the omni-elemental Sandbox hero with all 501 abilities and 99 AP
+    this.hero = createSandboxHero(initialElement);
+    if (this.sandboxGodMode) {
+      this.hero.stats.maxHp = 9999;
+      this.hero.stats.currentHp = 9999;
+    }
+    if (this.sandboxInfiniteAp) {
+      this.hero.stats.maxAp = 99;
+      this.hero.stats.currentAp = 99;
+    }
+
+    this.grid = new Grid(10);
+    this.hazardManager = new TileHazardManager(this.grid);
+    this.grid.setObstacle({ x: 0, y: 5 }, true);
+    this.grid.setObstacle({ x: 9, y: 5 }, true);
+
+    // Initial practice dummies: 1 Water Dummy & 1 Ice Dummy
+    this.enemies = [
+      {
+        id: 'sandbox_dummy_1',
+        name: 'Water Dummy',
+        faction: 'Enemy',
+        avatar: '💧',
+        coord: { x: 7, y: 3 },
+        stats: {
+          maxHp: 300,
+          currentHp: 300,
+          maxAp: 4,
+          currentAp: 4,
+          moveCostPerTile: 1,
+          elementalAffinity: 'Water',
+        },
+        abilities: HERO_CLASSES.Water?.abilities ? [HERO_CLASSES.Water.abilities[0]] : [],
+        statusEffects: [],
+        isDead: false,
+      },
+      {
+        id: 'sandbox_dummy_2',
+        name: 'Ice Dummy',
+        faction: 'Enemy',
+        avatar: '❄️',
+        coord: { x: 7, y: 6 },
+        stats: {
+          maxHp: 300,
+          currentHp: 300,
+          maxAp: 4,
+          currentAp: 4,
+          moveCostPerTile: 1,
+          elementalAffinity: 'Ice',
+        },
+        abilities: HERO_CLASSES.Ice?.abilities ? [HERO_CLASSES.Ice.abilities[0]] : [],
+        statusEffects: [],
+        isDead: false,
+      },
+    ];
+
+    this.combatEngine = new CombatEngine(this.grid, this.hazardManager, this.hero, this.enemies);
+    this.attachCombatEngineHooks(this.combatEngine);
+    this.checkHeroLevelUp(false);
+
+    const canvas = document.getElementById('battlefield-canvas') as HTMLCanvasElement;
+    this.renderer = new BattlefieldRenderer(canvas, this.combatEngine);
+    this.enemyAI = new EnemyAI(this.combatEngine);
+
+    const roundBadge = document.getElementById('round-indicator');
+    if (roundBadge) {
+      roundBadge.textContent = '🧪 SANDBOX ARENA • ALL 50 ELEMENTS';
+      roundBadge.style.color = '#34d399';
+    }
+
+    const phaseText = document.getElementById('phase-text');
+    if (phaseText) {
+      phaseText.textContent = 'PLAYER TURN (SANDBOX)';
+    }
+
+    this.sandboxToolbar?.classList.remove('hidden');
+
+    if (this.sandboxHeroAffinitySelect) {
+      this.sandboxHeroAffinitySelect.value = initialElement;
+    }
+
+    // Set initial active element chip
+    document.querySelectorAll('#sandbox-chips-row .element-chip').forEach((chip) => {
+      chip.classList.toggle('active', chip.getAttribute('data-element') === initialElement);
+    });
+
+    this.turnManager.startPlayerTurn([this.hero]);
+    this.isBusy = false;
+    this.updateReachableTiles();
+    this.updateHUD();
+
+    // Default filter to selected element
+    this.hud.setElementFilter(initialElement);
+
+    // Initialize placement palette
+    this.deselectPlacementBrush();
+    this.sandboxPlacementPanel?.classList.remove('collapsed');
+    this.renderPlacementGrid();
+
+    this.combatEngine.addLog(
+      'system',
+      '🧪 Welcome to the Elemental Sandbox! All 50 elements, 500+ abilities, and the Arena Placement Menu are ready.'
+    );
+  }
+
+  public exitSandboxMode(): void {
+    this.deselectPlacementBrush();
+    this.isSandboxMode = false;
+    this.sandboxToolbar?.classList.add('hidden');
+    this.showHomeScreen();
+  }
+
+  public switchSandboxHeroAffinity(element: ElementType | 'All'): void {
+    if (element === 'All') {
+      this.hud.setElementFilter('All');
+      this.combatEngine.addLog('system', '🌟 Spellbook filtered to display all 500+ powers!');
+      return;
+    }
+
+    this.hero.stats.elementalAffinity = element;
+    const config = HERO_CLASSES[element];
+    if (config) {
+      this.hero.avatar = config.avatar;
+      this.hero.name = `Sandbox ${config.className}`;
+    }
+    this.selectedElement = element;
+    if (this.sandboxHeroAffinitySelect) {
+      this.sandboxHeroAffinitySelect.value = element;
+    }
+    this.hud.setElementFilter(element);
+    this.updateHUD();
+    this.combatEngine.addLog('system', `🧪 Switched Elemental Affinity to ${element}! Spellbook filtered.`);
+  }
+
+  public spawnSandboxDummy(element: ElementType, hp: number = 300, coord?: GridCoord): Unit {
+    const elemData = CORE_ELEMENTS[element] || CORE_ELEMENTS.Neutral;
+    const config = HERO_CLASSES[element] || HERO_CLASSES.Neutral;
+    const dummyCoord = coord || this.findFreeCoordAround({ x: 6, y: 5 });
+
+    const dummy: Unit = {
+      id: `dummy_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+      name: `${element} Dummy`,
+      faction: 'Enemy',
+      avatar: elemData.icon || '🎯',
+      coord: dummyCoord,
+      stats: {
+        maxHp: hp,
+        currentHp: hp,
+        maxAp: 4,
+        currentAp: 4,
+        moveCostPerTile: 1,
+        elementalAffinity: element,
+      },
+      abilities: config?.abilities ? [config.abilities[0]] : [],
+      statusEffects: [],
+      isDead: false,
+    };
+
+    this.combatEngine.enemies.push(dummy);
+    this.updateReachableTiles();
+
+    const screenPos = this.renderer.gridToScreen(dummyCoord);
+    this.renderer.particleEngine.addFloatingText(`🎯 +${element} Dummy`, screenPos.x, screenPos.y - 20, elemData.color, 22);
+    this.soundEngine.playHit();
+    this.combatEngine.addLog('system', `🎯 Spawned ${element} Dummy (${hp} HP) at (${dummyCoord.x}, ${dummyCoord.y}).`);
+    return dummy;
+  }
+
+  public spawnSandboxBoss(): Unit {
+    const bossCoord = this.findFreeCoordAround({ x: 7, y: 4 });
+    const titanConfig = HERO_CLASSES.Titan || HERO_CLASSES.Fire;
+    const boss: Unit = {
+      id: `sandbox_boss_${Date.now()}`,
+      name: 'Titan Golem Boss',
+      faction: 'Enemy',
+      avatar: '🗿',
+      coord: bossCoord,
+      isBoss: true,
+      stats: {
+        maxHp: 2500,
+        currentHp: 2500,
+        maxAp: 6,
+        currentAp: 6,
+        moveCostPerTile: 1,
+        elementalAffinity: 'Titan',
+      },
+      abilities: titanConfig.abilities ? titanConfig.abilities.slice(0, 3) : [],
+      statusEffects: [],
+      isDead: false,
+    };
+
+    this.combatEngine.enemies.push(boss);
+    this.updateReachableTiles();
+
+    const screenPos = this.renderer.gridToScreen(bossCoord);
+    this.renderer.particleEngine.addFloatingText('👑 TITAN BOSS SPAWNED!', screenPos.x, screenPos.y - 30, '#eab308', 26);
+    this.soundEngine.playHit();
+    this.combatEngine.addLog('system', `👑 Spawned colossal Titan Golem Boss (2,500 HP) at (${bossCoord.x}, ${bossCoord.y})!`);
+    return boss;
+  }
+
+  public spawnSandboxVoidArchon(): Unit {
+    const bossCoord = this.findFreeCoordAround({ x: 8, y: 5 });
+    const boss: Unit = {
+      id: `sandbox_void_archon_${Date.now()}`,
+      name: 'THE VOID ARCHON (Supreme Boss)',
+      faction: 'Enemy',
+      avatar: '👑',
+      coord: bossCoord,
+      isBoss: true,
+      stats: {
+        maxHp: 480,
+        currentHp: 480,
+        maxAp: 7,
+        currentAp: 7,
+        moveCostPerTile: 1,
+        elementalAffinity: 'Void',
+      },
+      abilities: [
+        {
+          id: 'cosmic_singularity',
+          name: 'Cosmic Singularity',
+          element: 'Void',
+          icon: '🌌',
+          apCost: 3,
+          cooldown: 0,
+          currentCooldown: 0,
+          range: 5,
+          aoeRadius: 1,
+          targeting: 'SingleUnit',
+          baseDamage: 48,
+          appliesStatus: 'VoidMarked',
+          statusDuration: 3,
+          createsHazard: 'VoidRift',
+          hazardDuration: 3,
+          description: 'Tears a massive singularity in reality causing entropic annihilation.',
+          level: 5,
+        },
+        {
+          id: 'event_horizon_pulse',
+          name: 'Event Horizon Pulse',
+          element: 'Void',
+          icon: '🌀',
+          apCost: 2,
+          cooldown: 0,
+          currentCooldown: 0,
+          range: 4,
+          aoeRadius: 1,
+          targeting: 'SingleUnit',
+          baseDamage: 38,
+          appliesStatus: 'Stunned',
+          statusDuration: 1,
+          description: 'Gravitational wave that pulls reality inward and stuns.',
+          level: 5,
+        },
+      ],
+      statusEffects: [],
+      isDead: false,
+    };
+
+    this.combatEngine.enemies.push(boss);
+    this.updateReachableTiles();
+
+    const screenPos = this.renderer.gridToScreen(bossCoord);
+    this.renderer.particleEngine.addFloatingText('👑 THE VOID ARCHON SPAWNED!', screenPos.x, screenPos.y - 30, '#ec4899', 26);
+    this.soundEngine.playHit();
+    this.combatEngine.addLog('system', `👑 Spawned Last Level Final Boss: THE VOID ARCHON at (${bossCoord.x}, ${bossCoord.y})!`);
+    return boss;
+  }
+
+  private findFreeCoordAround(center: GridCoord): GridCoord {
+    for (let radius = 1; radius < this.grid.size; radius++) {
+      for (let dx = -radius; dx <= radius; dx++) {
+        for (let dy = -radius; dy <= radius; dy++) {
+          const x = center.x + dx;
+          const y = center.y + dy;
+          if (x >= 0 && x < this.grid.size && y >= 0 && y < this.grid.size) {
+            const c = { x, y };
+            if (!this.grid.getTile(c)?.isObstacle && this.combatEngine.getUnitAt(c) === null) {
+              return c;
+            }
+          }
+        }
+      }
+    }
+    return { x: 5, y: 5 };
+  }
+
+  private initSandboxUI(): void {
+    if (!this.sandboxToolbar) return;
+
+    // Populate Hero Affinity Select with all 50 elements
+    if (this.sandboxHeroAffinitySelect) {
+      this.sandboxHeroAffinitySelect.innerHTML = '';
+      const allElements = Object.keys(HERO_CLASSES) as ElementType[];
+      allElements.forEach((elem) => {
+        const config = HERO_CLASSES[elem];
+        const opt = document.createElement('option');
+        opt.value = elem;
+        opt.textContent = `${config.avatar || '✨'} ${elem} (${config.className || elem})`;
+        this.sandboxHeroAffinitySelect!.appendChild(opt);
+      });
+
+      this.sandboxHeroAffinitySelect.addEventListener('change', (e) => {
+        const selElem = (e.target as HTMLSelectElement).value as ElementType;
+        this.switchSandboxHeroAffinity(selElem);
+        // Update chip active state
+        document.querySelectorAll('#sandbox-chips-row .element-chip').forEach((chip) => {
+          chip.classList.toggle('active', chip.getAttribute('data-element') === selElem);
+        });
+      });
+    }
+
+    // Populate Dummy Element Select
+    if (this.sandboxDummyElementSelect) {
+      this.sandboxDummyElementSelect.innerHTML = '';
+      const dummyElements: ElementType[] = ['Neutral', ...(Object.keys(HERO_CLASSES) as ElementType[])];
+      dummyElements.forEach((elem) => {
+        const elemData = CORE_ELEMENTS[elem];
+        const opt = document.createElement('option');
+        opt.value = elem;
+        opt.textContent = `${elemData ? elemData.icon : '🎯'} ${elem}`;
+        this.sandboxDummyElementSelect!.appendChild(opt);
+      });
+      this.sandboxDummyElementSelect.value = 'Water';
+    }
+
+    // Quick Element Chips Row
+    const chips = document.querySelectorAll('#sandbox-chips-row .element-chip');
+    chips.forEach((chip) => {
+      chip.addEventListener('click', () => {
+        chips.forEach((c) => c.classList.remove('active'));
+        chip.classList.add('active');
+        const elem = chip.getAttribute('data-element') as ElementType | 'All';
+        if (elem) {
+          this.switchSandboxHeroAffinity(elem);
+        }
+      });
+    });
+
+    // Spawn Dummy Button
+    document.getElementById('sandbox-spawn-dummy-btn')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      const elem = (this.sandboxDummyElementSelect?.value as ElementType) || 'Neutral';
+      const hp = parseInt(this.sandboxDummyHpSelect?.value || '300', 10);
+      this.spawnSandboxDummy(elem, hp);
+    });
+
+    // Spawn Boss Button
+    document.getElementById('sandbox-spawn-boss-btn')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      this.spawnSandboxBoss();
+    });
+
+    // Spawn Void Archon (Last Level Final Boss) Button
+    document.getElementById('sandbox-spawn-last-boss-btn')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      this.spawnSandboxVoidArchon();
+    });
+
+    // Refill AP Button
+    document.getElementById('sandbox-btn-refill-ap')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      this.hero.stats.currentAp = this.hero.stats.maxAp;
+      this.updateHUD();
+      this.combatEngine.addLog('system', '⚡ Action Points refilled to 99 AP!');
+    });
+
+    // Infinite AP Toggle
+    const infApBtn = document.getElementById('sandbox-toggle-inf-ap');
+    infApBtn?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      this.sandboxInfiniteAp = !this.sandboxInfiniteAp;
+      infApBtn.classList.toggle('active', this.sandboxInfiniteAp);
+      infApBtn.textContent = this.sandboxInfiniteAp ? '♾️ Inf AP: ON' : '♾️ Inf AP: OFF';
+      if (this.sandboxInfiniteAp) {
+        this.hero.stats.currentAp = this.hero.stats.maxAp;
+        this.updateHUD();
+      }
+      this.combatEngine.addLog('system', `♾️ Infinite AP: ${this.sandboxInfiniteAp ? 'ENABLED' : 'DISABLED'}`);
+    });
+
+    // God HP Toggle
+    const godHpBtn = document.getElementById('sandbox-toggle-god-hp');
+    godHpBtn?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      this.sandboxGodMode = !this.sandboxGodMode;
+      godHpBtn.classList.toggle('active', this.sandboxGodMode);
+      godHpBtn.textContent = this.sandboxGodMode ? '💖 God HP: ON' : '💖 God HP: OFF';
+      if (this.sandboxGodMode) {
+        this.hero.stats.maxHp = 9999;
+        this.hero.stats.currentHp = 9999;
+        this.hero.isDead = false;
+        this.updateHUD();
+      }
+      this.combatEngine.addLog('system', `💖 God Mode HP: ${this.sandboxGodMode ? 'ENABLED (9999 HP)' : 'DISABLED'}`);
+    });
+
+    // Reset Cooldowns Button
+    document.getElementById('sandbox-btn-reset-cd')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      for (const ab of this.hero.abilities) {
+        ab.currentCooldown = 0;
+      }
+      this.updateHUD();
+      this.combatEngine.addLog('system', '🔄 All 500+ ability cooldowns reset to 0 turns!');
+    });
+
+    // Add Essence Button
+    document.getElementById('sandbox-btn-add-essence')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      this.addEssence(100);
+      this.combatEngine.addLog('system', '🔮 Added +100 Essence in Sandbox Mode!');
+    });
+
+    // Level Up Button
+    document.getElementById('sandbox-btn-level-up')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      const currentLvl = this.hero.level || this.upgradeManager.getLevelFromEssence(this.totalEssence);
+      const nextReq = this.upgradeManager.getEssenceRequiredForLevel(currentLvl + 1);
+      const diff = Math.max(50, nextReq - this.totalEssence);
+      this.addEssence(diff);
+    });
+
+    // Dummy AI Toggle
+    const aiBtn = document.getElementById('sandbox-toggle-ai');
+    aiBtn?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      this.sandboxAiEnabled = !this.sandboxAiEnabled;
+      aiBtn.classList.toggle('active', this.sandboxAiEnabled);
+      aiBtn.textContent = this.sandboxAiEnabled ? '🤖 AI: Active' : '🤖 AI: Passive';
+      this.combatEngine.addLog('system', `🤖 Target Dummy AI: ${this.sandboxAiEnabled ? 'ACTIVE (Attacks & Moves)' : 'PASSIVE (Stationary Target)'}`);
+    });
+
+    // Clear Targets Button
+    document.getElementById('sandbox-btn-clear-enemies')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      this.clearAllEnemies();
+    });
+
+    // Clear Hazards Button
+    document.getElementById('sandbox-btn-clear-hazards')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      this.clearAllHazards();
+    });
+
+    // Toggle Placement Panel Button
+    document.getElementById('sandbox-toggle-placement-btn')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      if (this.sandboxPlacementPanel) {
+        this.sandboxPlacementPanel.classList.toggle('collapsed');
+      }
+    });
+
+    // Close Placement Panel Button
+    document.getElementById('placement-close-btn')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      this.sandboxPlacementPanel?.classList.add('collapsed');
+    });
+
+    // Category Tabs
+    const tabs = document.querySelectorAll('#sandbox-placement-panel .placement-tab');
+    tabs.forEach((tab) => {
+      tab.addEventListener('click', () => {
+        this.soundEngine.playClick();
+        tabs.forEach((t) => t.classList.remove('active'));
+        tab.classList.add('active');
+        const cat = tab.getAttribute('data-category') as PlacementCategory;
+        if (cat) {
+          this.placementCategory = cat;
+          const subfilters = document.getElementById('placement-enemy-subfilters');
+          if (subfilters) {
+            subfilters.style.display = cat === 'enemy' ? 'flex' : 'none';
+          }
+          this.renderPlacementGrid();
+        }
+      });
+    });
+
+    // Enemy Subcategory Filters
+    const subChips = document.querySelectorAll('#placement-enemy-subfilters .subfilter-chip');
+    subChips.forEach((chip) => {
+      chip.addEventListener('click', () => {
+        this.soundEngine.playClick();
+        subChips.forEach((c) => c.classList.remove('active'));
+        chip.classList.add('active');
+        this.placementEnemySubfilter = chip.getAttribute('data-sub') || 'all';
+        this.renderPlacementGrid();
+      });
+    });
+
+    // Active Brush Cancel / Quick Actions
+    document.getElementById('brush-cancel-btn')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      this.deselectPlacementBrush();
+    });
+
+    document.getElementById('brush-quick-eraser')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      const eraser = this.placementManager.getItemById('tool_eraser');
+      if (eraser) this.selectPlacementBrush(eraser);
+    });
+
+    document.getElementById('brush-quick-wall')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      const wall = this.placementManager.getItemById('wall_rock');
+      if (wall) this.selectPlacementBrush(wall);
+    });
+
+    // Mass Clear Actions
+    document.getElementById('placement-mass-clear-walls')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      this.clearAllWalls();
+    });
+
+    document.getElementById('placement-mass-clear-hazards')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      this.clearAllHazards();
+    });
+
+    document.getElementById('placement-mass-clear-enemies')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      this.clearAllEnemies();
+    });
+
+    this.renderPlacementGrid();
+
+    // Exit Button
+    document.getElementById('sandbox-btn-exit')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      this.exitSandboxMode();
+    });
+  }
+
+  public selectPlacementBrush(item: PlacementItem): void {
+    this.activePlacementItem = item;
+    if (this.sandboxActiveBrushBar) {
+      this.sandboxActiveBrushBar.classList.remove('hidden');
+    }
+    if (this.activeBrushBadge) {
+      this.activeBrushBadge.innerHTML = `${item.icon} ${item.name}`;
+      this.activeBrushBadge.style.borderColor = item.color || '#c084fc';
+    }
+    document.querySelectorAll('.placement-card').forEach((card) => {
+      card.classList.toggle('active-brush', card.querySelector('.placement-card-title')?.textContent === item.name);
+    });
+    this.combatEngine.addLog('system', `🏗️ Selected brush: ${item.icon} ${item.name}. Click or drag on any tile to place!`);
+  }
+
+  public deselectPlacementBrush(): void {
+    this.activePlacementItem = null;
+    this.renderer.activePlacementPreview = null;
+    if (this.sandboxActiveBrushBar) {
+      this.sandboxActiveBrushBar.classList.add('hidden');
+    }
+    document.querySelectorAll('.placement-card').forEach((card) => {
+      card.classList.remove('active-brush');
+    });
+    this.combatEngine.addLog('system', '❌ Placement mode exited. Restored normal targeting.');
+  }
+
+  public renderPlacementGrid(): void {
+    if (!this.placementGrid) return;
+    this.placementGrid.innerHTML = '';
+
+    let items = this.placementManager.getItemsByCategory(this.placementCategory);
+
+    if (this.placementCategory === 'enemy' && this.placementEnemySubfilter !== 'all') {
+      items = items.filter((i) => i.subcategory === this.placementEnemySubfilter);
+    }
+
+    const countBadge = document.getElementById('count-enemies');
+    if (countBadge) {
+      countBadge.textContent = `${this.placementManager.getItemsByCategory('enemy').length}`;
+    }
+
+    items.forEach((item) => {
+      const card = document.createElement('div');
+      card.className = 'placement-card';
+      if (this.activePlacementItem && this.activePlacementItem.id === item.id) {
+        card.classList.add('active-brush');
+      }
+
+      const elemBadge = item.element
+        ? `<span class="placement-card-badge" style="color: ${item.color || '#fff'}">${item.element}</span>`
+        : '';
+      const hpBadge = item.hp
+        ? `<span class="placement-card-badge" style="color: #4ade80">${item.hp} HP</span>`
+        : '';
+
+      card.innerHTML = `
+        <span class="placement-card-icon">${item.icon}</span>
+        <div class="placement-card-body">
+          <div class="placement-card-title">${item.name}</div>
+          <div class="placement-card-meta">
+            ${elemBadge}
+            ${hpBadge}
+          </div>
+          <div class="placement-card-desc">${item.description}</div>
+        </div>
+      `;
+
+      card.addEventListener('click', () => {
+        this.soundEngine.playClick();
+        if (this.activePlacementItem && this.activePlacementItem.id === item.id) {
+          this.deselectPlacementBrush();
+        } else {
+          this.selectPlacementBrush(item);
+        }
+      });
+
+      this.placementGrid!.appendChild(card);
+    });
+  }
+
+  public handlePlacementAtCoord(coord: GridCoord): void {
+    if (!this.activePlacementItem) return;
+
+    const result = this.placementManager.executePlacement(
+      this.activePlacementItem,
+      coord,
+      this.grid,
+      this.hazardManager,
+      this.combatEngine
+    );
+
+    const screenPos = this.renderer.gridToScreen(coord);
+
+    if (result.success) {
+      this.lastPlacedCoord = coord;
+      const color = this.activePlacementItem.color || '#34d399';
+
+      if (this.activePlacementItem.category === 'enemy') {
+        this.soundEngine.playZombieSpawn();
+        this.renderer.particleEngine.addFloatingText(
+          `+${result.spawnedUnit?.name || this.activePlacementItem.name}`,
+          screenPos.x,
+          screenPos.y - 20,
+          color,
+          20
+        );
+        this.renderer.particleEngine.emit(screenPos.x, screenPos.y, color, 12, 2.0, 'spark');
+      } else if (this.activePlacementItem.category === 'wall') {
+        this.soundEngine.playHit();
+        this.renderer.particleEngine.addFloatingText(
+          `+${this.activePlacementItem.name}`,
+          screenPos.x,
+          screenPos.y - 15,
+          '#94a3b8',
+          18
+        );
+        this.renderer.particleEngine.emit(screenPos.x, screenPos.y, '#64748b', 8, 1.5, 'circle');
+      } else if (this.activePlacementItem.category === 'hazard') {
+        this.soundEngine.playHit();
+        this.renderer.particleEngine.addFloatingText(
+          `+${this.activePlacementItem.name}`,
+          screenPos.x,
+          screenPos.y - 15,
+          color,
+          18
+        );
+        this.renderer.particleEngine.emit(screenPos.x, screenPos.y, color, 10, 2.0, 'spark');
+      } else if (this.activePlacementItem.category === 'eraser') {
+        this.soundEngine.playClick();
+        this.renderer.particleEngine.addFloatingText('🧹 Cleared', screenPos.x, screenPos.y - 15, '#f43f5e', 18);
+      }
+
+      this.combatEngine.addLog('system', `🔨 ${result.message}`);
+      this.updateReachableTiles();
+      this.updateHUD();
+    } else {
+      this.soundEngine.playHit();
+      this.renderer.particleEngine.addFloatingText(`❌ ${result.message}`, screenPos.x, screenPos.y - 20, '#ef4444', 16);
+    }
+  }
+
+  public clearAllWalls(): void {
+    let count = 0;
+    for (let x = 0; x < this.grid.size; x++) {
+      for (let y = 0; y < this.grid.size; y++) {
+        const t = this.grid.getTile({ x, y });
+        if (t && t.isObstacle) {
+          this.grid.setObstacle({ x, y }, false);
+          count++;
+        }
+      }
+    }
+    this.updateReachableTiles();
+    this.soundEngine.playHit();
+    this.combatEngine.addLog('system', `🧹 Cleared ${count} walls from the battlefield.`);
+  }
+
+  public clearAllHazards(): void {
+    for (let x = 0; x < this.grid.size; x++) {
+      for (let y = 0; y < this.grid.size; y++) {
+        const t = this.grid.getTile({ x, y });
+        if (t) {
+          t.hazard = { type: 'None', duration: 0, damagePerTurn: 0, element: 'Neutral' };
+        }
+      }
+    }
+    this.updateReachableTiles();
+    this.soundEngine.playHit();
+    this.combatEngine.addLog('system', '🌊 Cleared all ground hazards from the battlefield.');
+  }
+
+  public clearAllEnemies(): void {
+    for (const e of this.combatEngine.enemies) {
+      e.isDead = true;
+    }
+    this.combatEngine.enemies = [];
+    this.combatEngine.zombies = [];
+    this.combatEngine.lifeBeings = [];
+    this.updateReachableTiles();
+    this.soundEngine.playHit();
+    this.combatEngine.addLog('system', '🧹 Cleared all enemy units from the battlefield.');
   }
 
   private updateReachableTiles(): void {
@@ -4412,6 +5562,21 @@ export class GameApp {
 
   private updateHUD(): void {
     const localUnit = this.getLocalPlayerUnit();
+    const progress = this.upgradeManager.getEssenceProgress(this.totalEssence);
+    const resonanceMultiplier = this.upgradeManager.calculateEssenceResonanceMultiplier(
+      localUnit.level || progress.currentLevel,
+      this.totalEssence
+    );
+
+    this.hud.updateHeroLevel(
+      progress.currentLevel,
+      progress.title,
+      this.totalEssence,
+      progress.nextLevelThreshold,
+      progress.percentage,
+      resonanceMultiplier
+    );
+
     this.hud.updateHeroStatus(localUnit);
     this.hud.renderAbilities(
       localUnit.abilities,
@@ -4423,6 +5588,13 @@ export class GameApp {
     if (this.isCoopMode) {
       this.updateCoopTurnHUD();
     }
+
+    this.hud.updateCurrencies(
+      this.totalEssence,
+      this.totalXp,
+      this.currentRound,
+      this.maxRoundsStr
+    );
 
     const essenceEl = document.getElementById('essence-counter');
     const xpEl = document.getElementById('xp-counter');
@@ -4534,5 +5706,9 @@ export class GameApp {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-  new GameApp();
+  const game = new GameApp();
+  (window as any).game = game;
+  (window as any).goToLastLevel = (round?: number) => game.goToLastLevel(round ?? 15, true);
+  (window as any).executeAdminCommand = (cmd: string) => game.executeAdminCommand(cmd);
+  (window as any).adminCommand = (cmd: string) => game.executeAdminCommand(cmd);
 });

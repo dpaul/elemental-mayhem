@@ -23,16 +23,23 @@
         <span class="phase-label" id="phase-text">PLAYER TURN</span>
       </div>
       <div class="header-right">
+        <button id="nav-sandbox-btn" class="btn-primary" style="background: linear-gradient(135deg, #10b981, #06b6d4); border: 1px solid #6ee7b7; color: #ffffff; font-weight: 800; padding: 6px 14px; border-radius: 8px; box-shadow: 0 0 16px rgba(16, 185, 129, 0.5); cursor: pointer;" title="Enter Elemental Sandbox Mode">🧪 Sandbox</button>
         <button id="nav-admin-btn" class="btn-primary" style="background: linear-gradient(135deg, #f59e0b, #ec4899); border: 1px solid #fde68a; color: #000; font-weight: 800; padding: 6px 14px; border-radius: 8px; box-shadow: 0 0 16px rgba(245, 158, 11, 0.6); cursor: pointer;" title="Open Admin God Command Console">👑 Admin</button>
         <button id="nav-coop-btn" class="btn-primary" style="background: linear-gradient(135deg, #06b6d4, #8b5cf6); border: 1px solid #a5f3fc; color: #ffffff; font-weight: 800; padding: 6px 14px; border-radius: 8px; box-shadow: 0 0 16px rgba(6, 182, 212, 0.6); cursor: pointer;" title="Play 2-Player Online Co-op via WebRTC">🤝 Co-op</button>
         <button id="nav-multiplayer-btn" class="btn-text header-nav-btn" style="background: rgba(239, 68, 68, 0.25); border: 1px solid rgba(239, 68, 68, 0.5); color: #fca5a5; font-weight: 700;">⚔️ Hot Seat</button>
         <button id="nav-sound-btn" class="btn-text header-nav-btn" style="background: rgba(56, 189, 248, 0.2); border: 1px solid rgba(56, 189, 248, 0.4); color: #7dd3fc; font-weight: 700;" title="Toggle Sounds & Screams">🔊 Sound ON</button>
         <button id="nav-codex-btn" class="btn-text header-nav-btn" title="Elemental Codex">📖 Codex</button>
         <button id="nav-guide-btn" class="btn-text header-nav-btn" title="How to Play Guide">📜 Guide</button>
-        <div class="currency-pill">
-          <span class="pill-icon">✨</span>
+        <div class="currency-pill" id="hero-level-pill" title="Essence Levels You Up! +15% Spell Damage per Level, +25 Max HP, +AP every 2 levels">
+          <span class="pill-icon">🌟</span>
+          <span class="pill-label">Level:</span>
+          <span class="pill-value" id="hero-level-display" style="color: #fbbf24; font-weight: 800;">0 (Initiate)</span>
+        </div>
+        <div class="currency-pill" id="essence-pill" title="Essence Levels You Up! Increases Spell Power and Max HP">
+          <span class="pill-icon">🔮</span>
           <span class="pill-label">Essence:</span>
           <span class="pill-value" id="essence-counter">0</span>
+          <span id="essence-progress-label" style="font-size: 0.76rem; color: #c084fc; margin-left: 4px; font-weight: 600;">(/ 50)</span>
         </div>
         <div class="currency-pill">
           <span class="pill-icon">⚡</span>
@@ -42,6 +49,137 @@
         <button id="pvp-arena-btn" class="btn-primary" style="background: linear-gradient(135deg, #ef4444, #f43f5e); border: 1px solid #fda4af; color: #ffffff; padding: 6px 16px; border-radius: 8px; font-weight: 800; cursor: pointer; box-shadow: 0 0 18px rgba(239, 68, 68, 0.5); transition: all 0.2s ease;">⚔️ Multiplayer PvP</button>
       </div>
     </header>
+
+    <!-- Sandbox Control Toolbar (Visible only in Sandbox Mode) -->
+    <section id="sandbox-toolbar" class="sandbox-toolbar glass-card hidden">
+      <div class="sandbox-tool-row">
+        <div class="sandbox-brand">
+          <span class="sandbox-lab-icon">🧪</span>
+          <div class="sandbox-brand-text">
+            <span class="sandbox-title">ELEMENTAL SANDBOX</span>
+            <span class="sandbox-subtitle">50 Elements • 500+ Spells • Free Testing</span>
+          </div>
+        </div>
+
+        <div class="sandbox-tool-group">
+          <label class="sandbox-group-label" for="sandbox-hero-affinity">Hero Affinity:</label>
+          <select id="sandbox-hero-affinity" class="sandbox-select" title="Switch Hero's Active Elemental Affinity">
+            <!-- Dynamically populated with all 50 elements -->
+          </select>
+        </div>
+
+        <div class="sandbox-tool-group">
+          <label class="sandbox-group-label" for="sandbox-dummy-element">Target Dummy:</label>
+          <select id="sandbox-dummy-element" class="sandbox-select" title="Select Element for Training Dummy">
+            <!-- Populated with elements -->
+          </select>
+          <select id="sandbox-dummy-hp" class="sandbox-select" style="width: 85px;" title="Target Dummy Max HP">
+            <option value="100">100 HP</option>
+            <option value="300" selected>300 HP</option>
+            <option value="1000">1k HP</option>
+            <option value="5000">5k HP</option>
+          </select>
+          <button id="sandbox-spawn-dummy-btn" class="sandbox-btn btn-action" title="Spawn Target Dummy on battlefield">🎯 Spawn</button>
+          <button id="sandbox-spawn-boss-btn" class="sandbox-btn btn-action" title="Spawn Titan Boss with 2,500 HP">👑 Boss</button>
+          <button id="sandbox-spawn-last-boss-btn" class="sandbox-btn btn-action" style="background: linear-gradient(135deg, #f59e0b, #ec4899); border-color: #fde68a;" title="Spawn Last Level Final Boss (The Void Archon)">🌌 Void Archon</button>
+        </div>
+
+        <div class="sandbox-tool-group">
+          <button id="sandbox-btn-refill-ap" class="sandbox-btn" title="Instantly refill to 99 AP">⚡ 99 AP</button>
+          <button id="sandbox-toggle-inf-ap" class="sandbox-btn toggle-btn" title="Toggle Infinite AP (spells/moves consume 0 net AP)">♾️ Inf AP: OFF</button>
+          <button id="sandbox-toggle-god-hp" class="sandbox-btn toggle-btn" title="Toggle Invulnerable God HP">💖 God HP: OFF</button>
+          <button id="sandbox-btn-reset-cd" class="sandbox-btn" title="Instantly reset all 500+ spell cooldowns">🔄 0 CD</button>
+          <button id="sandbox-btn-add-essence" class="sandbox-btn" style="background: rgba(147, 51, 234, 0.25); border-color: #c084fc; color: #f5d0fe;" title="Add +100 Essence to test leveling up">🔮 +100 Essence</button>
+          <button id="sandbox-btn-level-up" class="sandbox-btn" style="background: rgba(245, 158, 11, 0.25); border-color: #fde68a; color: #fef08a;" title="Instantly advance to next level">⭐ Level Up</button>
+          <button id="sandbox-toggle-ai" class="sandbox-btn toggle-btn" title="Toggle dummy retaliation: Passive (won't attack) vs Active (attacks on enemy turn)">🤖 AI: Passive</button>
+        </div>
+
+        <div class="sandbox-tool-group">
+          <button id="sandbox-toggle-placement-btn" class="sandbox-btn btn-action" style="background: linear-gradient(135deg, #8b5cf6, #3b82f6); border-color: #c084fc; font-weight: 800;" title="Open Menu of Enemies, Walls, and Hazards to place down on the grid">🏗️ Placement Menu</button>
+          <button id="sandbox-btn-clear-enemies" class="sandbox-btn btn-danger" title="Remove all spawned dummies from grid">🧹 Clear Targets</button>
+          <button id="sandbox-btn-clear-hazards" class="sandbox-btn" title="Clear all ground hazards">🌊 Clear Hazards</button>
+          <button id="sandbox-btn-exit" class="sandbox-btn btn-exit" title="Exit Sandbox and return to main menu">🏠 Exit</button>
+        </div>
+      </div>
+
+      <!-- Active Placement Brush Bar (Shown when a brush is active) -->
+      <div id="sandbox-active-brush-bar" class="sandbox-active-brush-bar hidden">
+        <div class="brush-info">
+          <span class="brush-label">Active Brush:</span>
+          <span id="active-brush-badge" class="active-brush-badge">🌋 Lava Pool</span>
+          <span class="brush-hint">• Click (or drag) any arena tile to place •</span>
+        </div>
+        <div class="brush-actions">
+          <button id="brush-quick-eraser" class="brush-quick-btn" title="Switch to Eraser">🧹 Eraser</button>
+          <button id="brush-quick-wall" class="brush-quick-btn" title="Switch to Rock Pillar">🪨 Wall</button>
+          <button id="brush-cancel-btn" class="brush-cancel-btn" title="Cancel placement and return to Move/Cast mode">❌ Deselect (Esc)</button>
+        </div>
+      </div>
+
+      <!-- Quick Element Chips Row for instant 1-click affinity & spell kit switching -->
+      <div class="sandbox-chips-row" id="sandbox-chips-row">
+        <span class="sandbox-chips-label">Quick Affinity:</span>
+        <button class="element-chip active" data-element="All">🌟 All Powers</button>
+        <button class="element-chip" data-element="Fire">🔥 Fire</button>
+        <button class="element-chip" data-element="Water">💧 Water</button>
+        <button class="element-chip" data-element="Ice">❄️ Ice</button>
+        <button class="element-chip" data-element="Lightning">⚡ Lightning</button>
+        <button class="element-chip" data-element="Earth">🪨 Earth</button>
+        <button class="element-chip" data-element="Wind">🌪️ Wind</button>
+        <button class="element-chip" data-element="Poison">🧪 Poison</button>
+        <button class="element-chip" data-element="Void">🌌 Void</button>
+        <button class="element-chip" data-element="Undead">💀 Undead</button>
+        <button class="element-chip" data-element="Life">🌿 Life</button>
+        <button class="element-chip" data-element="Light">☀️ Light</button>
+        <button class="element-chip" data-element="Darkness">🌑 Darkness</button>
+        <button class="element-chip" data-element="Time">⏳ Time</button>
+        <button class="element-chip" data-element="Blood">🩸 Blood</button>
+        <button class="element-chip" data-element="Titan">🗿 Titan</button>
+        <button class="element-chip" data-element="Admin">👑 Admin</button>
+      </div>
+
+      <!-- Expandable Arena Builder & Placement Menu -->
+      <div id="sandbox-placement-panel" class="sandbox-placement-panel">
+        <div class="placement-panel-header">
+          <div class="placement-header-left">
+            <span class="panel-icon">🏗️</span>
+            <div class="panel-title-group">
+              <span class="panel-title">ARENA BUILDER & PLACEMENT MENU</span>
+              <span class="panel-desc">Select an enemy, wall, or hazard below — then click any tile on the battlefield grid to place it!</span>
+            </div>
+          </div>
+          <div class="placement-header-right">
+            <button id="placement-mass-clear-walls" class="placement-header-btn" title="Clear all walls from the arena">🧱 Clear Walls</button>
+            <button id="placement-mass-clear-hazards" class="placement-header-btn" title="Clear all hazards from the arena">🌊 Clear Hazards</button>
+            <button id="placement-mass-clear-enemies" class="placement-header-btn" title="Clear all enemies from the arena">💀 Clear Enemies</button>
+            <button id="placement-close-btn" class="placement-close-btn" title="Collapse Placement Menu">✕ Minimize</button>
+          </div>
+        </div>
+
+        <!-- Category Navigation Tabs -->
+        <div class="placement-tabs-row">
+          <button class="placement-tab active" data-category="enemy">👾 Enemies (<span id="count-enemies">35</span>)</button>
+          <button class="placement-tab" data-category="wall">🧱 Walls & Barriers (6)</button>
+          <button class="placement-tab" data-category="hazard">☣️ Tile Hazards (10)</button>
+          <button class="placement-tab" data-category="eraser">🧹 Tile Eraser</button>
+        </div>
+
+        <!-- Enemy Subcategory Filter Chips (shown when Enemy tab active) -->
+        <div class="placement-subfilters" id="placement-enemy-subfilters">
+          <span class="subfilter-label">Filter Enemies:</span>
+          <button class="subfilter-chip active" data-sub="all">🌟 All Enemies</button>
+          <button class="subfilter-chip" data-sub="dummy">🎯 Target Dummies</button>
+          <button class="subfilter-chip" data-sub="campaign">⚔️ Campaign Monsters</button>
+          <button class="subfilter-chip" data-sub="undead">🧟 Undead Legion</button>
+          <button class="subfilter-chip" data-sub="boss">👑 Epic Bosses</button>
+        </div>
+
+        <!-- Placement Cards Grid (Dynamically Populated) -->
+        <div class="placement-items-grid" id="placement-items-grid">
+          <!-- Populated by main.ts -->
+        </div>
+      </div>
+    </section>
 
     <!-- Main Battlefield & Side Panel -->
     <main class="battlefield-layout">
@@ -104,6 +242,15 @@
               <span class="ap-pip filled"></span>
               <span class="ap-pip filled"></span>
               <span class="ap-pip filled"></span>
+            </div>
+          </div>
+          <div class="meter-group" id="hero-essence-level-group" title="Essence Levels You Up! Increases Spell Power (+15%/Lv) and Max HP (+25/Lv)">
+            <div class="meter-header">
+              <span class="meter-label" id="hero-level-tier-label" style="color: #fbbf24; font-weight: 700;">⭐ LV. 0 • INITIATE</span>
+              <span class="meter-value" id="hero-essence-meter-text" style="color: #c084fc; font-weight: 600;">0 / 50 🔮</span>
+            </div>
+            <div class="progress-bar essence-bar" style="background: rgba(147, 51, 234, 0.2); border: 1px solid rgba(192, 132, 252, 0.35); height: 7px; border-radius: 4px; overflow: hidden;">
+              <div class="progress-fill" id="hero-essence-fill" style="width: 0%; height: 100%; background: linear-gradient(90deg, #9333ea, #ec4899); box-shadow: 0 0 10px rgba(192, 132, 252, 0.6); transition: width 0.3s ease;"></div>
             </div>
           </div>
         </div>
@@ -201,6 +348,9 @@
             <button id="home-btn-resume-cta" class="btn-hero-action btn-hero-resume hidden">
               <span>▶️</span> RESUME RUN
             </button>
+            <button id="home-btn-sandbox" class="btn-hero-action btn-hero-sandbox" style="background: linear-gradient(135deg, #059669, #0284c7); border-color: #34d399; box-shadow: 0 0 24px rgba(16, 185, 129, 0.45);">
+              <span>🧪</span> ELEMENTAL SANDBOX
+            </button>
             <button id="home-btn-coop" class="btn-hero-action btn-hero-coop" style="background: linear-gradient(135deg, #06b6d4, #8b5cf6); border-color: #67e8f9; box-shadow: 0 0 24px rgba(6, 182, 212, 0.45);">
               <span>🤝</span> PLAY CO-OP (Online P2P)
             </button>
@@ -218,6 +368,17 @@
 
         <!-- Mode Cards Grid -->
         <div class="home-modes-grid">
+          <!-- Elemental Sandbox Mode Card -->
+          <div class="home-mode-card card-sandbox" id="home-btn-sandbox-card">
+            <div class="card-badge" style="background: rgba(16, 185, 129, 0.2); color: #6ee7b7; border-color: rgba(16, 185, 129, 0.4);">Laboratory & Free Play</div>
+            <div class="card-icon">🧪</div>
+            <h3 class="card-title" style="color: #6ee7b7;">ELEMENTAL SANDBOX</h3>
+            <p class="card-desc">
+              Enter the open testing laboratory! Wield all 50 elements and 500+ abilities, summon customizable target dummies & bosses, test chain reactions, and toggle Infinite AP and God Mode.
+            </p>
+            <button class="btn-primary card-action-btn" style="background: linear-gradient(135deg, #059669, #0284c7); border-color: #34d399;">Enter Sandbox →</button>
+          </div>
+
           <!-- Resume Run Card (Visible when an active run exists) -->
           <div class="home-mode-card card-resume hidden" id="home-btn-resume">
             <div class="card-badge badge-resume" id="home-resume-badge">Active Save</div>
@@ -441,8 +602,10 @@
         <div class="modal-header">
           <h2>ARENA ARMORY: UPGRADE YOUR FORCES</h2>
           <div class="modal-currencies">
-            <span>✨ Essence: <strong id="modal-essence">0</strong></span>
+            <span>🌟 Level: <strong id="modal-hero-level" style="color: #fbbf24;">0 (Initiate)</strong></span>
+            <span>🔮 Essence: <strong id="modal-essence">0</strong></span>
             <span>⚡ XP: <strong id="modal-xp">0</strong></span>
+            <span>💥 Spell Power: <strong id="modal-spell-power" style="color: #f43f5e;">+0%</strong></span>
           </div>
         </div>
         <div class="modal-body" id="upgrade-choices-container">
@@ -504,6 +667,19 @@
               <span>Authenticated: <strong style="color: #fde68a;">Creator / DavePaul</strong> (Omnipotent Host)</span>
             </div>
             <button id="admin-logout-btn" class="btn-secondary" style="font-size: 0.82rem; padding: 6px 14px; background: rgba(239, 68, 68, 0.25); border: 1px solid #ef4444; color: #fca5a5; border-radius: 6px; cursor: pointer; font-weight: 600;">🔒 Lock Console</button>
+          </div>
+
+          <!-- Interactive Admin Command Console -->
+          <div class="admin-command-bar" style="margin: 14px 0; padding: 12px 16px; background: rgba(15, 23, 42, 0.85); border: 1px solid #f59e0b; border-radius: 10px; display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
+              <span style="font-size: 0.85rem; font-weight: 700; color: #fde68a;">⚡ Admin Command Console:</span>
+              <span style="font-size: 0.74rem; color: #94a3b8;">Type <code style="color: #67e8f9;">go to last level</code>, <code style="color: #67e8f9;">last</code>, <code style="color: #67e8f9;">round 15</code>, <code style="color: #67e8f9;">smite</code>, <code style="color: #67e8f9;">heal</code></span>
+            </div>
+            <form id="admin-command-form" style="display: flex; gap: 10px;">
+              <input type="text" id="admin-command-input" placeholder="Enter command (e.g. 'go to last level', 'last level', 'level 15')..." style="flex: 1; padding: 10px 14px; background: rgba(10, 15, 26, 0.95); border: 1px solid rgba(251, 191, 36, 0.4); border-radius: 8px; color: #ffffff; font-size: 0.92rem; font-family: var(--font-mono); outline: none;" autocomplete="off" />
+              <button type="submit" id="admin-command-exec-btn" class="btn-primary" style="background: linear-gradient(135deg, #f59e0b, #ef4444); border: 1px solid #fde68a; font-weight: 800; padding: 10px 20px; border-radius: 8px; cursor: pointer;">Execute ⚡</button>
+            </form>
+            <div id="admin-command-feedback" style="font-size: 0.82rem; min-height: 18px; color: #86efac; font-weight: 600;"></div>
           </div>
 
           <div class="admin-powers-grid">
@@ -571,6 +747,12 @@
             <button class="admin-power-btn" id="admin-btn-next-round">
               <div class="admin-btn-header">⏩ Jump to Next Round</div>
               <div class="admin-btn-desc">Instantly completes current combat round and advances to next encounter.</div>
+            </button>
+
+            <!-- Power 8b: Go to Last Level -->
+            <button class="admin-power-btn" id="admin-btn-last-level" style="border-color: #f59e0b; background: rgba(245, 158, 11, 0.15);">
+              <div class="admin-btn-header" style="color: #fbbf24;">👑 Go to Last Level (Round 15 Final Boss)</div>
+              <div class="admin-btn-desc">Instantly teleports directly to the ultimate final encounter: Round 15: The Void Archon (Supreme Boss)!</div>
             </button>
 
             <!-- Power 9: Mega Round Warp -->

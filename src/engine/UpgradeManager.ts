@@ -10,6 +10,17 @@ export interface LevelUpResult {
   title: string;
 }
 
+export interface EssenceProgress {
+  currentLevel: number;
+  nextLevel: number;
+  title: string;
+  currentLevelThreshold: number;
+  nextLevelThreshold: number;
+  essenceIntoLevel: number;
+  essenceNeededForNext: number;
+  percentage: number;
+}
+
 export class UpgradeManager {
   /**
    * Cumulative essence required to reach a specific level.
@@ -34,6 +45,32 @@ export class UpgradeManager {
   }
 
   /**
+   * Returns complete progress details towards next level for UI meters and badges.
+   */
+  public getEssenceProgress(totalEssence: number): EssenceProgress {
+    const currentLevel = this.getLevelFromEssence(totalEssence);
+    const nextLevel = currentLevel + 1;
+    const title = this.getLevelTitle(currentLevel);
+    const currentThreshold = this.getEssenceRequiredForLevel(currentLevel);
+    const nextThreshold = this.getEssenceRequiredForLevel(nextLevel);
+    const range = Math.max(1, nextThreshold - currentThreshold);
+    const currentInto = Math.max(0, totalEssence - currentThreshold);
+    const needed = Math.max(0, nextThreshold - totalEssence);
+    const percentage = Math.min(100, Math.round((currentInto / range) * 100));
+
+    return {
+      currentLevel,
+      nextLevel,
+      title,
+      currentLevelThreshold: currentThreshold,
+      nextLevelThreshold: nextThreshold,
+      essenceIntoLevel: currentInto,
+      essenceNeededForNext: needed,
+      percentage,
+    };
+  }
+
+  /**
    * Returns a flavorful title based on character level.
    */
   public getLevelTitle(level: number): string {
@@ -43,7 +80,10 @@ export class UpgradeManager {
     if (level === 3) return 'Mage';
     if (level === 4) return 'Archmage';
     if (level === 5) return 'Grand Magus';
-    if (level < 10) return 'Elemental Sage';
+    if (level === 6) return 'Master Arcanist';
+    if (level === 7) return 'High Sage';
+    if (level === 8) return 'Prismatic Lord';
+    if (level === 9) return 'Elemental Sovereign';
     return 'Cosmic Ascendant';
   }
 

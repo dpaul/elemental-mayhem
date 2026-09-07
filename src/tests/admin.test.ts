@@ -63,3 +63,19 @@ describe('AdminManager Security & Privileges', () => {
     expect(adminManager.canUseAdminCommands(false, 1)).toBe(false);
   });
 });
+
+import { EscalationManager } from '../engine/EscalationManager';
+
+describe('Last Level Encounter (Round 15 Boss)', () => {
+  it('should generate THE VOID ARCHON (Supreme Boss) on Round 15', () => {
+    const escalation = new EscalationManager();
+    const enemies = escalation.generateRoundEnemies(15);
+    expect(enemies.length).toBeGreaterThan(0);
+
+    const voidArchon = enemies.find((e) => e.id === 'boss_void_archon');
+    expect(voidArchon).toBeDefined();
+    expect(voidArchon?.name).toContain('THE VOID ARCHON');
+    expect(voidArchon?.stats.elementalAffinity).toBe('Void');
+    expect(voidArchon?.stats.maxHp).toBeGreaterThanOrEqual(400);
+  });
+});
