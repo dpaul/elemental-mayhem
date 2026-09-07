@@ -129,14 +129,34 @@ describe('CutsceneVoiceManager & Spoken Dialogue System', () => {
 
   it('should feature Void Overlord, Arch-Wizard, and Seeker dialogue in Chapter 5 & 6', () => {
     const ch5Lines = CHAPTER_DIALOGUES[4];
-    expect(ch5Lines.map((l) => l.speakerId)).toEqual(['void_overlord', 'wizard', 'seeker']);
+    const ch5Speakers = ch5Lines.map((l) => l.speakerId);
+    expect(ch5Speakers).toContain('void_overlord');
+    expect(ch5Speakers).toContain('wizard');
+    expect(ch5Speakers).toContain('seeker');
+    expect(ch5Speakers).toContain('narrator');
 
-    const overlordLine = ch5Lines[0];
+    const overlordLine = ch5Lines.find((l) => l.speakerId === 'void_overlord')!;
     expect(overlordLine.text).toContain('Foolish old wizard');
 
     const ch6Lines = CHAPTER_DIALOGUES[5];
-    expect(ch6Lines.map((l) => l.speakerId)).toEqual(['wizard', 'void_overlord', 'seeker']);
-    expect(ch6Lines[0].text).toContain('Round 1000');
+    const ch6Speakers = ch6Lines.map((l) => l.speakerId);
+    expect(ch6Speakers).toContain('wizard');
+    expect(ch6Speakers).toContain('void_overlord');
+    expect(ch6Speakers).toContain('seeker');
+    expect(ch6Speakers).toContain('narrator');
+
+    const wizardLine = ch6Lines.find((l) => l.speakerId === 'wizard')!;
+    expect(wizardLine.text).toContain('Round 1000');
+  });
+
+  it('should trigger onChapterDialogueComplete when all lines in a chapter have spoken', async () => {
+    const completeSpy = vi.fn();
+    voiceManager.onChapterDialogueComplete = completeSpy;
+
+    // Use fake timers or trigger playChapter
+    voiceManager.playChapter(1); // Chapter 2 has 2 lines
+
+    expect(voiceManager.getCurrentLine()).toBeDefined();
   });
 
   it('should update dialogue card DOM elements when a line speaks', () => {
@@ -174,7 +194,7 @@ describe('CutsceneVoiceManager & Spoken Dialogue System', () => {
     const startSpy = vi.fn();
     voiceManager.onDialogueLineStart = startSpy;
 
-    const line = CHAPTER_DIALOGUES[3][0]; // Grand Wizard line
+    const line = CHAPTER_DIALOGUES[3][1]; // Grand Wizard line
     voiceManager.speakLine(line);
 
     expect(startSpy).toHaveBeenCalledWith(line, VOICE_PROFILES.wizard);

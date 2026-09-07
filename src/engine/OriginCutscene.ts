@@ -118,8 +118,23 @@ export class OriginCutsceneManager {
     const overlay = document.getElementById('origin-cutscene-overlay');
     if (!overlay) return;
 
-    // Initialize Spoken Dialogue System
+    // Initialize Spoken Dialogue System & Hook Completion for Auto-Advance
     this.voiceManager.initDOM();
+    this.voiceManager.onChapterDialogueComplete = (chapterIdx) => {
+      if (this.isPlaying && chapterIdx === this.currentChapterIndex) {
+        if (this.autoAdvanceTimer) clearTimeout(this.autoAdvanceTimer);
+        // Savor the completed scene for 1.8s before moving to next chapter
+        this.autoAdvanceTimer = setTimeout(() => {
+          if (this.isPlaying && chapterIdx === this.currentChapterIndex) {
+            if (this.currentChapterIndex < CUTSCENE_CHAPTERS.length - 1) {
+              this.nextChapter();
+            } else {
+              this.pause();
+            }
+          }
+        }, 1800);
+      }
+    };
 
     // Elements
     this.videoEl = document.getElementById('cutscene-video-player') as HTMLVideoElement | null;
@@ -141,14 +156,13 @@ export class OriginCutsceneManager {
           this.videoProgressEl.style.width = `${Math.min(100, Math.max(0, pct))}%`;
         }
 
-        // Bi-directional sync: if video crosses 5s boundaries, sync narrative chapter
+        // Loop the 5-second video footage for the active chapter while speech continues,
+        // ensuring the video stays dynamic without prematurely cutting off dialogue!
         if (this.viewMode === 'video' && this.isPlaying) {
-          const expectedChapter = Math.min(
-            CUTSCENE_CHAPTERS.length - 1,
-            Math.max(0, Math.floor(this.videoEl.currentTime / 5))
-          );
-          if (expectedChapter !== this.currentChapterIndex) {
-            this.goToChapter(expectedChapter, false);
+          const segStart = this.currentChapterIndex * 5;
+          const segEnd = segStart + 4.95;
+          if (this.videoEl.currentTime >= segEnd || this.videoEl.currentTime < segStart) {
+            this.videoEl.currentTime = segStart;
           }
         }
       });
@@ -380,11 +394,11 @@ export class OriginCutsceneManager {
     this.triggerChapterSound(index);
     this.updateAmbientChord(index);
 
-    // Trigger multi-voice character dialogue
+    // Trigger multi-voice character dialogue (speaks all narrative and dialogue lines)
     this.voiceManager.playChapter(index);
 
-    // Reset auto-advance timer if playing (in stage mode, or fallback)
-    if (this.isPlaying && this.viewMode === 'stage') {
+    // Reset auto-advance timer if playing
+    if (this.isPlaying) {
       this.scheduleNext();
     }
   }
@@ -420,9 +434,8 @@ export class OriginCutsceneManager {
     if (this.videoEl) {
       this.videoEl.play().catch(() => {});
     }
-    if (this.viewMode === 'stage') {
-      this.scheduleNext();
-    }
+    this.voiceManager.replayCurrentChapterDialogue();
+    this.scheduleNext();
   }
 
   public pause(): void {
@@ -444,17 +457,33 @@ export class OriginCutsceneManager {
   private scheduleNext(): void {
     if (this.autoAdvanceTimer) {
       clearTimeout(this.autoAdvanceTimer);
+      this.autoAdvanceTimer = null;
     }
-    // Auto-advance after 5.5 seconds per chapter in stage mode
-    this.autoAdvanceTimer = setTimeout(() => {
-      if (this.isPlaying) {
-        if (this.currentChapterIndex < CUTSCENE_CHAPTERS.length - 1) {
-          this.nextChapter();
-        } else {
-          this.pause();
+
+    if (this.voiceManager.isMuted()) {
+      // In muted mode, advance after 8.5 seconds reading time
+      this.autoAdvanceTimer = setTimeout(() => {
+        if (this.isPlaying) {
+          if (this.currentChapterIndex < CUTSCENE_CHAPTERS.length - 1) {
+            this.nextChapter();
+          } else {
+            this.pause();
+          }
         }
-      }
-    }, 5500);
+      }, 8500);
+    } else {
+      // In voice mode, onChapterDialogueComplete drives the chapter advance so the ENTIRE
+      // speech is heard. We set a 35s failsafe timer in case speech synthesis is blocked.
+      this.autoAdvanceTimer = setTimeout(() => {
+        if (this.isPlaying) {
+          if (this.currentChapterIndex < CUTSCENE_CHAPTERS.length - 1) {
+            this.nextChapter();
+          } else {
+            this.pause();
+          }
+        }
+      }, 35000);
+    }
   }
 
   private toggleMute(btn?: HTMLElement): void {

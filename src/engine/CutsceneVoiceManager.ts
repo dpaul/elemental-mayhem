@@ -1,5 +1,7 @@
 // Elemental Mayhem - Origin Cutscene Voice Dialogue System
-// Coordinates multi-character voice acting via Web Speech API & Web Audio formant voice fallbacks
+// Coordinates multi-character voice acting via Web Speech API & Web Audio formant voice fallbacks.
+// Uses a robust sequential speech queue so every narrative line and character dialogue is spoken
+// completely without getting cut off mid-sentence.
 
 import { SoundEngine } from '../audio/SoundEngine';
 
@@ -29,8 +31,8 @@ export interface CutsceneDialogueLine {
   id: string;
   speakerId: VoiceSpeakerId;
   text: string;
-  delayMs: number; // Delay from chapter start before this line triggers
-  durationEstimateMs: number;
+  delayMs?: number;
+  durationEstimateMs?: number;
 }
 
 export const VOICE_PROFILES: Record<VoiceSpeakerId, VoiceSpeakerProfile> = {
@@ -120,23 +122,20 @@ export const CHAPTER_DIALOGUES: Record<number, CutsceneDialogueLine[]> = {
     {
       id: 'ch1_line1',
       speakerId: 'narrator',
-      text: 'Long before the arenas were forged, two primeval titans collided in catastrophic fury across the stars!',
-      delayMs: 150,
-      durationEstimateMs: 3800,
+      text: 'Long before the arenas were forged, mortal souls lived defenseless under the shadows of cosmic titans. Two primeval giants, the Magma Colossus and the Void Leviathan, collided in a war that shattered the boundaries of reality!',
+      durationEstimateMs: 6500,
     },
     {
       id: 'ch1_line2',
       speakerId: 'titan_magma',
       text: 'I am the eternal flame! I will scorch this entire cosmos into ash!',
-      delayMs: 3600,
-      durationEstimateMs: 3200,
+      durationEstimateMs: 3800,
     },
     {
       id: 'ch1_line3',
       speakerId: 'titan_void',
       text: 'The void swallows all light! Submit to the infinite abyss!',
-      delayMs: 6500,
-      durationEstimateMs: 3400,
+      durationEstimateMs: 3800,
     },
   ],
 
@@ -145,16 +144,14 @@ export const CHAPTER_DIALOGUES: Record<number, CutsceneDialogueLine[]> = {
     {
       id: 'ch2_line1',
       speakerId: 'narrator',
-      text: 'Their apocalyptic blow shattered spacetime, tearing open a swirling cosmic rift beyond mortal imagination!',
-      delayMs: 150,
-      durationEstimateMs: 4000,
+      text: "The titans' apocalyptic clash tore open a swirling cosmic rift! A singularity of raw spacetime ruptured the heavens, pulling wandering mortals and fractured stars into its gravitational abyss.",
+      durationEstimateMs: 7000,
     },
     {
       id: 'ch2_line2',
       speakerId: 'titan_void',
       text: 'Fall... into the dimensional singularity...',
-      delayMs: 4200,
-      durationEstimateMs: 3000,
+      durationEstimateMs: 3200,
     },
   ],
 
@@ -164,15 +161,19 @@ export const CHAPTER_DIALOGUES: Record<number, CutsceneDialogueLine[]> = {
       id: 'ch3_line1',
       speakerId: 'seeker',
       text: "I'm falling! The rift's gravity is tearing me across hyperspace!",
-      delayMs: 200,
-      durationEstimateMs: 3000,
+      durationEstimateMs: 3600,
     },
     {
       id: 'ch3_line2',
       speakerId: 'narrator',
-      text: 'Tumbling through hyperspace wormholes, you crash-landed onto an uncharted floating world.',
-      delayMs: 3200,
-      durationEstimateMs: 3800,
+      text: 'Sucked through the cosmic wormhole, you tumbled through hyperspace before crash-landing upon a mysterious miniature world, surrounded by ancient ruins and shimmering energy.',
+      durationEstimateMs: 6800,
+    },
+    {
+      id: 'ch3_line3',
+      speakerId: 'seeker',
+      text: 'Where am I? What is this strange mystical world...?',
+      durationEstimateMs: 3400,
     },
   ],
 
@@ -180,17 +181,21 @@ export const CHAPTER_DIALOGUES: Record<number, CutsceneDialogueLine[]> = {
   3: [
     {
       id: 'ch4_line1',
-      speakerId: 'wizard',
-      text: 'Rise, young wanderer! Darkness awakens. Take my life power... all fifty elements are now yours to wield!',
-      delayMs: 200,
-      durationEstimateMs: 4600,
+      speakerId: 'narrator',
+      text: 'An ancient Grand Arch-Wizard emerged from the ruins and channeled his godlike powers into your soul! The reaction cascade began, giving you mastery over all fifty elements of the cosmos!',
+      durationEstimateMs: 7200,
     },
     {
       id: 'ch4_line2',
+      speakerId: 'wizard',
+      text: 'Rise, young wanderer! Darkness awakens. Take my life power... all fifty elements are now yours to wield!',
+      durationEstimateMs: 5200,
+    },
+    {
+      id: 'ch4_line3',
       speakerId: 'seeker',
       text: 'By the stars... I can feel the primal magic surging through my hands!',
-      delayMs: 4800,
-      durationEstimateMs: 3500,
+      durationEstimateMs: 3800,
     },
   ],
 
@@ -198,24 +203,33 @@ export const CHAPTER_DIALOGUES: Record<number, CutsceneDialogueLine[]> = {
   4: [
     {
       id: 'ch5_line1',
-      speakerId: 'void_overlord',
-      text: 'Foolish old wizard! That godlike power belongs to the Void! IT IS MINE!',
-      delayMs: 200,
-      durationEstimateMs: 3800,
+      speakerId: 'narrator',
+      text: "Suddenly, the sky turned pitch black! The sinister Void Overlord struck from the shadows, violently siphoning the wizard's godlike power from your chest!",
+      durationEstimateMs: 6500,
     },
     {
       id: 'ch5_line2',
-      speakerId: 'wizard',
-      text: 'No! You fiend! Protect the starter embers!',
-      delayMs: 3900,
-      durationEstimateMs: 2800,
+      speakerId: 'void_overlord',
+      text: 'Foolish old wizard! That godlike power belongs to the Void! IT IS MINE!',
+      durationEstimateMs: 4400,
     },
     {
       id: 'ch5_line3',
+      speakerId: 'wizard',
+      text: 'No! You fiend! Protect the starter embers!',
+      durationEstimateMs: 3000,
+    },
+    {
+      id: 'ch5_line4',
+      speakerId: 'narrator',
+      text: 'The demon fled into the cosmos, leaving you with only the basic starter embers of Fire, Water, and Earth.',
+      durationEstimateMs: 4800,
+    },
+    {
+      id: 'ch5_line5',
       speakerId: 'seeker',
       text: 'My magic... he violently ripped it away! Only three starter embers remain!',
-      delayMs: 6400,
-      durationEstimateMs: 3600,
+      durationEstimateMs: 4000,
     },
   ],
 
@@ -224,23 +238,26 @@ export const CHAPTER_DIALOGUES: Record<number, CutsceneDialogueLine[]> = {
     {
       id: 'ch6_line1',
       speakerId: 'wizard',
-      text: 'Do not despair! Master the three starter embers, ascend through the gauntlet to Round 1000, and defeat the Void Overlord to reclaim what was stolen!',
-      delayMs: 200,
-      durationEstimateMs: 5400,
+      text: 'Do not despair! You still hold the Three Starter Embers. Train, master the elements, and battle through the arenas to defeat the Ultimate Boss on Round 1000 and reclaim the stolen power!',
+      durationEstimateMs: 7800,
     },
     {
       id: 'ch6_line2',
       speakerId: 'void_overlord',
       text: 'Face me on Round 1000 if you dare, pathetic worm!',
-      delayMs: 5500,
-      durationEstimateMs: 3200,
+      durationEstimateMs: 3800,
     },
     {
       id: 'ch6_line3',
       speakerId: 'seeker',
       text: 'I will train, conquer every arena, and defeat the Void Overlord on Round 1000!',
-      delayMs: 8400,
-      durationEstimateMs: 3600,
+      durationEstimateMs: 4200,
+    },
+    {
+      id: 'ch6_line4',
+      speakerId: 'narrator',
+      text: 'Your mission begins now! Ascend through the gauntlet and reclaim your destiny!',
+      durationEstimateMs: 4500,
     },
   ],
 };
@@ -252,6 +269,13 @@ export class CutsceneVoiceManager {
   private currentLine: CutsceneDialogueLine | null = null;
   private scheduledTimers: any[] = [];
   private isSpeaking: boolean = false;
+
+  // Queue state for complete sequential speech
+  private lineQueue: CutsceneDialogueLine[] = [];
+  private currentQueueIndex: number = 0;
+  private isQueueActive: boolean = false;
+  private safetyTimer: any = null;
+  private keepAliveTimer: any = null;
 
   // Cached system voices
   private availableVoices: SpeechSynthesisVoice[] = [];
@@ -270,6 +294,7 @@ export class CutsceneVoiceManager {
   // Event callbacks
   public onDialogueLineStart?: (line: CutsceneDialogueLine, profile: VoiceSpeakerProfile) => void;
   public onDialogueLineEnd?: (line: CutsceneDialogueLine) => void;
+  public onChapterDialogueComplete?: (chapterIndex: number) => void;
 
   constructor(soundEngine: SoundEngine) {
     this.soundEngine = soundEngine;
@@ -328,48 +353,98 @@ export class CutsceneVoiceManager {
     this.currentChapterIndex = chapterIndex;
 
     const lines = CHAPTER_DIALOGUES[chapterIndex] || [];
-    if (lines.length === 0) return;
+    if (lines.length === 0) {
+      this.onChapterDialogueComplete?.(chapterIndex);
+      return;
+    }
 
-    // Show initial line right away in UI
+    this.lineQueue = [...lines];
+    this.currentQueueIndex = 0;
+    this.isQueueActive = true;
+
+    // Display first line on UI immediately
     this.updateDialogueUI(lines[0], false);
 
-    // Schedule each dialogue line by delayMs
-    lines.forEach((line) => {
-      const timer = setTimeout(() => {
-        this.speakLine(line);
-      }, line.delayMs);
-      this.scheduledTimers.push(timer);
+    // Start sequential processing with small initial breath delay (200ms)
+    const initialTimer = setTimeout(() => {
+      this.processQueue();
+    }, 200);
+    this.scheduledTimers.push(initialTimer);
+  }
+
+  private processQueue(): void {
+    if (!this.isQueueActive) return;
+
+    if (this.currentQueueIndex >= this.lineQueue.length) {
+      // Entire chapter dialogue completed!
+      this.isQueueActive = false;
+      this.setSpeakingState(false);
+      this.onChapterDialogueComplete?.(this.currentChapterIndex);
+      return;
+    }
+
+    const line = this.lineQueue[this.currentQueueIndex];
+    this.speakLine(line, () => {
+      if (!this.isQueueActive) return;
+      this.currentQueueIndex++;
+      // Natural 350ms pause between character voices
+      const nextTimer = setTimeout(() => {
+        this.processQueue();
+      }, 350);
+      this.scheduledTimers.push(nextTimer);
     });
   }
 
-  public speakLine(line: CutsceneDialogueLine): void {
+  public speakLine(line: CutsceneDialogueLine, onLineDone?: () => void): void {
     this.currentLine = line;
     const profile = VOICE_PROFILES[line.speakerId];
-    if (!profile) return;
+    if (!profile) {
+      onLineDone?.();
+      return;
+    }
 
-    // Update UI card
+    // Update UI card with character avatar, glowing name, voice tag, and speech text
     this.updateDialogueUI(line, true);
     this.onDialogueLineStart?.(line, profile);
 
     // Play character procedural vocal tone through sound engine
     this.soundEngine.playCharacterVocalTone(line.speakerId);
 
+    const finishLine = () => {
+      if (this.safetyTimer) {
+        clearTimeout(this.safetyTimer);
+        this.safetyTimer = null;
+      }
+      if (this.keepAliveTimer) {
+        clearInterval(this.keepAliveTimer);
+        this.keepAliveTimer = null;
+      }
+      this.setSpeakingState(false);
+      this.onDialogueLineEnd?.(line);
+      onLineDone?.();
+    };
+
     if (this.isVoiceMuted) {
-      // Simulate speaking time without audio
+      // In muted mode, allow reading duration based on text length
+      const readingDuration = line.durationEstimateMs || Math.max(3000, line.text.length * 60);
       const simTimer = setTimeout(() => {
-        this.setSpeakingState(false);
-        this.onDialogueLineEnd?.(line);
-      }, line.durationEstimateMs);
+        finishLine();
+      }, readingDuration);
       this.scheduledTimers.push(simTimer);
       return;
     }
 
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
-      this.setSpeakingState(false);
+      const fallbackDuration = line.durationEstimateMs || Math.max(3000, line.text.length * 60);
+      const simTimer = setTimeout(() => {
+        finishLine();
+      }, fallbackDuration);
+      this.scheduledTimers.push(simTimer);
       return;
     }
 
     try {
+      // Cancel previous utterance cleanly before starting this one
       window.speechSynthesis.cancel();
 
       const utterance = new SpeechSynthesisUtterance(line.text);
@@ -385,19 +460,33 @@ export class CutsceneVoiceManager {
 
       this.setSpeakingState(true);
 
-      utterance.onend = () => {
-        this.setSpeakingState(false);
-        this.onDialogueLineEnd?.(line);
+      let hasFinished = false;
+      const safeFinish = () => {
+        if (hasFinished) return;
+        hasFinished = true;
+        finishLine();
       };
 
-      utterance.onerror = () => {
-        this.setSpeakingState(false);
-        this.onDialogueLineEnd?.(line);
-      };
+      utterance.onend = safeFinish;
+      utterance.onerror = safeFinish;
+
+      // Speech keep-alive loop to prevent Chrome pausing long utterances
+      this.keepAliveTimer = setInterval(() => {
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window && window.speechSynthesis.speaking) {
+          window.speechSynthesis.pause();
+          window.speechSynthesis.resume();
+        } else {
+          if (this.keepAliveTimer) clearInterval(this.keepAliveTimer);
+        }
+      }, 4500);
+
+      // Safety timeout in case browser event drops
+      const maxEstimatedTime = Math.max(5000, line.text.length * 140 + 3500);
+      this.safetyTimer = setTimeout(safeFinish, maxEstimatedTime);
 
       window.speechSynthesis.speak(utterance);
     } catch {
-      this.setSpeakingState(false);
+      finishLine();
     }
   }
 
@@ -415,7 +504,6 @@ export class CutsceneVoiceManager {
     const pool = englishVoices.length > 0 ? englishVoices : this.availableVoices;
 
     if (profile.voiceGenderHint === 'monster') {
-      // Prefer deep/male voices (e.g. David, Daniel, Google UK English Male, Alex, Fred)
       const deepVoice = pool.find(
         (v) =>
           /male|david|daniel|alex|george|fred|deep|monster/i.test(v.name) &&
@@ -461,8 +549,7 @@ export class CutsceneVoiceManager {
       this.cardEl.style.boxShadow = `0 10px 30px rgba(0,0,0,0.7), 0 0 20px ${profile.glowColor}`;
       if (animateBubble) {
         this.cardEl.classList.remove('dialogue-pop');
-        // Trigger reflow to restart CSS animation
-        void this.cardEl.offsetWidth;
+        void this.cardEl.offsetWidth; // Trigger reflow for restart
         this.cardEl.classList.add('dialogue-pop');
       }
     }
@@ -480,8 +567,21 @@ export class CutsceneVoiceManager {
   }
 
   public stopAll(): void {
+    this.isQueueActive = false;
+    this.lineQueue = [];
+    this.currentQueueIndex = 0;
+
     this.scheduledTimers.forEach((t) => clearTimeout(t));
     this.scheduledTimers = [];
+
+    if (this.safetyTimer) {
+      clearTimeout(this.safetyTimer);
+      this.safetyTimer = null;
+    }
+    if (this.keepAliveTimer) {
+      clearInterval(this.keepAliveTimer);
+      this.keepAliveTimer = null;
+    }
 
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       try {
@@ -510,10 +610,8 @@ export class CutsceneVoiceManager {
     if (this.isVoiceMuted) {
       this.stopAll();
     } else {
-      // Re-trigger current line
-      if (this.currentLine) {
-        this.speakLine(this.currentLine);
-      }
+      // Re-trigger current chapter so entire dialogue plays cleanly
+      this.replayCurrentChapterDialogue();
     }
 
     return !this.isVoiceMuted;
@@ -542,20 +640,20 @@ export class CutsceneVoiceManager {
     return this.isVoiceMuted;
   }
 
-  public getSpeakerProfile(speakerId: VoiceSpeakerId): VoiceSpeakerProfile {
-    return VOICE_PROFILES[speakerId];
-  }
-
-  public getCurrentLine(): CutsceneDialogueLine | null {
-    return this.currentLine;
-  }
-
   public isCurrentlySpeaking(): boolean {
     return this.isSpeaking;
   }
 
   public isVoicesLoaded(): boolean {
     return this.hasInitializedVoices;
+  }
+
+  public getSpeakerProfile(speakerId: VoiceSpeakerId): VoiceSpeakerProfile {
+    return VOICE_PROFILES[speakerId];
+  }
+
+  public getCurrentLine(): CutsceneDialogueLine | null {
+    return this.currentLine;
   }
 
   public getChapterLines(chapterIndex: number): CutsceneDialogueLine[] {
