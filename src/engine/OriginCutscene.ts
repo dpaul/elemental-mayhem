@@ -90,6 +90,13 @@ export class OriginCutsceneManager {
   private ambientOsc1: OscillatorNode | null = null;
   private ambientOsc2: OscillatorNode | null = null;
 
+  // Video Chronicle Integration
+  private videoEl: HTMLVideoElement | null = null;
+  private videoContainerEl: HTMLElement | null = null;
+  private videoProgressEl: HTMLElement | null = null;
+  private modeBtnEl: HTMLElement | null = null;
+  private viewMode: 'video' | 'stage' = 'video';
+
   // Callbacks
   public onEnterArena?: () => void;
   public onOpenSandbox?: () => void;
@@ -103,6 +110,54 @@ export class OriginCutsceneManager {
     const overlay = document.getElementById('origin-cutscene-overlay');
     if (!overlay) return;
 
+    // Elements
+    this.videoEl = document.getElementById('cutscene-video-player') as HTMLVideoElement | null;
+    this.videoContainerEl = document.getElementById('cutscene-video-container');
+    this.videoProgressEl = document.getElementById('cutscene-video-progress');
+    this.modeBtnEl = document.getElementById('cutscene-mode-btn');
+
+    // Video events & sync
+    if (this.videoEl) {
+      this.videoEl.addEventListener('click', () => {
+        this.togglePlayPause();
+      });
+
+      this.videoEl.addEventListener('timeupdate', () => {
+        if (!this.videoEl) return;
+        const dur = this.videoEl.duration || 30;
+        const pct = (this.videoEl.currentTime / dur) * 100;
+        if (this.videoProgressEl) {
+          this.videoProgressEl.style.width = `${Math.min(100, Math.max(0, pct))}%`;
+        }
+
+        // Bi-directional sync: if video crosses 5s boundaries, sync narrative chapter
+        if (this.viewMode === 'video' && this.isPlaying) {
+          const expectedChapter = Math.min(
+            CUTSCENE_CHAPTERS.length - 1,
+            Math.max(0, Math.floor(this.videoEl.currentTime / 5))
+          );
+          if (expectedChapter !== this.currentChapterIndex) {
+            this.goToChapter(expectedChapter, false);
+          }
+        }
+      });
+
+      this.videoEl.addEventListener('ended', () => {
+        if (this.currentChapterIndex === CUTSCENE_CHAPTERS.length - 1) {
+          this.pause();
+        }
+      });
+    }
+
+    // View mode toggle
+    if (this.modeBtnEl) {
+      this.modeBtnEl.addEventListener('click', () => {
+        this.soundEngine.playClick();
+        this.toggleViewMode();
+      });
+      this.updateModeBtn();
+    }
+
     // Chapter indicator pips
     const pipsContainer = document.getElementById('cutscene-chapter-pips');
     if (pipsContainer) {
@@ -113,7 +168,7 @@ export class OriginCutsceneManager {
         pip.setAttribute('title', `Go to Chapter ${ch.id}: ${ch.title}`);
         pip.addEventListener('click', () => {
           this.soundEngine.playClick();
-          this.goToChapter(idx);
+          this.goToChapter(idx, true);
         });
         pipsContainer.appendChild(pip);
       });
@@ -137,7 +192,7 @@ export class OriginCutsceneManager {
 
     document.getElementById('cutscene-skip-btn')?.addEventListener('click', () => {
       this.soundEngine.playClick();
-      this.goToChapter(CUTSCENE_CHAPTERS.length - 1);
+      this.goToChapter(CUTSCENE_CHAPTERS.length - 1, true);
     });
 
     document.getElementById('cutscene-close-btn')?.addEventListener('click', () => {
@@ -165,7 +220,7 @@ export class OriginCutsceneManager {
 
     document.getElementById('cutscene-btn-replay')?.addEventListener('click', () => {
       this.soundEngine.playClick();
-      this.goToChapter(0);
+      this.goToChapter(0, true);
       this.play();
     });
   }
@@ -178,7 +233,8 @@ export class OriginCutsceneManager {
     this.soundEngine.unlockAudio();
     overlay.classList.remove('hidden');
     this.startAmbientAudio();
-    this.goToChapter(0);
+    this.setViewMode(this.viewMode);
+    this.goToChapter(0, true);
     this.play();
   }
 
@@ -189,16 +245,69 @@ export class OriginCutsceneManager {
         overlay.classList.add('hidden');
       }
     }
+    if (this.videoEl) {
+      this.videoEl.pause();
+    }
     this.pause();
     this.stopAmbientAudio();
     if (this.onClose) this.onClose();
+  }
+
+  public toggleViewMode(): void {
+    this.setViewMode(this.viewMode === 'video' ? 'stage' : 'video');
+  }
+
+  public setViewMode(mode: 'video' | 'stage'): void {
+    this.viewMode = mode;
+    this.updateModeBtn();
+    if (this.videoContainerEl) {
+      if (mode === 'video') {
+        this.videoContainerEl.classList.remove('hidden');
+        if (this.videoEl) {
+          this.videoEl.currentTime = this.currentChapterIndex * 5;
+          if (this.isPlaying) {
+            this.videoEl.play().catch(() => {});
+          }
+        }
+      } else {
+        this.videoContainerEl.classList.add('hidden');
+      }
+    }
+    this.updateSceneVisibility();
+  }
+
+  private updateModeBtn(): void {
+    if (!this.modeBtnEl) return;
+    if (this.viewMode === 'video') {
+      this.modeBtnEl.textContent = '📹 Video Mode';
+      this.modeBtnEl.classList.add('active-video');
+      this.modeBtnEl.title = 'Current: Video Mode (Click for Interactive Stage)';
+    } else {
+      this.modeBtnEl.textContent = '🎭 Stage Mode';
+      this.modeBtnEl.classList.remove('active-video');
+      this.modeBtnEl.title = 'Current: Stage Mode (Click for Cinematic Video)';
+    }
+  }
+
+  private updateSceneVisibility(): void {
+    if (typeof document === 'undefined') return;
+    for (let i = 1; i <= CUTSCENE_CHAPTERS.length; i++) {
+      const sc = document.getElementById(`cutscene-scene-${i}`);
+      if (sc) {
+        if (this.viewMode === 'stage' && i === this.currentChapterIndex + 1) {
+          sc.classList.remove('hidden');
+        } else {
+          sc.classList.add('hidden');
+        }
+      }
+    }
   }
 
   public getCurrentChapterIndex(): number {
     return this.currentChapterIndex;
   }
 
-  public goToChapter(index: number): void {
+  public goToChapter(index: number, seekVideo: boolean = true): void {
     if (index < 0 || index >= CUTSCENE_CHAPTERS.length) return;
     this.currentChapterIndex = index;
     const ch = CUTSCENE_CHAPTERS[index];
@@ -222,17 +331,8 @@ export class OriginCutsceneManager {
         narrativeEl.classList.add('anim-narrative');
       }
 
-      // Update scene visuals (hide all, show active)
-      for (let i = 1; i <= CUTSCENE_CHAPTERS.length; i++) {
-        const sc = document.getElementById(`cutscene-scene-${i}`);
-        if (sc) {
-          if (i === index + 1) {
-            sc.classList.remove('hidden');
-          } else {
-            sc.classList.add('hidden');
-          }
-        }
-      }
+      // Update scene visuals based on current mode
+      this.updateSceneVisibility();
 
       // Update pips
       const pips = document.querySelectorAll('.cutscene-pip');
@@ -249,18 +349,26 @@ export class OriginCutsceneManager {
       }
     }
 
+    // Sync video timeline if requested
+    if (seekVideo && this.videoEl) {
+      this.videoEl.currentTime = index * 5;
+      if (this.isPlaying) {
+        this.videoEl.play().catch(() => {});
+      }
+    }
+
     // Sound cues per chapter
     this.triggerChapterSound(index);
 
-    // Reset auto-advance timer if playing
-    if (this.isPlaying) {
+    // Reset auto-advance timer if playing (in stage mode, or fallback)
+    if (this.isPlaying && this.viewMode === 'stage') {
       this.scheduleNext();
     }
   }
 
   public nextChapter(): void {
     if (this.currentChapterIndex < CUTSCENE_CHAPTERS.length - 1) {
-      this.goToChapter(this.currentChapterIndex + 1);
+      this.goToChapter(this.currentChapterIndex + 1, true);
     } else {
       this.close();
     }
@@ -268,7 +376,7 @@ export class OriginCutsceneManager {
 
   public prevChapter(): void {
     if (this.currentChapterIndex > 0) {
-      this.goToChapter(this.currentChapterIndex - 1);
+      this.goToChapter(this.currentChapterIndex - 1, true);
     }
   }
 
@@ -286,7 +394,12 @@ export class OriginCutsceneManager {
       const btn = document.getElementById('cutscene-play-pause-btn');
       if (btn) btn.textContent = '⏸ PAUSE';
     }
-    this.scheduleNext();
+    if (this.videoEl) {
+      this.videoEl.play().catch(() => {});
+    }
+    if (this.viewMode === 'stage') {
+      this.scheduleNext();
+    }
   }
 
   public pause(): void {
@@ -294,6 +407,9 @@ export class OriginCutsceneManager {
     if (typeof document !== 'undefined') {
       const btn = document.getElementById('cutscene-play-pause-btn');
       if (btn) btn.textContent = '▶ PLAY';
+    }
+    if (this.videoEl) {
+      this.videoEl.pause();
     }
     if (this.autoAdvanceTimer) {
       clearTimeout(this.autoAdvanceTimer);
@@ -305,7 +421,7 @@ export class OriginCutsceneManager {
     if (this.autoAdvanceTimer) {
       clearTimeout(this.autoAdvanceTimer);
     }
-    // Auto-advance after 7.5 seconds per chapter
+    // Auto-advance after 5.5 seconds per chapter in stage mode
     this.autoAdvanceTimer = setTimeout(() => {
       if (this.isPlaying) {
         if (this.currentChapterIndex < CUTSCENE_CHAPTERS.length - 1) {
@@ -314,13 +430,16 @@ export class OriginCutsceneManager {
           this.pause();
         }
       }
-    }, 7500);
+    }, 5500);
   }
 
   private toggleMute(btn?: HTMLElement): void {
     this.isMuted = !this.isMuted;
     if (btn) {
       btn.textContent = this.isMuted ? '🔇 Muted' : '🔊 Audio';
+    }
+    if (this.videoEl) {
+      this.videoEl.muted = this.isMuted;
     }
     if (this.ambientGain) {
       this.ambientGain.gain.value = this.isMuted ? 0 : 0.12;

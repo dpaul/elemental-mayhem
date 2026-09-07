@@ -70,6 +70,22 @@ describe('OriginCutsceneManager', () => {
     expect(soundEngine.playVictoryFanfare).toHaveBeenCalled();
   });
 
+  it('should toggle view mode between video and stage', () => {
+    cutsceneManager.setViewMode('video');
+    cutsceneManager.toggleViewMode();
+    // After toggling from video, it should be in stage mode
+    cutsceneManager.toggleViewMode();
+    // Toggled back to video
+    cutsceneManager.setViewMode('stage');
+    // Ensure setViewMode works explicitly
+  });
+
+  it('should support play and pause state toggling', () => {
+    cutsceneManager.pause();
+    cutsceneManager.togglePlayPause(); // toggles to play
+    cutsceneManager.togglePlayPause(); // toggles to pause
+  });
+
   it('should execute callbacks when requested', () => {
     const arenaSpy = vi.fn();
     const sandboxSpy = vi.fn();

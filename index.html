@@ -1032,6 +1032,7 @@
           <!-- Populated by OriginCutsceneManager -->
         </div>
         <div class="cutscene-top-actions">
+          <button id="cutscene-mode-btn" class="cutscene-tool-btn btn-mode" title="Switch between Cinematic Video and Interactive Stage">📹 Video Mode</button>
           <button id="cutscene-mute-btn" class="cutscene-tool-btn" title="Toggle Sound">🔊 Audio</button>
           <button id="cutscene-skip-btn" class="cutscene-tool-btn btn-skip" title="Skip to Final Awakening">⏩ Skip</button>
           <button id="cutscene-close-btn" class="cutscene-close-btn" title="Exit Cutscene">✕</button>
@@ -1042,6 +1043,22 @@
     <!-- Center Cinematic Canvas & Visual Stage -->
     <div class="cutscene-stage" id="cutscene-stage">
       <div class="cutscene-stage-vignette"></div>
+
+      <!-- Real Cinematic Video Chronicle Screen -->
+      <div class="cutscene-video-container" id="cutscene-video-container">
+        <video id="cutscene-video-player" class="cutscene-video-player" playsinline preload="auto" loop muted>
+          <source src="/videos/origin_cutscene.mp4" type="video/mp4" />
+          <source src="/videos/origin_cutscene.webm" type="video/webm" />
+          Your browser does not support HTML5 video.
+        </video>
+        <div class="cutscene-video-overlay-badge">
+          <span class="video-rec-blip"></span>
+          <span class="video-badge-text">ORIGIN CHRONICLE • 1080P CINEMATIC</span>
+        </div>
+        <div class="cutscene-video-timeline-bar">
+          <div class="cutscene-video-progress" id="cutscene-video-progress"></div>
+        </div>
+      </div>
 
       <!-- Chapter 1: Clash of the Two Titans -->
       <div class="cutscene-scene-content" id="cutscene-scene-1">
