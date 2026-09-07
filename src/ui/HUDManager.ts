@@ -215,7 +215,13 @@ export class HUDManager {
       );
 
       const elemData = CORE_ELEMENTS[ability.element];
-      if (elemData) {
+      if (ability.element === 'Admin') {
+        card.classList.add('admin-ability-card');
+        card.style.borderColor = isSelected ? '#f472b6' : 'rgba(236, 72, 153, 0.45)';
+        if (!isSelected) {
+          card.style.boxShadow = '0 0 10px rgba(236, 72, 153, 0.25)';
+        }
+      } else if (elemData) {
         card.style.borderColor = isSelected ? elemData.color : 'rgba(255, 255, 255, 0.08)';
       }
 

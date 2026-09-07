@@ -17,7 +17,7 @@ import { SaveManager, GameSaveData, SavedHazardTile } from './engine/SaveManager
 import { PlacementManager } from './engine/PlacementManager';
 import { ElementType, Unit, Ability, GridCoord, ZombieClass, TileHazardType, PlacementItem, PlacementCategory } from './types';
 import { CORE_ELEMENTS } from './constants/elements';
-import { HERO_CLASSES, createHeroForElement, createSandboxHero, registerAdminAbility, createAdminPower, onAdminAbilityRegistered, populateAdminAbilities } from './constants/classes';
+import { HERO_CLASSES, createHeroForElement, createSandboxHero, registerAdminAbility, createAdminPower, onAdminAbilityRegistered, populateAdminAbilities, auditAndPromoteOverpoweredAbilities, isOverpoweredAbility } from './constants/classes';
 import { NetworkManager } from './network/NetworkManager';
 import { NetworkMessage } from './network/NetworkMessages';
 
@@ -1356,6 +1356,33 @@ export class GameApp {
       success: true,
       count: this.hero.abilities.length,
       message: `Granted all powers! Active arsenal has ${this.hero.abilities.length} abilities.`,
+    };
+  }
+
+  public convertOverpoweredToAdmin(): { success: boolean; count: number; message: string } {
+    const count = auditAndPromoteOverpoweredAbilities();
+    const grantRes = this.grantAllAdminPowers();
+
+    this.soundEngine?.playLevelUp();
+    this.renderer?.particleEngine?.triggerScreenShake(10, 300);
+    if (this.renderer && this.hero && this.hero.coord) {
+      const pos = this.renderer.gridToScreen(this.hero.coord);
+      this.renderer.particleEngine.addFloatingText(
+        `👑 CONVERTED ${count} OVERPOWERED SPELLS TO ADMIN!`,
+        pos.x,
+        pos.y - 45,
+        '#f472b6',
+        24
+      );
+    }
+    this.combatEngine?.addLog(
+      'system',
+      `👑 ADMIN AUDIT: Evaluated multiversal spells and consecrated ${count} overpowered abilities into official Admin Powers!`
+    );
+    return {
+      success: true,
+      count,
+      message: `👑 Consecrated ${count} overpowered abilities into official Admin Powers! (${grantRes.count} total powers equipped).`,
     };
   }
 
@@ -2765,6 +2792,15 @@ export class GameApp {
       const dmgStr = prompt('Enter base damage for this power:', '999') || '999';
       const dmg = parseInt(dmgStr, 10) || 999;
       createAdminPower(powerName, dmg, 7, 2, `Devastating custom admin power crafted by Creator DavePaul.`);
+      this.closeAdminPanel();
+    });
+
+    document.getElementById('admin-btn-convert-op')?.addEventListener('click', () => {
+      if (!this.adminManager.canUseAdminCommands(this.isHotseatMode, this.hotseatCurrentPlayer)) {
+        this.openAdminPanel();
+        return;
+      }
+      this.convertOverpoweredToAdmin();
       this.closeAdminPanel();
     });
 
@@ -4610,6 +4646,60 @@ export class GameApp {
       return this.grantAllAdminPowers();
     }
 
+    // 0d. Convert Overpowered Powers to Admin: "convert op", "op to admin", "audit op"
+    if (
+      cmd === 'convert op' ||
+      cmd === 'promote op' ||
+      cmd === 'audit op' ||
+      cmd === 'op to admin' ||
+      cmd === 'make op admin' ||
+      cmd === 'make admin op' ||
+      cmd === 'overpowered'
+    ) {
+      return this.convertOverpoweredToAdmin();
+    }
+
+    // 0e. Make specific ability an Admin Power: "make admin <name>"
+    const makeAdminMatch = raw.match(/^(?:make\s+admin|promote\s+to\s+admin|admin\s+power)\s+([a-zA-Z0-9\s]+)$/i);
+    if (makeAdminMatch) {
+      const targetName = makeAdminMatch[1].trim().toLowerCase();
+      let foundAbility: Ability | undefined = this.hero?.abilities.find(
+        (a) => a.name.toLowerCase() === targetName || a.id.toLowerCase() === targetName
+      );
+      if (!foundAbility) {
+        for (const c of Object.values(HERO_CLASSES)) {
+          const match = c.abilities.find(
+            (a) => a.name.toLowerCase() === targetName || a.id.toLowerCase() === targetName
+          );
+          if (match) {
+            foundAbility = match;
+            break;
+          }
+        }
+      }
+      if (foundAbility) {
+        const promoted = registerAdminAbility({
+          ...foundAbility,
+          id: foundAbility.id.startsWith('admin_') ? foundAbility.id : `admin_${foundAbility.id}`,
+          name: foundAbility.name.startsWith('👑') ? foundAbility.name : `👑 ${foundAbility.name}`,
+          element: 'Admin',
+          baseDamage: Math.max(foundAbility.baseDamage, 250),
+          apCost: Math.min(foundAbility.apCost, 1),
+          cooldown: 0,
+        });
+        this.grantAllAdminPowers();
+        return {
+          success: true,
+          message: `👑 Successfully converted "${foundAbility.name}" into official Admin Power "${promoted.name}"!`,
+        };
+      } else {
+        return {
+          success: false,
+          message: `Could not find ability matching "${makeAdminMatch[1]}".`,
+        };
+      }
+    }
+
     // 1. Last Level / Go to Last level
     if (
       cmd === 'go to last level' ||
@@ -6248,7 +6338,10 @@ window.addEventListener('DOMContentLoaded', () => {
   (window as any).adminCommand = (cmd: string) => game.executeAdminCommand(cmd);
   (window as any).massResurrection = () => game.invokeAdminMassResurrection();
   (window as any).grantAllAdminPowers = () => game.grantAllAdminPowers();
+  (window as any).convertOverpoweredToAdmin = () => game.convertOverpoweredToAdmin();
   (window as any).syncAdminPowers = () => game.syncAdminPowers();
+  (window as any).isOverpoweredAbility = isOverpoweredAbility;
+  (window as any).auditAndPromoteOverpoweredAbilities = auditAndPromoteOverpoweredAbilities;
   (window as any).registerAdminAbility = registerAdminAbility;
   (window as any).createAdminPower = (name: string, dmg?: number, range?: number, aoe?: number) => createAdminPower(name, dmg, range, aoe);
   (window as any).makeMeAdmin = () => {

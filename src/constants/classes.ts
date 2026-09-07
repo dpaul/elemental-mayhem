@@ -8516,15 +8516,133 @@ export function onAdminAbilityRegistered(listener: AdminAbilityListener): () => 
   };
 }
 
+/**
+ * Evaluates whether an ability has game-breaking or god-tier attributes that make it "Overpowered".
+ * If anything is too overpowered, it is classified as an Admin Power.
+ */
+export function isOverpoweredAbility(ability: Partial<Ability>): boolean {
+  if (ability.element === 'Admin') return true;
+
+  const dmg = ability.baseDamage ?? 0;
+  const aoe = ability.aoeRadius ?? 0;
+  const ap = ability.apCost ?? 1;
+  const cd = ability.cooldown ?? 0;
+  const name = (ability.name || '').toLowerCase();
+  const desc = (ability.description || '').toLowerCase();
+
+  // 1. Extreme damage threshold (>= 60 base damage)
+  if (dmg >= 60) return true;
+
+  // 2. High damage with large AoE (dmg >= 45 and aoe >= 2)
+  if (dmg >= 45 && aoe >= 2) return true;
+
+  // 3. Colossal area of effect (aoe >= 3 covering 25+ tiles)
+  if (aoe >= 3 && dmg > 0) return true;
+
+  // 4. Free actions with damage or status effects (0 AP attacks or 0 AP crowd control)
+  if (ap === 0 && (dmg > 0 || ability.appliesStatus !== undefined)) return true;
+
+  // 5. Spammable high-tier attacks (0 cooldown with 40+ damage)
+  if (cd === 0 && dmg >= 40) return true;
+
+  // 6. Wall clearing or board annihilation abilities (e.g. Mass Resurrection, Screen Clear)
+  if (
+    ability.id === 'admin_mass_resurrection' ||
+    name.includes('mass resurrection') ||
+    desc.includes('clears all walls') ||
+    desc.includes('shatters and clears all walls')
+  ) {
+    return true;
+  }
+
+  // 7. God-tier / cataclysmic keyword abilities
+  if (
+    /ban hammer|screen clear|absolute supernova|server smite|god barrier|cataclysm of the first titans|supernova blast implosion|genesis cosmic spark|oblivion black hole|total war cataclysm|cataclysmic blood rampage|thermonuclear annihilation|universal solvent meltdown/i.test(
+      name
+    )
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Audits all classes in HERO_CLASSES. Any ability that is too overpowered is:
+ * 1. Consecrated as an official Admin Power (element: 'Admin', god-tier scaling, added to Admin kit).
+ * 2. In the mortal class, calibrated into a balanced mortal ultimate (~38 dmg, aoe 1, ap 3, cd 2)
+ *    so mortal classes do not trivialize normal gameplay or break starter balance.
+ */
+export function auditAndPromoteOverpoweredAbilities(): number {
+  let promotedCount = 0;
+  const adminConfig = HERO_CLASSES.Admin;
+  if (!adminConfig) return 0;
+
+  for (const [elemKey, heroConfig] of Object.entries(HERO_CLASSES)) {
+    if (elemKey === 'Admin') continue;
+
+    for (let i = 0; i < heroConfig.abilities.length; i++) {
+      const ability = heroConfig.abilities[i];
+      if (isOverpoweredAbility(ability)) {
+        promotedCount++;
+
+        // 1. Create the official Admin God Power
+        const adminPowerId = ability.id.startsWith('admin_') ? ability.id : `admin_${ability.id}`;
+        const adminPowerName = ability.name.startsWith('👑') ? ability.name : `👑 ${ability.name}`;
+        const adminPower: Ability = {
+          ...ability,
+          id: adminPowerId,
+          name: adminPowerName,
+          element: 'Admin',
+          icon: ability.icon.includes('👑') ? ability.icon : `👑${ability.icon}`,
+          baseDamage: Math.max(ability.baseDamage, 200), // Boost to true Admin-level devastator
+          apCost: Math.min(ability.apCost, 1), // Admin efficiency: 1 AP
+          cooldown: 0, // Admin zero-cooldown privilege
+          currentCooldown: 0,
+          aoeRadius: Math.max(ability.aoeRadius, 2),
+          description: `👑 ADMIN GOD POWER: ${ability.description} (Promoted to Admin Power due to supreme overwhelming force).`,
+        };
+
+        // Register into Admin abilities
+        const existingIdx = adminConfig.abilities.findIndex(
+          (a) => a.id === adminPower.id || a.name === adminPower.name
+        );
+        if (existingIdx >= 0) {
+          adminConfig.abilities[existingIdx] = adminPower;
+        } else {
+          adminConfig.abilities.push(adminPower);
+        }
+
+        // 2. Rebalance the mortal class ability to a fair mortal tier
+        heroConfig.abilities[i] = {
+          ...ability,
+          baseDamage: Math.min(ability.baseDamage, 38),
+          aoeRadius: Math.min(ability.aoeRadius, 1),
+          apCost: Math.max(ability.apCost, 3),
+          cooldown: Math.max(ability.cooldown, 2),
+          description: `${ability.description.split('.')[0]}. (Calibrated mortal form; supreme version is an Admin Power).`,
+        };
+      }
+    }
+  }
+
+  return promotedCount;
+}
+
 export function registerAdminAbility(ability: Partial<Ability> & { name: string }): Ability {
   const adminConfig = HERO_CLASSES.Admin;
   const id = ability.id || `admin_custom_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
 
+  // If anything is overpowered, enforce element: 'Admin'
+  const isOp = isOverpoweredAbility(ability);
+  const element: ElementType = isOp ? 'Admin' : (ability.element || 'Admin');
+  const icon = ability.icon || '👑';
+
   const fullAbility: Ability = {
     id,
     name: ability.name,
-    element: ability.element || 'Admin',
-    icon: ability.icon || '👑',
+    element,
+    icon,
     apCost: ability.apCost !== undefined ? ability.apCost : 1,
     cooldown: ability.cooldown !== undefined ? ability.cooldown : 0,
     currentCooldown: 0,
@@ -8532,7 +8650,8 @@ export function registerAdminAbility(ability: Partial<Ability> & { name: string 
     aoeRadius: ability.aoeRadius !== undefined ? ability.aoeRadius : 1,
     targeting: ability.targeting || 'SingleUnit',
     baseDamage: ability.baseDamage !== undefined ? ability.baseDamage : 500,
-    description: ability.description || `Custom Admin Power: ${ability.name} wielding absolute creator authority.`,
+    description:
+      ability.description || `Custom Admin Power: ${ability.name} wielding absolute creator authority.`,
     appliesStatus: ability.appliesStatus,
     statusDuration: ability.statusDuration,
     createsHazard: ability.createsHazard,
@@ -8586,6 +8705,9 @@ export function createAdminPower(
 
 // Populate the Admin element with every ability across all other elements
 export function populateAdminAbilities(): void {
+  // First, promote all overpowered abilities into official Admin Powers
+  auditAndPromoteOverpoweredAbilities();
+
   const adminConfig = HERO_CLASSES.Admin;
   if (!adminConfig) return;
 
@@ -8606,6 +8728,7 @@ export function populateAdminAbilities(): void {
 
 // Execute population immediately so Admin has all powers
 populateAdminAbilities();
+
 
 export function createHeroForElement(element: ElementType): Unit {
   const config = HERO_CLASSES[element] || HERO_CLASSES.Fire;

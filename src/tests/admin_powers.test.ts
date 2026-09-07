@@ -6,6 +6,8 @@ import {
   onAdminAbilityRegistered,
   populateAdminAbilities,
   createHeroForElement,
+  isOverpoweredAbility,
+  auditAndPromoteOverpoweredAbilities,
 } from '../constants/classes';
 import { UnlockManager } from '../engine/UnlockManager';
 import { AdminManager } from '../engine/AdminManager';
@@ -115,5 +117,90 @@ describe('Admin Powers & Dynamic Ability Acquisition (Instantly Get New Admin Po
     expect(adminAbilities.some((a) => a.id === 'void_strike')).toBe(true);
     // Dedicated admin spells
     expect(adminAbilities.some((a) => a.id === 'admin_ban_hammer')).toBe(true);
+  });
+
+  it('isOverpoweredAbility should correctly identify overpowered god-tier abilities', () => {
+    // 1. Extreme damage >= 60
+    expect(isOverpoweredAbility({ baseDamage: 75, apCost: 3, cooldown: 2 })).toBe(true);
+    // 2. High damage with large AoE (45+ dmg with AoE 2+)
+    expect(isOverpoweredAbility({ baseDamage: 48, aoeRadius: 2, apCost: 3 })).toBe(true);
+    // 3. Colossal AoE 3+
+    expect(isOverpoweredAbility({ aoeRadius: 3, baseDamage: 25 })).toBe(true);
+    // 4. Free 0 AP attacks
+    expect(isOverpoweredAbility({ apCost: 0, baseDamage: 20 })).toBe(true);
+    // 5. Free 0 AP crowd-control
+    expect(isOverpoweredAbility({ apCost: 0, appliesStatus: 'Frozen' })).toBe(true);
+    // 6. Spammable 0 CD with 40+ damage
+    expect(isOverpoweredAbility({ cooldown: 0, baseDamage: 50, apCost: 2 })).toBe(true);
+    // 7. Wall clearing / mass resurrection
+    expect(isOverpoweredAbility({ name: 'Mass Resurrection', baseDamage: 0 })).toBe(true);
+    // 8. Admin element
+    expect(isOverpoweredAbility({ element: 'Admin' })).toBe(true);
+
+    // Normal balanced mortal ability is NOT overpowered
+    expect(
+      isOverpoweredAbility({
+        name: 'Fireball',
+        element: 'Fire',
+        baseDamage: 28,
+        apCost: 2,
+        cooldown: 0,
+        aoeRadius: 0,
+      })
+    ).toBe(false);
+  });
+
+  it('should automatically set element: Admin when registering an overpowered ability', () => {
+    const opPower = registerAdminAbility({
+      name: 'Supernova Mega Blast',
+      baseDamage: 80, // Overpowered!
+      element: 'Fire', // Player tried to assign it to Fire
+      aoeRadius: 3,
+    });
+
+    expect(opPower.element).toBe('Admin');
+    expect(HERO_CLASSES.Admin.abilities.some((a) => a.id === opPower.id)).toBe(true);
+  });
+
+  it('auditAndPromoteOverpoweredAbilities should promote OP abilities to Admin kit and balance mortal classes', () => {
+    // Inject an overpowered test spell into a mortal class
+    HERO_CLASSES.Fire.abilities.push({
+      id: 'fire_test_cataclysm_999',
+      name: 'Mega Cataclysm Test',
+      element: 'Fire',
+      icon: '🔥',
+      apCost: 4,
+      cooldown: 3,
+      currentCooldown: 0,
+      range: 6,
+      aoeRadius: 2,
+      targeting: 'SingleUnit',
+      baseDamage: 75,
+      description: 'Devastating test cataclysm.',
+      level: 1,
+    });
+
+    const promoted = auditAndPromoteOverpoweredAbilities();
+    expect(promoted).toBeGreaterThan(0);
+
+    // Verify it was promoted into Admin kit with Admin element & god stats!
+    const adminPower = HERO_CLASSES.Admin.abilities.find(
+      (a) => a.id === 'admin_fire_test_cataclysm_999' || a.name.includes('Mega Cataclysm Test')
+    );
+    expect(adminPower).toBeDefined();
+    expect(adminPower?.element).toBe('Admin');
+    expect(adminPower?.baseDamage).toBeGreaterThanOrEqual(200);
+
+    // Verify the mortal Fire class spell was calibrated down to fair mortal tier
+    const fireSpell = HERO_CLASSES.Fire.abilities.find((a) => a.id === 'fire_test_cataclysm_999');
+    expect(fireSpell).toBeDefined();
+    expect(fireSpell?.baseDamage).toBeLessThanOrEqual(38);
+    expect(fireSpell?.aoeRadius).toBeLessThanOrEqual(1);
+
+    // Clean up
+    HERO_CLASSES.Fire.abilities = HERO_CLASSES.Fire.abilities.filter((a) => a.id !== 'fire_test_cataclysm_999');
+    HERO_CLASSES.Admin.abilities = HERO_CLASSES.Admin.abilities.filter(
+      (a) => a.id !== 'admin_fire_test_cataclysm_999' && !a.name.includes('Mega Cataclysm Test')
+    );
   });
 });
