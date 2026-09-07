@@ -12,6 +12,7 @@
  */
 
 import { SoundEngine } from '../audio/SoundEngine';
+import { CutsceneVoiceManager } from './CutsceneVoiceManager';
 
 export interface CutsceneChapter {
   id: number;
@@ -92,6 +93,9 @@ export class OriginCutsceneManager {
   private ambientOsc3: OscillatorNode | null = null;
   private chapterSoundTimers: any[] = [];
 
+  // Voice Dialogue Manager
+  public voiceManager: CutsceneVoiceManager;
+
   // Video Chronicle Integration
   private videoEl: HTMLVideoElement | null = null;
   private videoContainerEl: HTMLElement | null = null;
@@ -107,11 +111,15 @@ export class OriginCutsceneManager {
 
   constructor(soundEngine: SoundEngine) {
     this.soundEngine = soundEngine;
+    this.voiceManager = new CutsceneVoiceManager(soundEngine);
   }
 
   public initDOM(): void {
     const overlay = document.getElementById('origin-cutscene-overlay');
     if (!overlay) return;
+
+    // Initialize Spoken Dialogue System
+    this.voiceManager.initDOM();
 
     // Elements
     this.videoEl = document.getElementById('cutscene-video-player') as HTMLVideoElement | null;
@@ -259,6 +267,7 @@ export class OriginCutsceneManager {
     }
     this.clearChapterSoundTimers();
     this.pause();
+    this.voiceManager.stopAll();
     this.stopAmbientAudio();
     if (this.onClose) this.onClose();
   }
@@ -371,6 +380,9 @@ export class OriginCutsceneManager {
     this.triggerChapterSound(index);
     this.updateAmbientChord(index);
 
+    // Trigger multi-voice character dialogue
+    this.voiceManager.playChapter(index);
+
     // Reset auto-advance timer if playing (in stage mode, or fallback)
     if (this.isPlaying && this.viewMode === 'stage') {
       this.scheduleNext();
@@ -415,6 +427,7 @@ export class OriginCutsceneManager {
 
   public pause(): void {
     this.isPlaying = false;
+    this.voiceManager.stopAll();
     if (typeof document !== 'undefined') {
       const btn = document.getElementById('cutscene-play-pause-btn');
       if (btn) btn.textContent = '▶ PLAY';

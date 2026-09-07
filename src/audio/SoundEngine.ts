@@ -1302,6 +1302,161 @@ export class SoundEngine {
     }
   }
 
+  public playCharacterVocalTone(speakerId: string): void {
+    const ctx = this.initContext();
+    if (!ctx || this.isMuted) return;
+
+    const t = ctx.currentTime;
+    const masterGain = this.createGain(ctx, 0.4);
+
+    if (speakerId === 'titan_magma') {
+      // Deep tectonic magma monster formant (sub-bass 48Hz + overdriven 110Hz)
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      osc1.type = 'sawtooth';
+      osc2.type = 'triangle';
+      osc1.frequency.setValueAtTime(52, t);
+      osc1.frequency.exponentialRampToValueAtTime(42, t + 0.35);
+      osc2.frequency.setValueAtTime(104, t);
+
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(220, t);
+      filter.Q.value = 4.0;
+
+      const waveshaper = ctx.createWaveShaper();
+      waveshaper.curve = this.makeDistortionCurve(60) as any;
+
+      const env = ctx.createGain();
+      env.gain.setValueAtTime(0.01, t);
+      env.gain.linearRampToValueAtTime(0.45, t + 0.04);
+      env.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+
+      osc1.connect(filter);
+      osc2.connect(filter);
+      filter.connect(waveshaper);
+      waveshaper.connect(env);
+      env.connect(masterGain);
+
+      osc1.start(t);
+      osc2.start(t);
+      osc1.stop(t + 0.42);
+      osc2.stop(t + 0.42);
+    } else if (speakerId === 'titan_void') {
+      // Eerie cosmic abyss resonance (78Hz descending with modulated sine)
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(95, t);
+      osc.frequency.exponentialRampToValueAtTime(55, t + 0.45);
+
+      const mod = ctx.createOscillator();
+      mod.type = 'triangle';
+      mod.frequency.setValueAtTime(14, t);
+
+      const modGain = ctx.createGain();
+      modGain.gain.setValueAtTime(25, t);
+      mod.connect(modGain);
+      modGain.connect(osc.frequency);
+
+      const env = ctx.createGain();
+      env.gain.setValueAtTime(0.01, t);
+      env.gain.linearRampToValueAtTime(0.4, t + 0.03);
+      env.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+
+      osc.connect(env);
+      env.connect(masterGain);
+
+      osc.start(t);
+      mod.start(t);
+      osc.stop(t + 0.48);
+      mod.stop(t + 0.48);
+    } else if (speakerId === 'wizard') {
+      // Mystical ancient elder arch-mage chord (A3 + C#4 + E4)
+      const freqs = [220.0, 277.18, 329.63];
+      freqs.forEach((f, i) => {
+        const osc = ctx.createOscillator();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(f, t + i * 0.02);
+
+        const env = ctx.createGain();
+        env.gain.setValueAtTime(0.01, t + i * 0.02);
+        env.gain.linearRampToValueAtTime(0.22, t + i * 0.02 + 0.03);
+        env.gain.exponentialRampToValueAtTime(0.001, t + i * 0.02 + 0.42);
+
+        osc.connect(env);
+        env.connect(masterGain);
+        osc.start(t + i * 0.02);
+        osc.stop(t + i * 0.02 + 0.45);
+      });
+    } else if (speakerId === 'void_overlord') {
+      // Sinister demonic tritone rasp (D2 73.4Hz + G#2 103.8Hz) with heavy overdrive
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      osc1.type = 'sawtooth';
+      osc2.type = 'sawtooth';
+      osc1.frequency.setValueAtTime(73.4, t);
+      osc1.frequency.linearRampToValueAtTime(58.0, t + 0.4);
+      osc2.frequency.setValueAtTime(103.83, t);
+
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(320, t);
+      filter.Q.value = 3.5;
+
+      const waveshaper = ctx.createWaveShaper();
+      waveshaper.curve = this.makeDistortionCurve(100) as any;
+
+      const env = ctx.createGain();
+      env.gain.setValueAtTime(0.01, t);
+      env.gain.linearRampToValueAtTime(0.5, t + 0.04);
+      env.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+
+      osc1.connect(filter);
+      osc2.connect(filter);
+      filter.connect(waveshaper);
+      waveshaper.connect(env);
+      env.connect(masterGain);
+
+      osc1.start(t);
+      osc2.start(t);
+      osc1.stop(t + 0.48);
+      osc2.stop(t + 0.48);
+    } else if (speakerId === 'seeker') {
+      // Bright, energetic mortal seeker pulse (F4 349Hz -> A4 440Hz)
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(349.23, t);
+      osc.frequency.exponentialRampToValueAtTime(440.0, t + 0.22);
+
+      const env = ctx.createGain();
+      env.gain.setValueAtTime(0.01, t);
+      env.gain.linearRampToValueAtTime(0.3, t + 0.02);
+      env.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+
+      osc.connect(env);
+      env.connect(masterGain);
+      osc.start(t);
+      osc.stop(t + 0.32);
+    } else {
+      // Narrator / Chronicler - Clear celestial chime (C4 261.6Hz + G4 392Hz)
+      [261.63, 392.0].forEach((freq) => {
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, t);
+
+        const env = ctx.createGain();
+        env.gain.setValueAtTime(0.01, t);
+        env.gain.linearRampToValueAtTime(0.25, t + 0.03);
+        env.gain.exponentialRampToValueAtTime(0.001, t + 0.38);
+
+        osc.connect(env);
+        env.connect(masterGain);
+        osc.start(t);
+        osc.stop(t + 0.4);
+      });
+    }
+  }
+
   // ==========================================
   // HELPER SYNTHESIS BUFFERS
   // ==========================================
