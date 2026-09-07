@@ -25,57 +25,57 @@ export interface CutsceneChapter {
 export const CUTSCENE_CHAPTERS: CutsceneChapter[] = [
   {
     id: 1,
-    badge: '🌌 CHAPTER I • THE ASTRAL RUINS',
-    title: 'The Mortal Seeker in the Void',
-    subtitle: 'Before the Elemental Mayhem tournament, mortals possessed no magic.',
+    badge: '🗿⚡ CHAPTER I • CLASH OF THE TITANS',
+    title: 'When Titans Collided',
+    subtitle: 'Two primeval giants wage war across the cosmos with reality-shattering fury.',
     narrative:
-      'Long before the arenas were forged, humanity lived defenseless under the shadows of cosmic titans. Seeking salvation, you traversed the astral abyss and discovered the monolithic ruins of the Primal Nexus, where primordial secrets lay dormant.',
-    themeColor: '#818cf8',
+      'At the dawn of time, two colossal Titans clashed across the cosmic firmament—the Magma Colossus and the Void Leviathan. Their earth-shattering strikes shattered tectonic plates and caused the universe itself to tremble!',
+    themeColor: '#f59e0b',
   },
   {
     id: 2,
-    badge: '💥 CHAPTER II • THE CATACLYSM',
-    title: 'The Shattering of the Core',
-    subtitle: 'A single touch cracked the ancient seal of creation.',
+    badge: '🌌🌀 CHAPTER II • THE COSMIC RIFT',
+    title: 'The Dimensional Tear Opens',
+    subtitle: 'Their titanic collision ripped open a cosmic vortex in spacetime.',
     narrative:
-      'Approaching the ancient altar, your hand brushed against the celestial sphere. In an instant, the Primal Core ruptured! Tectonic shockwaves tore through reality as raw elemental forces broke free from their cosmic prison in a blinding supernova.',
-    themeColor: '#f43f5e',
+      'With a final catastrophic blow, their fists collided, violently ripping open a swirling Cosmic Rift! Space and time tore apart as a gravitational singularity began pulling in cosmic debris, stars, and wandering mortals alike!',
+    themeColor: '#c084fc',
   },
   {
     id: 3,
-    badge: '🔥💧🪨 CHAPTER III • THE THREE STARTERS',
-    title: 'The Three Primal Embers Awaken',
-    subtitle: 'Fire, Water, and Earth chose you as their mortal host.',
+    badge: '🌀🪐 CHAPTER III • THE FALL THROUGH WORLDS',
+    title: 'Falling Through the Rift',
+    subtitle: 'Devoured by the singularity, you tumble across dimensions to a small pocket world.',
     narrative:
-      'Amidst the chaos of fifty unbound forces, three ancient embers spiraled down and bonded to your mortal soul: the consuming fury of Fire, the serene fluidity of Water, and the immovable foundation of Earth. The primal triad ignited within your veins!',
+      'Swept away by the gravitational vortex, you tumbled through dimensional wormholes at warp speed. After hurtling across reality, you crash-landed onto an uncharted, floating miniature world adrift in the stars.',
     themeColor: '#38bdf8',
   },
   {
     id: 4,
-    badge: '⚡⚗️ CHAPTER IV • THE REACTION CASCADE',
-    title: 'The 50 Elements Converge',
-    subtitle: 'Combinations sparked. You were no longer mortal.',
+    badge: '🧙‍♂️✨ CHAPTER IV • THE WIZARD\'S POWER',
+    title: 'The Grand Wizard\'s Blessing',
+    subtitle: 'An ancient arch-wizard channels his ultimate elemental mastery into your soul.',
     narrative:
-      'Fire met Water, billowed into scorching Steam. Earth met Fire, erupting into molten Magma. Cold, Wind, Lightning, Poison, Light, and Void harmonized. The dormant 50-element cosmic matrix expanded inside your consciousness with infinite power!',
-    themeColor: '#eab308',
+      'Emerging from the mystical ruins, an ancient Grand Wizard approached. Amazed that a mortal survived the cosmic fall, he chanted sacred rites and channeled his lifetime of godlike elemental powers directly into your hands!',
+    themeColor: '#10b981',
   },
   {
     id: 5,
-    badge: '👑 CHAPTER V • THE SOVEREIGN GAZE',
-    title: 'The Eye of the Creator',
-    subtitle: 'The supreme architect offered a divine destiny.',
+    badge: '😈⚡ CHAPTER V • THE POWER STOLEN!',
+    title: 'Ambushed in the Shadows',
+    subtitle: 'A shadowy nemesis ambushes you and violently steals your godlike power.',
     narrative:
-      'High in the heavens, the mythical Sovereign Creator beheld your awakening. Brandishing the legendary Ban Hammer, the Creator decreed: "Ascend the tournament. Defeat the 15 Titans and the Void Archon, and supreme Admin authority shall be yours!"',
-    themeColor: '#ec4899',
+      'Suddenly, the sky turned pitch black! The sinister Void Overlord struck from the shadows, violently siphoning the wizard\'s godlike power from your chest! The demon fled into the cosmos, leaving you with only the basic starter embers of Fire, Water, and Earth.',
+    themeColor: '#ef4444',
   },
   {
     id: 6,
-    badge: '⚔️ CHAPTER VI • THE AWAKENING',
-    title: 'Rise, Elemental Master',
-    subtitle: 'The arena gates grind open. Glory awaits.',
+    badge: '⚔️👑 CHAPTER VI • MISSION: ROUND 1000',
+    title: 'The Mission to Reclaim the Power',
+    subtitle: 'Ascend through 1000 rounds and conquer the Ultimate Boss to reclaim your destiny!',
     narrative:
-      'You open your eyes. Primal flame, living water, and tectonic stone dance at your fingertips. The Elemental Mayhem tournament beckons. Step into the arena, champion—and carve your legend into the stars!',
-    themeColor: '#34d399',
+      'The weakened Wizard gasped: "Do not despair! You still hold the Three Starter Embers. Train, master the elements, and battle through the arenas to defeat the Ultimate Boss on Round 1000 and reclaim the stolen power!" Your mission begins now!',
+    themeColor: '#fbbf24',
   },
 ];
 
@@ -336,31 +336,36 @@ export class OriginCutsceneManager {
     try {
       switch (index) {
         case 0:
-          // Chapter 1: Deep cosmic void hum
-          this.soundEngine.playWarp();
+          // Chapter 1: Titans clash with earth shattering collisions
+          this.soundEngine.playExplosion();
+          setTimeout(() => this.soundEngine.playSpellCast('Earth'), 300);
           break;
         case 1:
-          // Chapter 2: The Core Shatters
-          this.soundEngine.playExplosion();
+          // Chapter 2: The Cosmic Rift tears open
+          this.soundEngine.playWarp();
+          setTimeout(() => this.soundEngine.playExplosion(), 250);
           break;
         case 2:
-          // Chapter 3: Three Starter Sparks (Fire, Water, Earth)
-          this.soundEngine.playSpellCast('Fire');
-          setTimeout(() => this.soundEngine.playSpellCast('Water'), 350);
-          setTimeout(() => this.soundEngine.playSpellCast('Earth'), 700);
+          // Chapter 3: Falling through the rift & landing on small world
+          this.soundEngine.playWarp();
+          setTimeout(() => this.soundEngine.playHit(), 600);
           break;
         case 3:
-          // Chapter 4: 50 Elements & Reactions cascade
-          this.soundEngine.playSpellCast('Lightning');
-          setTimeout(() => this.soundEngine.playUnlock(), 400);
+          // Chapter 4: Grand Wizard gives power
+          this.soundEngine.playSpellCast('Fire');
+          setTimeout(() => this.soundEngine.playSpellCast('Water'), 300);
+          setTimeout(() => this.soundEngine.playSpellCast('Earth'), 600);
+          setTimeout(() => this.soundEngine.playUnlock(), 900);
           break;
         case 4:
-          // Chapter 5: Sovereign Creator God's decree
-          this.soundEngine.playVictoryFanfare();
+          // Chapter 5: Power gets stolen by Void Overlord
+          this.soundEngine.playHeroDeathScream();
+          setTimeout(() => this.soundEngine.playExplosion(), 400);
           break;
         case 5:
-          // Chapter 6: Final Awakening into the Arena
-          this.soundEngine.playLevelUp();
+          // Chapter 6: The Mission: Round 1000 Ultimate Boss
+          this.soundEngine.playVictoryFanfare();
+          setTimeout(() => this.soundEngine.playLevelUp(), 700);
           break;
       }
     } catch (err) {

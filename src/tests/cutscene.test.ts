@@ -16,6 +16,8 @@ describe('OriginCutsceneManager', () => {
     vi.spyOn(soundEngine, 'playUnlock').mockImplementation(() => {});
     vi.spyOn(soundEngine, 'playVictoryFanfare').mockImplementation(() => {});
     vi.spyOn(soundEngine, 'playLevelUp').mockImplementation(() => {});
+    vi.spyOn(soundEngine, 'playHeroDeathScream').mockImplementation(() => {});
+    vi.spyOn(soundEngine, 'playHit').mockImplementation(() => {});
     vi.spyOn(soundEngine, 'unlockAudio').mockImplementation(() => {});
 
     cutsceneManager = new OriginCutsceneManager(soundEngine);
@@ -23,12 +25,12 @@ describe('OriginCutsceneManager', () => {
 
   it('should have exactly 6 chapters detailing the lore of obtaining powers', () => {
     expect(CUTSCENE_CHAPTERS.length).toBe(6);
-    expect(CUTSCENE_CHAPTERS[0].title).toBe('The Mortal Seeker in the Void');
-    expect(CUTSCENE_CHAPTERS[1].title).toBe('The Shattering of the Core');
-    expect(CUTSCENE_CHAPTERS[2].title).toBe('The Three Primal Embers Awaken');
-    expect(CUTSCENE_CHAPTERS[3].title).toBe('The 50 Elements Converge');
-    expect(CUTSCENE_CHAPTERS[4].title).toBe('The Eye of the Creator');
-    expect(CUTSCENE_CHAPTERS[5].title).toBe('Rise, Elemental Master');
+    expect(CUTSCENE_CHAPTERS[0].title).toBe('When Titans Collided');
+    expect(CUTSCENE_CHAPTERS[1].title).toBe('The Dimensional Tear Opens');
+    expect(CUTSCENE_CHAPTERS[2].title).toBe('Falling Through the Rift');
+    expect(CUTSCENE_CHAPTERS[3].title).toBe("The Grand Wizard's Blessing");
+    expect(CUTSCENE_CHAPTERS[4].title).toBe('Ambushed in the Shadows');
+    expect(CUTSCENE_CHAPTERS[5].title).toBe('The Mission to Reclaim the Power');
   });
 
   it('should navigate through chapters correctly', () => {
@@ -52,17 +54,20 @@ describe('OriginCutsceneManager', () => {
   });
 
   it('should trigger chapter specific sound effects', () => {
-    cutsceneManager.goToChapter(1);
+    cutsceneManager.goToChapter(0);
     expect(soundEngine.playExplosion).toHaveBeenCalled();
 
-    cutsceneManager.goToChapter(2);
+    cutsceneManager.goToChapter(1);
+    expect(soundEngine.playWarp).toHaveBeenCalled();
+
+    cutsceneManager.goToChapter(3);
     expect(soundEngine.playSpellCast).toHaveBeenCalledWith('Fire');
 
     cutsceneManager.goToChapter(4);
-    expect(soundEngine.playVictoryFanfare).toHaveBeenCalled();
+    expect(soundEngine.playHeroDeathScream).toHaveBeenCalled();
 
     cutsceneManager.goToChapter(5);
-    expect(soundEngine.playLevelUp).toHaveBeenCalled();
+    expect(soundEngine.playVictoryFanfare).toHaveBeenCalled();
   });
 
   it('should execute callbacks when requested', () => {
