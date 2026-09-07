@@ -38,6 +38,31 @@ describe('ElementalMatrix & Affinities (TDD Red -> Green)', () => {
     const finalDmg = matrix.calculateDamage(rawDamage, 'Water', 'Fire');
     expect(finalDmg).toBe(30); // 20 * 1.5 = 30
   });
+
+  it('should treat Earth, Fire, and Water as the weakest elements against advanced elements', () => {
+    const baseDamage = 20;
+
+    // Starter vs Advanced: 0.85x damage penalty (Water attacking neutral advanced e.g. Void)
+    // Water -> Void: affinity is 1.0, starter penalty 0.85 -> 20 * 0.85 = 17
+    expect(matrix.calculateDamage(baseDamage, 'Water', 'Void')).toBe(17);
+
+    // Starter vs Advanced with weak affinity:
+    // Fire -> Ice is strong in matrix (1.5x), but Fire is starter vs Ice (advanced) -> 1.5 * 0.85 = 1.275 -> 20 * 1.275 = 26 (vs 30 without penalty)
+    expect(matrix.calculateDamage(baseDamage, 'Fire', 'Ice')).toBe(26);
+
+    // Advanced vs Starter: 1.25x damage bonus
+    // Void -> Fire: Void is strong against Fire (1.5x) * advanced bonus (1.25x) = 1.875 -> 20 * 1.875 = 37.5 -> 38
+    expect(matrix.calculateDamage(baseDamage, 'Void', 'Fire')).toBe(38);
+
+    // Void -> Earth (Neutral affinity 1.0x): 1.0 * 1.25 = 1.25 -> 20 * 1.25 = 25
+    expect(matrix.calculateDamage(baseDamage, 'Void', 'Earth')).toBe(25);
+
+    // Starter vs Starter: standard affinities, no starter penalty/bonus
+    // Water -> Fire: 20 * 1.5 = 30
+    expect(matrix.calculateDamage(baseDamage, 'Water', 'Fire')).toBe(30);
+    // Fire -> Water: 20 * 0.75 = 15
+    expect(matrix.calculateDamage(baseDamage, 'Fire', 'Water')).toBe(15);
+  });
 });
 
 describe('ReactionEngine (TDD Red -> Green)', () => {

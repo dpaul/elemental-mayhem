@@ -2,7 +2,7 @@
 import { ElementType } from '../types';
 
 const STORAGE_KEY = 'elemental_mayhem_unlocked_elements';
-export const DEFAULT_STARTER_ELEMENTS: ElementType[] = ['Fire', 'Water', 'Earth', 'Nature', 'Light', 'Wind'];
+export const DEFAULT_STARTER_ELEMENTS: ElementType[] = ['Earth', 'Fire', 'Water'];
 
 export const ALL_42_ELEMENTS: ElementType[] = [
   'Fire', 'Water', 'Lightning', 'Earth', 'Poison', 'Void', 'Love', 'Sky', 'Nature', 'Ice',
@@ -14,16 +14,25 @@ export const ALL_42_ELEMENTS: ElementType[] = [
 
 export class UnlockManager {
   private unlockedElements: Set<ElementType>;
-  private adminOverride: boolean = true; // All powers unlocked!
+  private adminOverride: boolean = false; // Only starters unlocked by default!
 
   constructor() {
-    this.unlockedElements = new Set<ElementType>(ALL_42_ELEMENTS);
+    this.unlockedElements = new Set<ElementType>(DEFAULT_STARTER_ELEMENTS);
     this.loadFromStorage();
   }
 
   private loadFromStorage(): void {
     try {
       if (typeof window !== 'undefined' && window.localStorage) {
+        // Migration check: ensure fresh starter baseline (Earth, Fire, Water only)
+        if (!window.localStorage.getItem('elemental_mayhem_starters_3_v1')) {
+          window.localStorage.removeItem(STORAGE_KEY);
+          window.localStorage.setItem('elemental_mayhem_starters_3_v1', 'true');
+          this.unlockedElements = new Set<ElementType>(DEFAULT_STARTER_ELEMENTS);
+          this.saveToStorage();
+          return;
+        }
+
         const stored = window.localStorage.getItem(STORAGE_KEY);
         if (stored) {
           const parsed = JSON.parse(stored) as ElementType[];
@@ -103,7 +112,7 @@ export class UnlockManager {
     const newlyUnlocked: ElementType[] = [];
 
     if (round === 5) {
-      const tier1: ElementType[] = ['Wind', 'Ice', 'Magma', 'Crystal', 'Poison', 'Acid', 'Sky', 'Heat', 'Cold'];
+      const tier1: ElementType[] = ['Nature', 'Light', 'Wind', 'Ice', 'Magma', 'Crystal', 'Poison', 'Acid', 'Sky', 'Heat', 'Cold'];
       tier1.forEach((elem) => {
         if (this.unlockElement(elem)) newlyUnlocked.push(elem);
       });

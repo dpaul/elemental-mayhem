@@ -570,7 +570,7 @@ export const HERO_CLASSES: Record<ElementType, HeroClassConfig> = {
     tagline: 'Slice with aerodynamic velocity and blow away battlefield hazards.',
     description: 'High AP efficiency, ranged gale slices, and ability to fan flames into raging firestorms.',
     category: 'Primal',
-    isStarter: true,
+    isStarter: false,
     abilities: [
       {
         id: 'wind_cutter',
@@ -1087,7 +1087,7 @@ export const HERO_CLASSES: Record<ElementType, HeroClassConfig> = {
     tagline: 'Wield the omnipotent arsenal of every elemental domain.',
     description: 'Supreme elemental conduit possessing devastating powers from all 42 elements simultaneously.',
     category: 'Cosmic',
-    isStarter: true,
+    isStarter: false,
     bonusStats: {"maxHp":150,"maxAp":8},
     abilities: [
       {

@@ -159,13 +159,13 @@ describe('SpellTooltipManager', () => {
   });
 
   it('should calculate dynamic damage against target units with elemental advantage', () => {
-    // Fire vs Nature -> 1.5x multiplier -> 28 * 1.5 = 42
+    // Fire vs Nature -> 1.5x advantage, with Fire (starter) 0.85x penalty vs Nature (advanced) -> 28 * 1.5 * 0.85 = 36
     const html = tooltipManager.generateTooltipHTML(mockFireball, {
       targetUnit: mockNatureEnemy,
     });
 
     expect(html).toContain('Treant Warden');
-    expect(html).toContain('42 DMG');
+    expect(html).toContain('36 DMG');
     expect(html).toContain('+50% Advantage!');
   });
 

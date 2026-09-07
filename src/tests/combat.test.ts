@@ -405,7 +405,7 @@ describe('Necromancer Reanimation & Zombie Lifecycles (TDD Red -> Green)', () =>
     const result = combatEngine.executeAbility(zombie, bite, { x: 2, y: 3 });
     expect(result.success).toBe(true);
     expect(enemy1.isDead).toBe(false);
-    expect(enemy1.stats.currentHp).toBe(12);
+    expect(enemy1.stats.currentHp).toBe(5); // 40 - (28 * 1.25 [Undead vs Starter Water] = 35) = 5 HP
 
     // Infection pending reanimation in 1 turn
     expect(combatEngine.pendingReanimations.length).toBe(1);

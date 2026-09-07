@@ -203,18 +203,18 @@ describe('UnlockManager & Boss Elemental Progression (TDD Red -> Green)', () => 
     unlockManager.resetUnlocks();
   });
 
-  it('should start with default starter elements (Fire, Water, Earth, Nature, Light, Wind) and other elements locked', () => {
+  it('should start with exactly 3 default starter elements (Earth, Fire, Water) and all other elements locked', () => {
+    expect(unlockManager.isElementUnlocked('Earth')).toBe(true);
     expect(unlockManager.isElementUnlocked('Fire')).toBe(true);
     expect(unlockManager.isElementUnlocked('Water')).toBe(true);
-    expect(unlockManager.isElementUnlocked('Earth')).toBe(true);
-    expect(unlockManager.isElementUnlocked('Nature')).toBe(true);
-    expect(unlockManager.isElementUnlocked('Light')).toBe(true);
-    expect(unlockManager.isElementUnlocked('Wind')).toBe(true); // Starter element, not admin power
-    expect(unlockManager.isElementUnlocked('Undead')).toBe(false); // Admin only
+    expect(unlockManager.isElementUnlocked('Nature')).toBe(false); // Locked until Round 5
+    expect(unlockManager.isElementUnlocked('Light')).toBe(false); // Locked until Round 5
+    expect(unlockManager.isElementUnlocked('Wind')).toBe(false); // Locked until Round 5
     expect(unlockManager.isElementUnlocked('Ice')).toBe(false);
     expect(unlockManager.isElementUnlocked('Poison')).toBe(false);
     expect(unlockManager.isElementUnlocked('Lightning')).toBe(false);
     expect(unlockManager.isElementUnlocked('Void')).toBe(false);
+    expect(unlockManager.isElementUnlocked('Undead')).toBe(false); // Admin only
     expect(unlockManager.isElementUnlocked('Admin')).toBe(false); // Admin access only
   });
 
@@ -234,14 +234,20 @@ describe('UnlockManager & Boss Elemental Progression (TDD Red -> Green)', () => 
     expect(unlockManager.isElementUnlocked('Neutral')).toBe(false);
   });
 
-  it('should unlock Tier 1 elements (Ice, Magma, Crystal, Poison, Acid, Sky, Heat, Cold) when defeating Round 5 Boss without Undead', () => {
+  it('should unlock Tier 1 elements (Nature, Light, Wind, Ice, Magma, Crystal, Poison, Acid, Sky, Heat, Cold) when defeating Round 5 Boss', () => {
     const unlocked = unlockManager.checkBossDefeatUnlocks(5);
+    expect(unlocked).toContain('Nature');
+    expect(unlocked).toContain('Light');
+    expect(unlocked).toContain('Wind');
     expect(unlocked).toContain('Ice');
     expect(unlocked).toContain('Magma');
     expect(unlocked).toContain('Crystal');
     expect(unlocked).toContain('Poison');
     expect(unlocked).toContain('Acid');
     expect(unlocked).not.toContain('Undead');
+    expect(unlockManager.isElementUnlocked('Nature')).toBe(true);
+    expect(unlockManager.isElementUnlocked('Light')).toBe(true);
+    expect(unlockManager.isElementUnlocked('Wind')).toBe(true);
     expect(unlockManager.isElementUnlocked('Ice')).toBe(true);
     expect(unlockManager.isElementUnlocked('Magma')).toBe(true);
     expect(unlockManager.isElementUnlocked('Undead')).toBe(false);
