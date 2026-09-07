@@ -51,7 +51,7 @@ export class UnlockManager {
   }
 
   public isAdminOnly(element: ElementType): boolean {
-    return element === 'Undead' || element === 'Neutral';
+    return element === 'Admin' || element === 'Undead' || element === 'Neutral';
   }
 
   public setAdminOverride(active: boolean): void {
@@ -67,6 +67,9 @@ export class UnlockManager {
   }
 
   public isElementUnlocked(element: ElementType): boolean {
+    if (element === 'Admin') {
+      return false; // Specifically requires authenticated Admin access!
+    }
     if (this.adminOverride) {
       return true; // All powers granted to user!
     }

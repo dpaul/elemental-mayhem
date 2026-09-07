@@ -141,3 +141,27 @@ describe('Admin Mass Resurrection Power', () => {
   });
 });
 
+describe('Administrator Class (Admin Access Only)', () => {
+  it('should designate Administrator as isStarter false and require admin access', () => {
+    expect(HERO_CLASSES.Admin.isStarter).toBe(false);
+    expect(HERO_CLASSES.Admin.unlockRequirement).toContain('Admin Access Only');
+  });
+
+  it('should restrict Administrator to authenticated users only', () => {
+    const adminMgr = new AdminManager();
+    // Default: not authenticated
+    expect(adminMgr.isAuthenticated()).toBe(false);
+    expect(adminMgr.canUseAdminCommands(false, 1)).toBe(false);
+    expect(adminMgr.canUseAdminCommands(true, 1)).toBe(false);
+    expect(adminMgr.canUseAdminCommands(true, 2)).toBe(false);
+
+    // Authenticate
+    adminMgr.authenticate('190846214');
+    expect(adminMgr.isAuthenticated()).toBe(true);
+    expect(adminMgr.canUseAdminCommands(false, 1)).toBe(true);
+    expect(adminMgr.canUseAdminCommands(true, 1)).toBe(true);
+    expect(adminMgr.canUseAdminCommands(true, 2)).toBe(false); // Player 2 cannot use admin commands
+  });
+});
+
+

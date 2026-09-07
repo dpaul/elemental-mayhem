@@ -8337,7 +8337,8 @@ export const HERO_CLASSES: Record<ElementType, HeroClassConfig> = {
     tagline: 'Wields every single ability, spell, and force across all elemental dimensions.',
     description: 'The supreme omnipotent Administrator element. Holds absolute dominion with the Ban Hammer, Server Smite, and every spell from all 50 elemental realms.',
     category: 'Cosmic',
-    isStarter: true,
+    isStarter: false,
+    unlockRequirement: 'Admin Access Only (Passcode: 190846214)',
     bonusStats: {
       maxHp: 999,
       maxAp: 1000,

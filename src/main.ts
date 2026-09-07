@@ -1225,6 +1225,14 @@ export class GameApp {
       const msgEl = document.getElementById('admin-auth-msg');
       if (msgEl) msgEl.textContent = '';
     }
+
+    if (!this.characterSelectModal?.classList.contains('hidden')) {
+      this.renderCharacterSelectModal();
+    }
+  }
+
+  public hasAdminAccess(): boolean {
+    return this.adminManager.isAuthenticated() || this.isSandboxMode;
   }
 
   public openAdminPanel(): void {
@@ -1382,9 +1390,10 @@ export class GameApp {
       const config = HERO_CLASSES[elem];
       if (!config) return;
       const elemData = CORE_ELEMENTS[elem] || CORE_ELEMENTS.Fire;
-      const isAdmin = this.unlockManager.isAdminOnly(elem);
+      const hasAdmin = this.hasAdminAccess();
+      const isAdminOnly = this.unlockManager.isAdminOnly(elem);
       const isUnlocked = this.unlockManager.isElementUnlocked(elem);
-      const isPickable = isUnlocked || elem === 'Admin';
+      const isPickable = (elem === 'Admin') ? hasAdmin : isUnlocked;
       const card = document.createElement('div');
       card.className = `class-card ${isPickable ? '' : 'locked'}`;
       card.style.setProperty('--card-color', elemData.color);
@@ -1403,16 +1412,20 @@ export class GameApp {
       ` : '');
 
       const badgeHtml = elem === 'Admin'
-        ? `<span class="element-badge" style="background: rgba(236, 72, 153, 0.3); color: #f472b6; border: 1px solid #ec4899;">👑 All Powers</span>`
-        : isAdmin
+        ? (hasAdmin
+          ? `<span class="element-badge" style="background: linear-gradient(135deg, rgba(236, 72, 153, 0.3), rgba(139, 92, 246, 0.3)); color: #f472b6; border: 1px solid #ec4899;">👑 Administrator (Authorized)</span>`
+          : `<span class="element-badge" style="background: rgba(239, 68, 68, 0.3); color: #fca5a5; border: 1px solid #ef4444;">🔒 Admin Access Only</span>`)
+        : isAdminOnly
         ? `<span class="element-badge" style="background: rgba(239, 68, 68, 0.3); color: #fca5a5; border: 1px solid #ef4444;">👑 Admin Power</span>`
         : isUnlocked
         ? `<span class="element-badge" style="background:${elemData.glowColor}; color:${elemData.color}; width:fit-content;">${elem}</span>`
         : `<span class="lock-badge">🔒 Locked</span>`;
 
       const actionHtml = isPickable
-        ? `<button class="class-select-btn" style="${elem === 'Admin' ? 'background: linear-gradient(135deg, #ec4899, #8b5cf6); border-color: #f472b6; box-shadow: 0 0 15px rgba(236, 72, 153, 0.4);' : isAdmin ? 'background: linear-gradient(135deg, #ef4444, #8b5cf6); border-color: #f87171;' : ''}">Choose ${config.className}</button>`
-        : `<div class="unlock-requirement-box">🔒 ${config.unlockRequirement || 'Defeat Boss to Unlock'}</div>`;
+        ? `<button class="class-select-btn" style="${elem === 'Admin' ? 'background: linear-gradient(135deg, #ec4899, #8b5cf6); border-color: #f472b6; box-shadow: 0 0 15px rgba(236, 72, 153, 0.4);' : isAdminOnly ? 'background: linear-gradient(135deg, #ef4444, #8b5cf6); border-color: #f87171;' : ''}">Choose ${config.className}</button>`
+        : (elem === 'Admin'
+          ? `<button class="class-select-btn btn-locked-admin" style="background: rgba(239, 68, 68, 0.25); border: 1px solid #ef4444; color: #fca5a5; cursor: pointer; width: 100%;">🔒 Enter Admin Passcode</button>`
+          : `<div class="unlock-requirement-box">🔒 ${config.unlockRequirement || 'Defeat Boss to Unlock'}</div>`);
 
       card.innerHTML = `
         <div class="class-card-header">
@@ -1453,6 +1466,21 @@ export class GameApp {
         card.onclick = selectHandler;
         const btn = card.querySelector('.class-select-btn') as HTMLElement;
         if (btn) btn.onclick = selectHandler;
+      } else if (elem === 'Admin') {
+        card.style.cursor = 'pointer';
+        const openAuthHandler = (e: Event) => {
+          e.preventDefault();
+          e.stopPropagation();
+          this.openAdminPanel();
+          const adminMsg = document.getElementById('admin-auth-msg');
+          if (adminMsg) {
+            adminMsg.textContent = '🔒 Master Passcode required to unlock Administrator.';
+            adminMsg.style.color = '#fde68a';
+          }
+        };
+        card.onclick = openAuthHandler;
+        const btn = card.querySelector('.btn-locked-admin') as HTMLElement;
+        if (btn) btn.onclick = openAuthHandler;
       }
 
       this.classSelectContainer.appendChild(card);
@@ -1475,9 +1503,10 @@ export class GameApp {
       const config = HERO_CLASSES[elem];
       if (!config) return;
       const elemData = CORE_ELEMENTS[elem] || CORE_ELEMENTS.Fire;
-      const isAdmin = this.unlockManager.isAdminOnly(elem);
+      const canUseAdmin = this.adminManager.canUseAdminCommands(true, playerNum);
+      const isAdminOnly = this.unlockManager.isAdminOnly(elem);
       const isUnlocked = this.unlockManager.isElementUnlocked(elem);
-      const isPickable = isUnlocked || elem === 'Admin';
+      const isPickable = (elem === 'Admin') ? canUseAdmin : isUnlocked;
       const card = document.createElement('div');
       card.className = `class-card ${isPickable ? '' : 'locked'}`;
       card.style.setProperty('--card-color', elemData.color);
@@ -1496,12 +1525,18 @@ export class GameApp {
       ` : '');
 
       const badgeHtml = elem === 'Admin'
-        ? `<span class="element-badge" style="background: rgba(236, 72, 153, 0.3); color: #f472b6; border: 1px solid #ec4899;">👑 All Powers</span>`
-        : isAdmin
+        ? (canUseAdmin
+          ? `<span class="element-badge" style="background: linear-gradient(135deg, rgba(236, 72, 153, 0.3), rgba(139, 92, 246, 0.3)); color: #f472b6; border: 1px solid #ec4899;">👑 Administrator (Authorized)</span>`
+          : `<span class="element-badge" style="background: rgba(239, 68, 68, 0.3); color: #fca5a5; border: 1px solid #ef4444;">🔒 Admin Access Only</span>`)
+        : isAdminOnly
         ? `<span class="element-badge" style="background: rgba(239, 68, 68, 0.3); color: #fca5a5; border: 1px solid #ef4444;">👑 Admin Power</span>`
         : `<span class="element-badge" style="background:${elemData.glowColor}; color:${elemData.color}; width:fit-content;">${elem}</span>`;
 
-      const actionHtml = `<button class="class-select-btn" style="${elem === 'Admin' ? 'background: linear-gradient(135deg, #ec4899, #8b5cf6); border-color: #f472b6;' : isAdmin ? 'background: linear-gradient(135deg, #ef4444, #8b5cf6); border-color: #f87171;' : ''}">Pick for Player ${playerNum}</button>`;
+      const actionHtml = isPickable
+        ? `<button class="class-select-btn" style="${elem === 'Admin' ? 'background: linear-gradient(135deg, #ec4899, #8b5cf6); border-color: #f472b6;' : isAdminOnly ? 'background: linear-gradient(135deg, #ef4444, #8b5cf6); border-color: #f87171;' : ''}">Pick for Player ${playerNum}</button>`
+        : (elem === 'Admin'
+          ? `<button class="class-select-btn btn-locked-admin" style="background: rgba(239, 68, 68, 0.25); border: 1px solid #ef4444; color: #fca5a5; cursor: pointer; width: 100%;">🔒 Host Passcode Required</button>`
+          : `<div class="unlock-requirement-box">🔒 Locked</div>`);
 
       card.innerHTML = `
         <div class="class-card-header">
@@ -1526,18 +1561,30 @@ export class GameApp {
         }
       });
 
-      card.onclick = () => {
-        if (playerNum === 1) {
-          this.hotseatP1Element = elem;
-          this.hotseatModalTitle.textContent = '⚔️ HOT SEAT ARENA: SELECT PLAYER 2';
-          this.hotseatModalSubtitle.textContent = 'Player 2, choose your elemental champion.';
-          this.renderHotseatClassCards(2);
-        } else {
-          this.hotseatP2Element = elem;
-          this.hotseatSelectModal.classList.add('hidden');
-          this.startHotseatMatch();
-        }
-      };
+      if (isPickable) {
+        card.style.cursor = 'pointer';
+        card.onclick = () => {
+          if (playerNum === 1) {
+            this.hotseatP1Element = elem;
+            this.hotseatModalTitle.textContent = '⚔️ HOT SEAT ARENA: SELECT PLAYER 2';
+            this.hotseatModalSubtitle.textContent = 'Player 2, choose your elemental champion.';
+            this.renderHotseatClassCards(2);
+          } else {
+            this.hotseatP2Element = elem;
+            this.hotseatSelectModal.classList.add('hidden');
+            this.startHotseatMatch();
+          }
+        };
+      } else if (elem === 'Admin') {
+        card.style.cursor = 'pointer';
+        card.onclick = () => {
+          if (playerNum === 1) {
+            this.openAdminPanel();
+          } else {
+            this.combatEngine.addLog('system', '🚫 Player 2 cannot select Administrator (restricted to Host Creator)!');
+          }
+        };
+      }
 
       this.hotseatClassSelectContainer.appendChild(card);
     });
@@ -4792,6 +4839,16 @@ export class GameApp {
   }
 
   private restartGame(element: ElementType): void {
+    if (element === 'Admin' && !this.hasAdminAccess()) {
+      this.openAdminPanel();
+      const msgEl = document.getElementById('admin-auth-msg');
+      if (msgEl) {
+        msgEl.style.color = '#f87171';
+        msgEl.textContent = '🔒 Master Passcode required to play as the Administrator.';
+      }
+      return;
+    }
+
     this.cancelAutoTurnCountdown();
     this.hideHomeScreen();
     this.resumeRunModal.classList.add('hidden');

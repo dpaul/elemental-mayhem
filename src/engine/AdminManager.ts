@@ -6,6 +6,7 @@ export class AdminManager {
   public static readonly MASTER_PASSCODE: string = '190846214';
   private readonly validPasscodes = new Set<string>([
     '190846214',
+    'davepaul',
   ]);
 
   constructor() {

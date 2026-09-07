@@ -215,17 +215,21 @@ describe('UnlockManager & Boss Elemental Progression (TDD Red -> Green)', () => 
     expect(unlockManager.isElementUnlocked('Poison')).toBe(false);
     expect(unlockManager.isElementUnlocked('Lightning')).toBe(false);
     expect(unlockManager.isElementUnlocked('Void')).toBe(false);
+    expect(unlockManager.isElementUnlocked('Admin')).toBe(false); // Admin access only
   });
 
-  it('should designate Undead (Necromancer) and Neutral (Omnipotent Avatar) as Admin Only, but NOT Wind', () => {
+  it('should designate Admin (Administrator), Undead (Necromancer), and Neutral (Omnipotent Avatar) as Admin Only, but NOT Wind', () => {
     expect(unlockManager.isAdminOnly('Wind')).toBe(false); // Wind is NOT an admin power
+    expect(unlockManager.isAdminOnly('Admin')).toBe(true); // Administrator is Admin Only
     expect(unlockManager.isAdminOnly('Undead')).toBe(true);
     expect(unlockManager.isAdminOnly('Neutral')).toBe(true);
     expect(unlockManager.isAdminOnly('Fire')).toBe(false);
 
     // Attempting to unlock admin elements returns false and keeps them locked
+    expect(unlockManager.unlockElement('Admin')).toBe(false);
     expect(unlockManager.unlockElement('Undead')).toBe(false);
     expect(unlockManager.unlockElement('Neutral')).toBe(false);
+    expect(unlockManager.isElementUnlocked('Admin')).toBe(false);
     expect(unlockManager.isElementUnlocked('Undead')).toBe(false);
     expect(unlockManager.isElementUnlocked('Neutral')).toBe(false);
   });
