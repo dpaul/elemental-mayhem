@@ -89,6 +89,8 @@ export class OriginCutsceneManager {
   private ambientGain: GainNode | null = null;
   private ambientOsc1: OscillatorNode | null = null;
   private ambientOsc2: OscillatorNode | null = null;
+  private ambientOsc3: OscillatorNode | null = null;
+  private chapterSoundTimers: any[] = [];
 
   // Video Chronicle Integration
   private videoEl: HTMLVideoElement | null = null;
@@ -255,6 +257,7 @@ export class OriginCutsceneManager {
     if (this.videoEl) {
       this.videoEl.pause();
     }
+    this.clearChapterSoundTimers();
     this.pause();
     this.stopAmbientAudio();
     if (this.onClose) this.onClose();
@@ -366,6 +369,7 @@ export class OriginCutsceneManager {
 
     // Sound cues per chapter
     this.triggerChapterSound(index);
+    this.updateAmbientChord(index);
 
     // Reset auto-advance timer if playing (in stage mode, or fallback)
     if (this.isPlaying && this.viewMode === 'stage') {
@@ -453,45 +457,115 @@ export class OriginCutsceneManager {
     }
   }
 
+  private clearChapterSoundTimers(): void {
+    this.chapterSoundTimers.forEach((t) => clearTimeout(t));
+    this.chapterSoundTimers = [];
+  }
+
+  private scheduleSound(fn: () => void, delayMs: number): void {
+    if (this.isMuted) return;
+    const timer = setTimeout(() => {
+      if (!this.isMuted) {
+        try {
+          fn();
+        } catch (err) {
+          console.warn('Cutscene sound playback error:', err);
+        }
+      }
+    }, delayMs);
+    this.chapterSoundTimers.push(timer);
+  }
+
   /**
-   * Triggers distinct procedural audio cues synchronized with the chapter lore
+   * Triggers rich multi-layered procedural audio cues synchronized across each scene
    */
   private triggerChapterSound(index: number): void {
+    this.clearChapterSoundTimers();
     if (this.isMuted) return;
 
     try {
       switch (index) {
         case 0:
-          // Chapter 1: Titans clash with earth shattering collisions
+          // Chapter 1: Titans clash with earth shattering collisions & rumble
           this.soundEngine.playExplosion();
-          setTimeout(() => this.soundEngine.playSpellCast('Earth'), 300);
+          this.scheduleSound(() => this.soundEngine.playSpellCast('Earth'), 250);
+          this.scheduleSound(() => this.soundEngine.playEarthquakeRumble(), 650);
+          this.scheduleSound(() => {
+            this.soundEngine.playHit();
+            this.soundEngine.playSpellCast('Fire');
+          }, 1500);
+          this.scheduleSound(() => {
+            this.soundEngine.playSpellCast('Lightning');
+            this.soundEngine.playExplosion();
+          }, 2500);
+          this.scheduleSound(() => this.soundEngine.playEarthquakeRumble(), 3600);
           break;
+
         case 1:
-          // Chapter 2: The Cosmic Rift tears open
+          // Chapter 2: The Cosmic Rift tears open with gravitational singularity
           this.soundEngine.playWarp();
-          setTimeout(() => this.soundEngine.playExplosion(), 250);
+          this.scheduleSound(() => this.soundEngine.playCosmicSingularity(), 350);
+          this.scheduleSound(() => this.soundEngine.playExplosion(), 1000);
+          this.scheduleSound(() => {
+            this.soundEngine.playSpellCast('Void');
+            this.soundEngine.playWarp();
+          }, 1900);
+          this.scheduleSound(() => this.soundEngine.playCosmicSingularity(), 2800);
+          this.scheduleSound(() => this.soundEngine.playSpellCast('Lightning'), 3800);
           break;
+
         case 2:
-          // Chapter 3: Falling through the rift & landing on small world
+          // Chapter 3: Falling through the rift & crash landing on small world
           this.soundEngine.playWarp();
-          setTimeout(() => this.soundEngine.playHit(), 600);
+          this.scheduleSound(() => this.soundEngine.playSpellCast('Sound'), 750);
+          this.scheduleSound(() => this.soundEngine.playWarp(), 1600);
+          this.scheduleSound(() => this.soundEngine.playSpellCast('Arcane'), 2500);
+          this.scheduleSound(() => {
+            this.soundEngine.playHit();
+            this.soundEngine.playEarthquakeRumble();
+          }, 3400);
           break;
+
         case 3:
-          // Chapter 4: Grand Wizard gives power
-          this.soundEngine.playSpellCast('Fire');
-          setTimeout(() => this.soundEngine.playSpellCast('Water'), 300);
-          setTimeout(() => this.soundEngine.playSpellCast('Earth'), 600);
-          setTimeout(() => this.soundEngine.playUnlock(), 900);
+          // Chapter 4: Grand Wizard channels godlike elemental magic
+          this.soundEngine.playSpellCast('Arcane');
+          this.scheduleSound(() => this.soundEngine.playMagicSurge(), 600);
+          this.scheduleSound(() => {
+            this.soundEngine.playSpellCast('Fire');
+            this.soundEngine.playSpellCast('Water');
+          }, 1400);
+          this.scheduleSound(() => {
+            this.soundEngine.playSpellCast('Earth');
+            this.soundEngine.playUnlock();
+          }, 2200);
+          this.scheduleSound(() => {
+            this.soundEngine.playLevelUp();
+            this.soundEngine.playMagicSurge();
+          }, 3200);
           break;
+
         case 4:
-          // Chapter 5: Power gets stolen by Void Overlord
-          this.soundEngine.playHeroDeathScream();
-          setTimeout(() => this.soundEngine.playExplosion(), 400);
+          // Chapter 5: Ambushed! Power violently stolen by Void Overlord
+          this.soundEngine.playScreamerWail();
+          this.scheduleSound(() => this.soundEngine.playDarkSiphon(), 550);
+          this.scheduleSound(() => this.soundEngine.playHeroDeathScream(), 1400);
+          this.scheduleSound(() => {
+            this.soundEngine.playExplosion();
+            this.soundEngine.playDarkSiphon();
+          }, 2300);
+          this.scheduleSound(() => this.soundEngine.playSpellCast('Fire'), 3400);
           break;
+
         case 5:
-          // Chapter 6: The Mission: Round 1000 Ultimate Boss
-          this.soundEngine.playVictoryFanfare();
-          setTimeout(() => this.soundEngine.playLevelUp(), 700);
+          // Chapter 6: Mission: Round 1000 Ultimate Boss!
+          this.soundEngine.playBossWarhorn();
+          this.scheduleSound(() => this.soundEngine.playVictoryFanfare(), 750);
+          this.scheduleSound(() => this.soundEngine.playLevelUp(), 1700);
+          this.scheduleSound(() => {
+            this.soundEngine.playBossWarhorn();
+            this.soundEngine.playMagicSurge();
+          }, 2700);
+          this.scheduleSound(() => this.soundEngine.playVictoryFanfare(), 3800);
           break;
       }
     } catch (err) {
@@ -500,7 +574,30 @@ export class OriginCutsceneManager {
   }
 
   /**
-   * Procedural ethereal synth drone for dramatic cinematic atmosphere
+   * Smoothly transitions the ambient cinematic synth chord according to the narrative mood
+   */
+  private updateAmbientChord(index: number): void {
+    if (!this.audioCtx || !this.ambientOsc1 || !this.ambientOsc2 || !this.ambientOsc3 || this.isMuted) return;
+    try {
+      const t = this.audioCtx.currentTime;
+      // [BassRoot, HarmonicFifth, EmotionalThird]
+      const chords = [
+        [36.71, 110.0, 174.61], // Ch 1: D minor (Tectonic / Clash)
+        [48.99, 146.83, 233.08], // Ch 2: G minor (Cosmic Void Rift)
+        [32.7, 98.0, 155.56],   // Ch 3: C minor (Tumbling through dimensions)
+        [43.65, 130.81, 220.0],  // Ch 4: F major (Celestial Arch-Wizard Blessing)
+        [30.87, 87.31, 138.59],  // Ch 5: B diminished (Ambush / Power Siphon)
+        [36.71, 110.0, 185.0],   // Ch 6: D major (Triumphant Mission Call to Arms)
+      ];
+      const chord = chords[index] || chords[0];
+      this.ambientOsc1.frequency.setTargetAtTime(chord[0], t, 0.4);
+      this.ambientOsc2.frequency.setTargetAtTime(chord[1], t, 0.4);
+      this.ambientOsc3.frequency.setTargetAtTime(chord[2], t, 0.4);
+    } catch {}
+  }
+
+  /**
+   * Procedural dynamic polyphonic synth engine for dramatic cinematic atmosphere
    */
   private startAmbientAudio(): void {
     if (this.isMuted) return;
@@ -521,35 +618,43 @@ export class OriginCutsceneManager {
       const t = this.audioCtx.currentTime;
       this.ambientGain = this.audioCtx.createGain();
       this.ambientGain.gain.setValueAtTime(0.001, t);
-      this.ambientGain.gain.linearRampToValueAtTime(0.12, t + 1.2);
+      this.ambientGain.gain.linearRampToValueAtTime(0.14, t + 1.2);
       this.ambientGain.connect(this.audioCtx.destination);
 
-      // Sub-drone 55 Hz (A1)
+      // 1. Sub-bass root (36.7 Hz - D1)
       this.ambientOsc1 = this.audioCtx.createOscillator();
       this.ambientOsc1.type = 'sawtooth';
-      this.ambientOsc1.frequency.setValueAtTime(55, t);
+      this.ambientOsc1.frequency.setValueAtTime(36.71, t);
 
-      // Filter to make it warm and cinematic
+      // Lowpass filter for warm cinematic sub-bass warmth
       const filter = this.audioCtx.createBiquadFilter();
       filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(240, t);
+      filter.frequency.setValueAtTime(260, t);
       this.ambientOsc1.connect(filter);
       filter.connect(this.ambientGain);
 
-      // Ethereal chord harmonic (165 Hz - E3)
+      // 2. Harmonic fifth (110.0 Hz - A2)
       this.ambientOsc2 = this.audioCtx.createOscillator();
       this.ambientOsc2.type = 'sine';
-      this.ambientOsc2.frequency.setValueAtTime(165, t);
+      this.ambientOsc2.frequency.setValueAtTime(110.0, t);
       this.ambientOsc2.connect(this.ambientGain);
+
+      // 3. Ethereal modal third (174.6 Hz - F3)
+      this.ambientOsc3 = this.audioCtx.createOscillator();
+      this.ambientOsc3.type = 'sine';
+      this.ambientOsc3.frequency.setValueAtTime(174.61, t);
+      this.ambientOsc3.connect(this.ambientGain);
 
       this.ambientOsc1.start(t);
       this.ambientOsc2.start(t);
+      this.ambientOsc3.start(t);
     } catch {
       // Audio context might be restricted before interaction
     }
   }
 
   private stopAmbientAudio(): void {
+    this.clearChapterSoundTimers();
     if (this.ambientOsc1) {
       try {
         this.ambientOsc1.stop();
@@ -563,6 +668,13 @@ export class OriginCutsceneManager {
         this.ambientOsc2.disconnect();
       } catch {}
       this.ambientOsc2 = null;
+    }
+    if (this.ambientOsc3) {
+      try {
+        this.ambientOsc3.stop();
+        this.ambientOsc3.disconnect();
+      } catch {}
+      this.ambientOsc3 = null;
     }
     if (this.ambientGain) {
       try {

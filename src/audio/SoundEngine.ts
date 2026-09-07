@@ -1073,6 +1073,158 @@ export class SoundEngine {
   }
 
   // ==========================================
+  // CINEMATIC CUTSCENE AUDIO GENERATORS
+  // ==========================================
+
+  public playEarthquakeRumble(): void {
+    const ctx = this.initContext();
+    if (!ctx || this.isMuted) return;
+    const t = ctx.currentTime;
+    const masterGain = this.createGain(ctx, 0.48);
+
+    const osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(48, t);
+    osc.frequency.linearRampToValueAtTime(30, t + 1.4);
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(110, t);
+
+    const env = ctx.createGain();
+    env.gain.setValueAtTime(0.01, t);
+    env.gain.linearRampToValueAtTime(0.45, t + 0.18);
+    env.gain.exponentialRampToValueAtTime(0.001, t + 1.4);
+
+    osc.connect(filter);
+    filter.connect(env);
+    env.connect(masterGain);
+    osc.start(t);
+    osc.stop(t + 1.45);
+  }
+
+  public playCosmicSingularity(): void {
+    const ctx = this.initContext();
+    if (!ctx || this.isMuted) return;
+    const t = ctx.currentTime;
+    const masterGain = this.createGain(ctx, 0.42);
+
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(85, t);
+    osc.frequency.exponentialRampToValueAtTime(820, t + 0.85);
+    osc.frequency.exponentialRampToValueAtTime(110, t + 1.8);
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(360, t);
+    filter.Q.setValueAtTime(4.5, t);
+
+    const env = ctx.createGain();
+    env.gain.setValueAtTime(0.01, t);
+    env.gain.linearRampToValueAtTime(0.4, t + 0.45);
+    env.gain.exponentialRampToValueAtTime(0.001, t + 1.8);
+
+    osc.connect(filter);
+    filter.connect(env);
+    env.connect(masterGain);
+    osc.start(t);
+    osc.stop(t + 1.85);
+  }
+
+  public playMagicSurge(): void {
+    const ctx = this.initContext();
+    if (!ctx || this.isMuted) return;
+    const t = ctx.currentTime;
+    const masterGain = this.createGain(ctx, 0.38);
+
+    const freqs = [523.25, 659.25, 783.99, 1046.5, 1318.5, 1567.98];
+    freqs.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t + idx * 0.06);
+
+      const env = ctx.createGain();
+      env.gain.setValueAtTime(0.001, t + idx * 0.06);
+      env.gain.linearRampToValueAtTime(0.28, t + idx * 0.06 + 0.02);
+      env.gain.exponentialRampToValueAtTime(0.001, t + idx * 0.06 + 0.65);
+
+      osc.connect(env);
+      env.connect(masterGain);
+      osc.start(t + idx * 0.06);
+      osc.stop(t + idx * 0.06 + 0.7);
+    });
+  }
+
+  public playDarkSiphon(): void {
+    const ctx = this.initContext();
+    if (!ctx || this.isMuted) return;
+    const t = ctx.currentTime;
+    const masterGain = this.createGain(ctx, 0.46);
+
+    const osc1 = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    osc1.type = 'sawtooth';
+    osc2.type = 'square';
+
+    osc1.frequency.setValueAtTime(220, t);
+    osc1.frequency.exponentialRampToValueAtTime(75, t + 1.25);
+
+    osc2.frequency.setValueAtTime(228, t);
+    osc2.frequency.exponentialRampToValueAtTime(70, t + 1.25);
+
+    const env = ctx.createGain();
+    env.gain.setValueAtTime(0.01, t);
+    env.gain.linearRampToValueAtTime(0.42, t + 0.1);
+    env.gain.exponentialRampToValueAtTime(0.001, t + 1.25);
+
+    osc1.connect(env);
+    osc2.connect(env);
+    env.connect(masterGain);
+
+    osc1.start(t);
+    osc2.start(t);
+    osc1.stop(t + 1.3);
+    osc2.stop(t + 1.3);
+  }
+
+  public playBossWarhorn(): void {
+    const ctx = this.initContext();
+    if (!ctx || this.isMuted) return;
+    const t = ctx.currentTime;
+    const masterGain = this.createGain(ctx, 0.52);
+
+    const osc1 = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    osc1.type = 'sawtooth';
+    osc2.type = 'sawtooth';
+
+    osc1.frequency.setValueAtTime(73.4, t); // D2
+    osc2.frequency.setValueAtTime(110.0, t); // A2
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(180, t);
+    filter.frequency.linearRampToValueAtTime(580, t + 0.35);
+    filter.frequency.linearRampToValueAtTime(220, t + 1.8);
+
+    const env = ctx.createGain();
+    env.gain.setValueAtTime(0.01, t);
+    env.gain.linearRampToValueAtTime(0.48, t + 0.2);
+    env.gain.exponentialRampToValueAtTime(0.001, t + 1.85);
+
+    osc1.connect(filter);
+    osc2.connect(filter);
+    filter.connect(env);
+    env.connect(masterGain);
+
+    osc1.start(t);
+    osc2.start(t);
+    osc1.stop(t + 1.9);
+    osc2.stop(t + 1.9);
+  }
+
+  // ==========================================
   // HELPER SYNTHESIS BUFFERS
   // ==========================================
 

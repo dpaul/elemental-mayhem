@@ -17,8 +17,14 @@ describe('OriginCutsceneManager', () => {
     vi.spyOn(soundEngine, 'playVictoryFanfare').mockImplementation(() => {});
     vi.spyOn(soundEngine, 'playLevelUp').mockImplementation(() => {});
     vi.spyOn(soundEngine, 'playHeroDeathScream').mockImplementation(() => {});
+    vi.spyOn(soundEngine, 'playScreamerWail').mockImplementation(() => {});
     vi.spyOn(soundEngine, 'playHit').mockImplementation(() => {});
     vi.spyOn(soundEngine, 'unlockAudio').mockImplementation(() => {});
+    vi.spyOn(soundEngine, 'playEarthquakeRumble').mockImplementation(() => {});
+    vi.spyOn(soundEngine, 'playCosmicSingularity').mockImplementation(() => {});
+    vi.spyOn(soundEngine, 'playMagicSurge').mockImplementation(() => {});
+    vi.spyOn(soundEngine, 'playDarkSiphon').mockImplementation(() => {});
+    vi.spyOn(soundEngine, 'playBossWarhorn').mockImplementation(() => {});
 
     cutsceneManager = new OriginCutsceneManager(soundEngine);
   });
@@ -61,13 +67,13 @@ describe('OriginCutsceneManager', () => {
     expect(soundEngine.playWarp).toHaveBeenCalled();
 
     cutsceneManager.goToChapter(3);
-    expect(soundEngine.playSpellCast).toHaveBeenCalledWith('Fire');
+    expect(soundEngine.playSpellCast).toHaveBeenCalledWith('Arcane');
 
     cutsceneManager.goToChapter(4);
-    expect(soundEngine.playHeroDeathScream).toHaveBeenCalled();
+    expect(soundEngine.playScreamerWail).toHaveBeenCalled();
 
     cutsceneManager.goToChapter(5);
-    expect(soundEngine.playVictoryFanfare).toHaveBeenCalled();
+    expect(soundEngine.playBossWarhorn).toHaveBeenCalled();
   });
 
   it('should toggle view mode between video and stage', () => {
