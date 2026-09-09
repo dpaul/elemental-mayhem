@@ -13,6 +13,7 @@
 
 import { SoundEngine } from '../audio/SoundEngine';
 import { CutsceneVoiceManager } from './CutsceneVoiceManager';
+import { CutsceneMusicEngine } from '../audio/CutsceneMusicEngine';
 
 export interface CutsceneChapter {
   id: number;
@@ -26,47 +27,47 @@ export interface CutsceneChapter {
 export const CUTSCENE_CHAPTERS: CutsceneChapter[] = [
   {
     id: 1,
-    badge: '🗿⚡ CHAPTER I • CLASH OF THE TITANS',
+    badge: '⚔️ CHAPTER I • THE COSMIC COLLISION',
     title: 'When Titans Collided',
-    subtitle: 'Two primeval giants wage war across the cosmos with reality-shattering fury.',
+    subtitle: 'Two primeval primordial behemoths clashed across the fabric of spacetime!',
     narrative:
-      'At the dawn of time, two colossal Titans clashed across the cosmic firmament—the Magma Colossus and the Void Leviathan. Their earth-shattering strikes shattered tectonic plates and caused the universe itself to tremble!',
-    themeColor: '#f59e0b',
+      'In the beginning, before elements took form, the Magma Colossus and the Void Leviathan fought an apocalyptic battle across the heavens! The clash shook the cosmos and fractured reality itself.',
+    themeColor: '#f97316',
   },
   {
     id: 2,
-    badge: '🌌🌀 CHAPTER II • THE COSMIC RIFT',
+    badge: '🌌 CHAPTER II • THE DIMENSIONAL TEAR',
     title: 'The Dimensional Tear Opens',
-    subtitle: 'Their titanic collision ripped open a cosmic vortex in spacetime.',
+    subtitle: 'A colossal dimensional wormhole tore across the heavens, pulling wandering mortals inside!',
     narrative:
-      'With a final catastrophic blow, their fists collided, violently ripping open a swirling Cosmic Rift! Space and time tore apart as a gravitational singularity began pulling in cosmic debris, stars, and wandering mortals alike!',
-    themeColor: '#c084fc',
+      'The sheer force of their elemental impact ripped open an abyssal spacetime rift! A swirling gravitational wormhole opened above, devouring wandering mortals and pulling you into the cosmic void.',
+    themeColor: '#a855f7',
   },
   {
     id: 3,
-    badge: '🌀🪐 CHAPTER III • THE FALL THROUGH WORLDS',
+    badge: '🌀 CHAPTER III • THE FALL',
     title: 'Falling Through the Rift',
-    subtitle: 'Devoured by the singularity, you tumble across dimensions to a small pocket world.',
+    subtitle: 'Tumbling through hyperspace before crash-landing upon a mysterious miniature world.',
     narrative:
-      'Swept away by the gravitational vortex, you tumbled through dimensional wormholes at warp speed. After hurtling across reality, you crash-landed onto an uncharted, floating miniature world adrift in the stars.',
-    themeColor: '#38bdf8',
+      'Spiraling through the blinding hyperspace tunnel, you hurtled through fractured element streams before crashing down onto the mystical miniature world of the Arena!',
+    themeColor: '#06b6d4',
   },
   {
     id: 4,
-    badge: '🧙‍♂️✨ CHAPTER IV • THE WIZARD\'S POWER',
-    title: 'The Grand Wizard\'s Blessing',
-    subtitle: 'An ancient arch-wizard channels his ultimate elemental mastery into your soul.',
+    badge: '✨ CHAPTER IV • THE GRAND BLESSING',
+    title: "The Grand Wizard's Blessing",
+    subtitle: 'An ancient Grand Arch-Wizard bestowed godlike elemental power upon you!',
     narrative:
-      'Emerging from the mystical ruins, an ancient Grand Wizard approached. Amazed that a mortal survived the cosmic fall, he chanted sacred rites and channeled his lifetime of godlike elemental powers directly into your hands!',
+      'An ancient Grand Arch-Wizard greeted you among glowing runes: "Take my power, young wanderer!" He channeled the fundamental reaction cascade into your soul, granting mastery over all fifty elements!',
     themeColor: '#10b981',
   },
   {
     id: 5,
-    badge: '😈⚡ CHAPTER V • THE POWER STOLEN!',
+    badge: '🌑 CHAPTER V • THE VOID AMBUSH',
     title: 'Ambushed in the Shadows',
-    subtitle: 'A shadowy nemesis ambushes you and violently steals your godlike power.',
+    subtitle: 'The sinister Void Overlord struck from the dark and stole your powers away!',
     narrative:
-      'Suddenly, the sky turned pitch black! The sinister Void Overlord struck from the shadows, violently siphoning the wizard\'s godlike power from your chest! The demon fled into the cosmos, leaving you with only the basic starter embers of Fire, Water, and Earth.',
+      'Suddenly, an ominous shadow descended! The Void Overlord struck without warning, siphoning the wizard\'s godlike power from your chest and fleeing into the cosmos, leaving you only the three basic starter embers of Fire, Water, and Earth!',
     themeColor: '#ef4444',
   },
   {
@@ -86,15 +87,13 @@ export class OriginCutsceneManager {
   private isPlaying: boolean = true;
   private autoAdvanceTimer: any = null;
   private isMuted: boolean = false;
-  private audioCtx: AudioContext | null = null;
-  private ambientGain: GainNode | null = null;
-  private ambientOsc1: OscillatorNode | null = null;
-  private ambientOsc2: OscillatorNode | null = null;
-  private ambientOsc3: OscillatorNode | null = null;
   private chapterSoundTimers: any[] = [];
 
   // Voice Dialogue Manager
   public voiceManager: CutsceneVoiceManager;
+
+  // Fast, Soft, Cool & Scary Cutscene Music Engine
+  public musicEngine: CutsceneMusicEngine;
 
   // Video Chronicle Integration
   private videoEl: HTMLVideoElement | null = null;
@@ -112,6 +111,7 @@ export class OriginCutsceneManager {
   constructor(soundEngine: SoundEngine) {
     this.soundEngine = soundEngine;
     this.voiceManager = new CutsceneVoiceManager(soundEngine);
+    this.musicEngine = new CutsceneMusicEngine();
   }
 
   public initDOM(): void {
@@ -263,7 +263,8 @@ export class OriginCutsceneManager {
 
     this.soundEngine.unlockAudio();
     overlay.classList.remove('hidden');
-    this.startAmbientAudio();
+    this.musicEngine.start();
+    this.musicEngine.setChapter(0);
     this.setViewMode(this.viewMode);
     this.goToChapter(0, true);
     this.play();
@@ -282,7 +283,7 @@ export class OriginCutsceneManager {
     this.clearChapterSoundTimers();
     this.pause();
     this.voiceManager.stopAll();
-    this.stopAmbientAudio();
+    this.musicEngine.stop();
     if (this.onClose) this.onClose();
   }
 
@@ -392,7 +393,7 @@ export class OriginCutsceneManager {
 
     // Sound cues per chapter
     this.triggerChapterSound(index);
-    this.updateAmbientChord(index);
+    this.musicEngine.setChapter(index);
 
     // Trigger multi-voice character dialogue (speaks all narrative and dialogue lines)
     this.voiceManager.playChapter(index);
@@ -434,12 +435,14 @@ export class OriginCutsceneManager {
     if (this.videoEl) {
       this.videoEl.play().catch(() => {});
     }
+    this.musicEngine.resume();
     this.voiceManager.replayCurrentChapterDialogue();
     this.scheduleNext();
   }
 
   public pause(): void {
     this.isPlaying = false;
+    this.musicEngine.pause();
     this.voiceManager.stopAll();
     if (typeof document !== 'undefined') {
       const btn = document.getElementById('cutscene-play-pause-btn');
@@ -494,9 +497,7 @@ export class OriginCutsceneManager {
     if (this.videoEl) {
       this.videoEl.muted = this.isMuted;
     }
-    if (this.ambientGain) {
-      this.ambientGain.gain.value = this.isMuted ? 0 : 0.12;
-    }
+    this.musicEngine.setMuted(this.isMuted);
   }
 
   private clearChapterSoundTimers(): void {
@@ -608,117 +609,6 @@ export class OriginCutsceneManager {
       }
     } catch (err) {
       console.warn('Cutscene sound playback error:', err);
-    }
-  }
-
-  /**
-   * Smoothly transitions the ambient cinematic synth chord according to the narrative mood
-   */
-  private updateAmbientChord(index: number): void {
-    if (!this.audioCtx || !this.ambientOsc1 || !this.ambientOsc2 || !this.ambientOsc3 || this.isMuted) return;
-    try {
-      const t = this.audioCtx.currentTime;
-      // [BassRoot, HarmonicFifth, EmotionalThird]
-      const chords = [
-        [36.71, 110.0, 174.61], // Ch 1: D minor (Tectonic / Clash)
-        [48.99, 146.83, 233.08], // Ch 2: G minor (Cosmic Void Rift)
-        [32.7, 98.0, 155.56],   // Ch 3: C minor (Tumbling through dimensions)
-        [43.65, 130.81, 220.0],  // Ch 4: F major (Celestial Arch-Wizard Blessing)
-        [30.87, 87.31, 138.59],  // Ch 5: B diminished (Ambush / Power Siphon)
-        [36.71, 110.0, 185.0],   // Ch 6: D major (Triumphant Mission Call to Arms)
-      ];
-      const chord = chords[index] || chords[0];
-      this.ambientOsc1.frequency.setTargetAtTime(chord[0], t, 0.4);
-      this.ambientOsc2.frequency.setTargetAtTime(chord[1], t, 0.4);
-      this.ambientOsc3.frequency.setTargetAtTime(chord[2], t, 0.4);
-    } catch {}
-  }
-
-  /**
-   * Procedural dynamic polyphonic synth engine for dramatic cinematic atmosphere
-   */
-  private startAmbientAudio(): void {
-    if (this.isMuted) return;
-    try {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioContextClass) return;
-
-      if (!this.audioCtx) {
-        this.audioCtx = new AudioContextClass();
-      }
-
-      if (this.audioCtx.state === 'suspended') {
-        this.audioCtx.resume();
-      }
-
-      this.stopAmbientAudio();
-
-      const t = this.audioCtx.currentTime;
-      this.ambientGain = this.audioCtx.createGain();
-      this.ambientGain.gain.setValueAtTime(0.001, t);
-      this.ambientGain.gain.linearRampToValueAtTime(0.14, t + 1.2);
-      this.ambientGain.connect(this.audioCtx.destination);
-
-      // 1. Sub-bass root (36.7 Hz - D1)
-      this.ambientOsc1 = this.audioCtx.createOscillator();
-      this.ambientOsc1.type = 'sawtooth';
-      this.ambientOsc1.frequency.setValueAtTime(36.71, t);
-
-      // Lowpass filter for warm cinematic sub-bass warmth
-      const filter = this.audioCtx.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(260, t);
-      this.ambientOsc1.connect(filter);
-      filter.connect(this.ambientGain);
-
-      // 2. Harmonic fifth (110.0 Hz - A2)
-      this.ambientOsc2 = this.audioCtx.createOscillator();
-      this.ambientOsc2.type = 'sine';
-      this.ambientOsc2.frequency.setValueAtTime(110.0, t);
-      this.ambientOsc2.connect(this.ambientGain);
-
-      // 3. Ethereal modal third (174.6 Hz - F3)
-      this.ambientOsc3 = this.audioCtx.createOscillator();
-      this.ambientOsc3.type = 'sine';
-      this.ambientOsc3.frequency.setValueAtTime(174.61, t);
-      this.ambientOsc3.connect(this.ambientGain);
-
-      this.ambientOsc1.start(t);
-      this.ambientOsc2.start(t);
-      this.ambientOsc3.start(t);
-    } catch {
-      // Audio context might be restricted before interaction
-    }
-  }
-
-  private stopAmbientAudio(): void {
-    this.clearChapterSoundTimers();
-    if (this.ambientOsc1) {
-      try {
-        this.ambientOsc1.stop();
-        this.ambientOsc1.disconnect();
-      } catch {}
-      this.ambientOsc1 = null;
-    }
-    if (this.ambientOsc2) {
-      try {
-        this.ambientOsc2.stop();
-        this.ambientOsc2.disconnect();
-      } catch {}
-      this.ambientOsc2 = null;
-    }
-    if (this.ambientOsc3) {
-      try {
-        this.ambientOsc3.stop();
-        this.ambientOsc3.disconnect();
-      } catch {}
-      this.ambientOsc3 = null;
-    }
-    if (this.ambientGain) {
-      try {
-        this.ambientGain.disconnect();
-      } catch {}
-      this.ambientGain = null;
     }
   }
 }

@@ -4290,7 +4290,9 @@ export class GameApp {
         minion.stats.currentAp = minion.stats.maxAp;
         const targets = (enemyFaction === 'Player' ? [this.hero] : this.enemies).filter((u) => !u.isDead);
         if (targets.length === 0) break;
-        const closestTarget = targets.sort(
+        const nonBossTargets = targets.filter((u) => !u.isBoss);
+        const targetPool = (minion.isZombie || minion.isLifeBeing) && nonBossTargets.length > 0 ? nonBossTargets : targets;
+        const closestTarget = targetPool.sort(
           (a, b) =>
             this.combatEngine.grid.manhattanDistance(minion.coord, a.coord) -
             this.combatEngine.grid.manhattanDistance(minion.coord, b.coord)
@@ -4303,8 +4305,18 @@ export class GameApp {
             this.combatEngine.moveUnit(minion, step.destination);
           } else if (step.type === 'cast') {
             const targetedUnit = this.combatEngine.getUnitAt(step.targetCoord);
+            const isBossImmune = targetedUnit?.isBoss && (minion.isZombie || minion.isLifeBeing);
             this.combatEngine.executeAbility(minion, step.ability, step.targetCoord);
-            if (targetedUnit && (minion.isZombie || step.ability.id === 'zombie_bite')) {
+            if (isBossImmune) {
+              const screenPos = this.renderer.gridToScreen(step.targetCoord);
+              this.renderer.particleEngine.addFloatingText(
+                '🛡️ IMMUNE!',
+                screenPos.x,
+                screenPos.y - 35,
+                '#facc15',
+                24
+              );
+            } else if (targetedUnit && (minion.isZombie || step.ability.id === 'zombie_bite')) {
               this.soundEngine.playZombieBite();
               this.soundEngine.playLoudHumanScream(true);
               const screenPos = this.renderer.gridToScreen(step.targetCoord);
@@ -4396,7 +4408,11 @@ export class GameApp {
       const liveEnemies = this.enemies.filter((e) => !e.isDead);
       if (liveEnemies.length === 0) break;
 
-      const closestEnemy = liveEnemies.sort(
+      // Prefer non-boss enemies since Bosses are completely immune to Zombies and Beings of Life
+      const nonBossEnemies = liveEnemies.filter((e) => !e.isBoss);
+      const targetPool = (minion.isZombie || minion.isLifeBeing) && nonBossEnemies.length > 0 ? nonBossEnemies : liveEnemies;
+
+      const closestEnemy = targetPool.sort(
         (a, b) =>
           this.combatEngine.grid.manhattanDistance(minion.coord, a.coord) -
           this.combatEngine.grid.manhattanDistance(minion.coord, b.coord)
@@ -4431,9 +4447,19 @@ export class GameApp {
               minion.isLifeBeing ? '#4ade80' : '#84cc16',
               projDuration,
               () => {
+                const targetUnit = this.combatEngine.getUnitAt(step.targetCoord);
+                const isBossImmune = targetUnit?.isBoss && (minion.isZombie || minion.isLifeBeing);
                 this.combatEngine.executeAbility(minion, step.ability, step.targetCoord);
                 this.renderer.triggerSpellImpact(step.targetCoord, step.ability.element, false);
-                if (step.ability.baseDamage > 0) {
+                if (isBossImmune) {
+                  this.renderer.particleEngine.addFloatingText(
+                    '🛡️ IMMUNE!',
+                    targetPos.x,
+                    targetPos.y - 15,
+                    '#facc15',
+                    24
+                  );
+                } else if (step.ability.baseDamage > 0) {
                   this.soundEngine.playHit();
                   this.renderer.particleEngine.addFloatingText(
                     `-${step.ability.baseDamage}`,
@@ -4517,7 +4543,8 @@ export class GameApp {
             this.renderer.projManager.spawnProjectile(startPos, targetPos, step.ability.element, color, 260, () => {
               const targetUnitBefore = this.combatEngine.getUnitAt(step.targetCoord);
               const isTargetPlayer = targetUnitBefore && targetUnitBefore.faction === 'Player';
-              const isZombieEating = isTargetPlayer && (enemy.isZombie || step.ability.id === 'zombie_bite');
+              const isBossImmune = targetUnitBefore?.isBoss && (enemy.isZombie || enemy.isLifeBeing);
+              const isZombieEating = !isBossImmune && isTargetPlayer && (enemy.isZombie || step.ability.id === 'zombie_bite');
 
               const logCountBefore = this.combatEngine.logs.length;
               this.combatEngine.executeAbility(enemy, step.ability, step.targetCoord);
@@ -4525,7 +4552,15 @@ export class GameApp {
               const isAoE = step.ability.aoeRadius > 0;
               this.renderer.triggerSpellImpact(step.targetCoord, step.ability.element, isAoE);
 
-              if (isZombieEating) {
+              if (isBossImmune) {
+                this.renderer.particleEngine.addFloatingText(
+                  '🛡️ IMMUNE!',
+                  targetPos.x,
+                  targetPos.y - 15,
+                  '#facc15',
+                  24
+                );
+              } else if (isZombieEating) {
                 // THE ZOMBIES ARE EATING YOU!
                 this.soundEngine.playZombieBite();
                 this.soundEngine.playLoudHumanScream(true);

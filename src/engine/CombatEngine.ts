@@ -965,7 +965,7 @@ export class CombatEngine {
           const c = { x, y };
           if (this.grid.isInBounds(c)) {
             const unit = this.getUnitAt(c);
-            if (unit && unit.isZombie && !unit.isDead) {
+            if (unit && unit.isZombie && !unit.isBoss && !unit.isDead) {
               queue.push(c);
             }
           }
@@ -982,7 +982,7 @@ export class CombatEngine {
         visited.add(key);
 
         const zUnit = this.getUnitAt(c);
-        if (zUnit && zUnit.isZombie && !zUnit.isDead) {
+        if (zUnit && zUnit.isZombie && !zUnit.isBoss && !zUnit.isDead) {
           zUnit.isDead = true;
           unzombifiedCount++;
           this.addLog(
@@ -997,9 +997,16 @@ export class CombatEngine {
               if (this.grid.isInBounds(nc)) {
                 const affectedUnit = this.getUnitAt(nc);
                 if (affectedUnit && !affectedUnit.isDead) {
-                  if (affectedUnit.isZombie && !visited.has(`${nc.x},${nc.y}`)) {
+                  if (affectedUnit.isZombie && !affectedUnit.isBoss && !visited.has(`${nc.x},${nc.y}`)) {
                     queue.push(nc);
                   } else if (affectedUnit.faction !== caster.faction) {
+                    if (affectedUnit.isBoss) {
+                      this.addLog(
+                        'system',
+                        `🛡️ [BOSS IMMUNITY] ${affectedUnit.name} is a Boss and completely unaffected by the Life blast!`
+                      );
+                      continue;
+                    }
                     affectedUnit.stats.currentHp = Math.max(0, affectedUnit.stats.currentHp - 40);
                     if (affectedUnit.stats.currentHp === 0) {
                       affectedUnit.isDead = true;
@@ -1034,6 +1041,13 @@ export class CombatEngine {
     if (ability.id === 'transmute_zombie') {
       const targetUnit = this.getUnitAt(targetCoord);
       if (targetUnit && targetUnit.isZombie && !targetUnit.isDead) {
+        if (targetUnit.isBoss) {
+          this.addLog(
+            'system',
+            `🛡️ [BOSS IMMUNITY] ${targetUnit.name} is a Boss and cannot be transmuted!`
+          );
+          return { success: false, message: 'Bosses are unaffected.' };
+        }
         targetUnit.isDead = true;
         const newBeing = this.spawnLifeBeing(targetUnit.coord, caster.faction);
         this.addLog(
@@ -1083,6 +1097,15 @@ export class CombatEngine {
       const targetUnit = this.getUnitAt(coord);
 
       if (targetUnit && !targetUnit.isDead) {
+        // BOSS IMMUNITY: Bosses are completely unaffected by Zombies and Beings of Life!
+        if (targetUnit.isBoss && (caster.isZombie || caster.isLifeBeing)) {
+          this.addLog(
+            'system',
+            `🛡️ [BOSS IMMUNITY] ${targetUnit.name} is a Boss and completely unaffected by ${caster.name}!`
+          );
+          continue;
+        }
+
         // Calculate affinity damage
         let finalDamage = this.matrix.calculateDamage(
           ability.baseDamage,
@@ -1176,8 +1199,8 @@ export class CombatEngine {
           });
         }
 
-        // 1 in 5 (20%) chance the target panics and flees when attacked by a Zombie (unless Rooted to the spot!)
-        if (caster.isZombie && targetUnit.faction !== caster.faction && !targetUnit.isDead) {
+        // 1 in 5 (20%) chance the target panics and flees when attacked by a Zombie (unless Rooted to the spot or Boss!)
+        if (caster.isZombie && targetUnit.faction !== caster.faction && !targetUnit.isDead && !targetUnit.isBoss) {
           if (this.statusManager.hasStatus(targetUnit, 'Rooted')) {
             this.addLog('system', `⛓️ ${targetUnit.name} is Rooted to the spot and cannot run away!`);
           } else {
@@ -1225,26 +1248,11 @@ export class CombatEngine {
           }
 
           // --- NECROMANCER REANIMATION MECHANIC ---
-          if (caster.isZombie && targetUnit.faction !== caster.faction) {
-            // Killed by a Zombie -> reanimates IMMEDIATELY!
-            const newZombie = this.spawnZombie(
-              targetUnit.coord,
-              targetUnit.stats.maxHp,
-              targetUnit.stats.maxAp,
-              caster.faction
-            );
-            this.addLog(
-              'system',
-              `🧟 ${targetUnit.name} was slain by a Zombie and immediately rises as an allied Zombie (${newZombie.stats.maxHp} HP, ${newZombie.stats.maxAp} Half-Speed)!`
-            );
-          } else {
-            // Direct kill by Necromancer hero or Undead element ability:
-            const isNecromancerKill =
-              (caster.stats.elementalAffinity === 'Undead' || ability.element === 'Undead') &&
-              targetUnit.faction !== caster.faction;
-
-            if (isNecromancerKill) {
-              const zombie = this.spawnZombie(
+          // Bosses can NEVER be turned into Zombies!
+          if (!targetUnit.isBoss) {
+            if (caster.isZombie && targetUnit.faction !== caster.faction) {
+              // Killed by a Zombie -> reanimates IMMEDIATELY!
+              const newZombie = this.spawnZombie(
                 targetUnit.coord,
                 targetUnit.stats.maxHp,
                 targetUnit.stats.maxAp,
@@ -1252,11 +1260,29 @@ export class CombatEngine {
               );
               this.addLog(
                 'system',
-                `🧟 ${targetUnit.name} was slain by Necromancy and immediately rises as an allied Zombie with ${zombie.stats.maxHp} HP (4x) and ${zombie.stats.maxAp} Speed (Half-Speed)!`
+                `🧟 ${targetUnit.name} was slain by a Zombie and immediately rises as an allied Zombie (${newZombie.stats.maxHp} HP, ${newZombie.stats.maxAp} Half-Speed)!`
               );
+            } else {
+              // Direct kill by Necromancer hero or Undead element ability:
+              const isNecromancerKill =
+                (caster.stats.elementalAffinity === 'Undead' || ability.element === 'Undead') &&
+                targetUnit.faction !== caster.faction;
+
+              if (isNecromancerKill) {
+                const zombie = this.spawnZombie(
+                  targetUnit.coord,
+                  targetUnit.stats.maxHp,
+                  targetUnit.stats.maxAp,
+                  caster.faction
+                );
+                this.addLog(
+                  'system',
+                  `🧟 ${targetUnit.name} was slain by Necromancy and immediately rises as an allied Zombie with ${zombie.stats.maxHp} HP (4x) and ${zombie.stats.maxAp} Speed (Half-Speed)!`
+                );
+              }
             }
           }
-        } else if (caster.isZombie && targetUnit.faction !== caster.faction && !targetUnit.isDead) {
+        } else if (caster.isZombie && targetUnit.faction !== caster.faction && !targetUnit.isDead && !targetUnit.isBoss) {
           // Damaged by a zombie but survived -> reanimates in 1 turn!
           this.pendingReanimations.push({
             id: `reanim_${Date.now()}_${Math.random()}`,
