@@ -1457,6 +1457,168 @@ export class SoundEngine {
     }
   }
 
+  /**
+   * Procedural rhythmic character speech babble for animated voice acting
+   */
+  public playCharacterSpeechBabble(speakerId: string, durationMs: number): { stop: () => void } {
+    const ctx = this.initContext();
+    if (!ctx || this.isMuted) return { stop: () => {} };
+
+    let isStopped = false;
+    let timer: any = null;
+    const intervalMs =
+      speakerId === 'titan_magma' ? 175 :
+      speakerId === 'titan_void' ? 180 :
+      speakerId === 'wizard' ? 140 :
+      speakerId === 'void_overlord' ? 145 :
+      speakerId === 'seeker' ? 115 : 135;
+
+    const stop = () => {
+      if (isStopped) return;
+      isStopped = true;
+      if (timer) clearInterval(timer);
+    };
+
+    const playSyllable = () => {
+      if (isStopped || this.isMuted) return;
+      try {
+        const t = ctx.currentTime;
+        const syllableGain = this.createGain(ctx, 0.18);
+
+        if (speakerId === 'titan_magma') {
+          // Deep volcanic throat grunt (50Hz-70Hz with distortion)
+          const osc = ctx.createOscillator();
+          osc.type = 'sawtooth';
+          const f = 50 + (Math.random() * 20);
+          osc.frequency.setValueAtTime(f, t);
+          osc.frequency.exponentialRampToValueAtTime(f * 0.85, t + 0.09);
+
+          const filter = ctx.createBiquadFilter();
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(180, t);
+
+          const env = ctx.createGain();
+          env.gain.setValueAtTime(0.001, t);
+          env.gain.linearRampToValueAtTime(0.35, t + 0.015);
+          env.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+
+          osc.connect(filter);
+          filter.connect(env);
+          env.connect(syllableGain);
+          osc.start(t);
+          osc.stop(t + 0.11);
+        } else if (speakerId === 'titan_void') {
+          // Cosmic low abyssal echo (75Hz-110Hz)
+          const osc = ctx.createOscillator();
+          osc.type = 'sine';
+          const f = 75 + (Math.random() * 25);
+          osc.frequency.setValueAtTime(f, t);
+          osc.frequency.linearRampToValueAtTime(f + (Math.random() * 15 - 7), t + 0.1);
+
+          const env = ctx.createGain();
+          env.gain.setValueAtTime(0.001, t);
+          env.gain.linearRampToValueAtTime(0.28, t + 0.02);
+          env.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+
+          osc.connect(env);
+          env.connect(syllableGain);
+          osc.start(t);
+          osc.stop(t + 0.13);
+        } else if (speakerId === 'wizard') {
+          // Ancient resonant chanting vowel (220Hz-330Hz)
+          const osc = ctx.createOscillator();
+          osc.type = 'triangle';
+          const notes = [220, 246.9, 277.2, 329.6];
+          const f = notes[Math.floor(Math.random() * notes.length)];
+          osc.frequency.setValueAtTime(f, t);
+
+          const filter = ctx.createBiquadFilter();
+          filter.type = 'bandpass';
+          filter.frequency.setValueAtTime(f * 1.5, t);
+          filter.Q.value = 2.5;
+
+          const env = ctx.createGain();
+          env.gain.setValueAtTime(0.001, t);
+          env.gain.linearRampToValueAtTime(0.24, t + 0.018);
+          env.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+
+          osc.connect(filter);
+          filter.connect(env);
+          env.connect(syllableGain);
+          osc.start(t);
+          osc.stop(t + 0.11);
+        } else if (speakerId === 'void_overlord') {
+          // Sinister robotic rasping dark voice (80Hz-130Hz sawtooth)
+          const osc = ctx.createOscillator();
+          osc.type = 'sawtooth';
+          const f = 85 + (Math.random() * 35);
+          osc.frequency.setValueAtTime(f, t);
+
+          const filter = ctx.createBiquadFilter();
+          filter.type = 'bandpass';
+          filter.frequency.setValueAtTime(360, t);
+          filter.Q.value = 4.0;
+
+          const env = ctx.createGain();
+          env.gain.setValueAtTime(0.001, t);
+          env.gain.linearRampToValueAtTime(0.38, t + 0.015);
+          env.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
+
+          osc.connect(filter);
+          filter.connect(env);
+          env.connect(syllableGain);
+          osc.start(t);
+          osc.stop(t + 0.1);
+        } else if (speakerId === 'seeker') {
+          // Bright heroic vocal syllable (320Hz-440Hz)
+          const osc = ctx.createOscillator();
+          osc.type = 'triangle';
+          const notes = [329.6, 349.2, 392.0, 440.0];
+          const f = notes[Math.floor(Math.random() * notes.length)];
+          osc.frequency.setValueAtTime(f, t);
+
+          const env = ctx.createGain();
+          env.gain.setValueAtTime(0.001, t);
+          env.gain.linearRampToValueAtTime(0.2, t + 0.01);
+          env.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+
+          osc.connect(env);
+          env.connect(syllableGain);
+          osc.start(t);
+          osc.stop(t + 0.09);
+        } else {
+          // Celestial narrator chime syllable (220Hz-293Hz)
+          const osc = ctx.createOscillator();
+          osc.type = 'sine';
+          const notes = [220.0, 261.6, 293.7];
+          const f = notes[Math.floor(Math.random() * notes.length)];
+          osc.frequency.setValueAtTime(f, t);
+
+          const env = ctx.createGain();
+          env.gain.setValueAtTime(0.001, t);
+          env.gain.linearRampToValueAtTime(0.22, t + 0.015);
+          env.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+
+          osc.connect(env);
+          env.connect(syllableGain);
+          osc.start(t);
+          osc.stop(t + 0.11);
+        }
+      } catch {}
+    };
+
+    // Play immediate first syllable
+    playSyllable();
+
+    // Rhythmic chatter loop
+    timer = setInterval(playSyllable, intervalMs);
+
+    // Auto-stop at duration
+    setTimeout(stop, durationMs);
+
+    return { stop };
+  }
+
   // ==========================================
   // HELPER SYNTHESIS BUFFERS
   // ==========================================

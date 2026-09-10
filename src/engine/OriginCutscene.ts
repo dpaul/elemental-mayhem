@@ -150,11 +150,23 @@ export class OriginCutsceneManager {
 
       this.videoEl.addEventListener('timeupdate', () => {
         if (!this.videoEl) return;
+        const cur = this.videoEl.currentTime;
         const dur = this.videoEl.duration || 30;
-        const pct = (this.videoEl.currentTime / dur) * 100;
+        const pct = (cur / dur) * 100;
         if (this.videoProgressEl) {
           this.videoProgressEl.style.width = `${Math.min(100, Math.max(0, pct))}%`;
         }
+
+        // Format timestamps 00:xx / 00:30
+        const pad = (num: number) => String(Math.floor(num)).padStart(2, '0');
+        const curSec = Math.min(30, Math.floor(cur));
+        const durSec = Math.floor(dur);
+        const timeStr = `00:${pad(curSec)} / 00:${pad(durSec)}`;
+
+        const timeDisplay = document.getElementById('video-hud-time-display');
+        if (timeDisplay) timeDisplay.textContent = timeStr;
+        const timeTag = document.getElementById('video-time-tag');
+        if (timeTag) timeTag.textContent = `${timeStr} • 60 FPS`;
 
         // Loop the 5-second video footage for the active chapter while speech continues,
         // ensuring the video stays dynamic without prematurely cutting off dialogue!
@@ -173,6 +185,48 @@ export class OriginCutsceneManager {
         }
       });
     }
+
+    // Video Center Play Button
+    document.getElementById('video-center-play-btn')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.soundEngine.playClick();
+      this.togglePlayPause();
+    });
+
+    // Video HUD Controls
+    document.getElementById('video-hud-play-btn')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      this.togglePlayPause();
+    });
+
+    document.getElementById('video-hud-rewind-btn')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      this.prevChapter();
+    });
+
+    document.getElementById('video-hud-forward-btn')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      this.nextChapter();
+    });
+
+    document.getElementById('video-hud-theater-btn')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      this.toggleTheaterMode();
+    });
+
+    // Interactive Video Timeline Scrubber
+    const scrubber = document.getElementById('cutscene-video-scrubber');
+    scrubber?.addEventListener('click', (e: MouseEvent) => {
+      const rect = scrubber.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const pct = Math.max(0, Math.min(1, clickX / rect.width));
+      const targetTime = pct * 30; // 30-second total video length
+      if (this.videoEl) {
+        this.videoEl.currentTime = targetTime;
+      }
+      const targetChapter = Math.min(CUTSCENE_CHAPTERS.length - 1, Math.floor(targetTime / 5));
+      this.goToChapter(targetChapter, false);
+    });
 
     // View mode toggle
     if (this.modeBtnEl) {
@@ -368,6 +422,9 @@ export class OriginCutsceneManager {
       // Update scene visuals based on current mode
       this.updateSceneVisibility();
 
+      // Show in-video cinematic chapter title card
+      this.showChapterTitleCard(index);
+
       // Update pips
       const pips = document.querySelectorAll('.cutscene-pip');
       pips.forEach((pip, pIdx) => {
@@ -404,6 +461,42 @@ export class OriginCutsceneManager {
     }
   }
 
+  public showChapterTitleCard(index: number): void {
+    const cardEl = document.getElementById('video-chapter-title-card');
+    const superEl = document.getElementById('video-title-card-super');
+    const mainEl = document.getElementById('video-title-card-main');
+    const subEl = document.getElementById('video-title-card-sub');
+    if (!cardEl || !superEl || !mainEl || !subEl) return;
+
+    const ch = CUTSCENE_CHAPTERS[index];
+    if (!ch) return;
+
+    const romanNumerals = ['CHAPTER I', 'CHAPTER II', 'CHAPTER III', 'CHAPTER IV', 'CHAPTER V', 'CHAPTER VI'];
+    superEl.textContent = romanNumerals[index] || `CHAPTER ${index + 1}`;
+    mainEl.textContent = ch.title.toUpperCase();
+    mainEl.style.textShadow = `0 2px 10px rgba(0, 0, 0, 0.9), 0 0 25px ${ch.themeColor}aa`;
+    subEl.textContent = ch.badge;
+
+    cardEl.classList.remove('show-title-card');
+    void cardEl.offsetWidth; // trigger reflow
+    cardEl.classList.add('show-title-card');
+  }
+
+  private isTheaterMode: boolean = false;
+
+  public toggleTheaterMode(): boolean {
+    this.isTheaterMode = !this.isTheaterMode;
+    if (this.videoContainerEl) {
+      this.videoContainerEl.classList.toggle('theater-mode', this.isTheaterMode);
+    }
+    const theaterBtn = document.getElementById('video-hud-theater-btn');
+    if (theaterBtn) {
+      theaterBtn.classList.toggle('active', this.isTheaterMode);
+      theaterBtn.textContent = this.isTheaterMode ? '⛶ Default' : '⛶ Theater';
+    }
+    return this.isTheaterMode;
+  }
+
   public nextChapter(): void {
     if (this.currentChapterIndex < CUTSCENE_CHAPTERS.length - 1) {
       this.goToChapter(this.currentChapterIndex + 1, true);
@@ -431,6 +524,10 @@ export class OriginCutsceneManager {
     if (typeof document !== 'undefined') {
       const btn = document.getElementById('cutscene-play-pause-btn');
       if (btn) btn.textContent = '⏸ PAUSE';
+      const hudPlayBtn = document.getElementById('video-hud-play-btn');
+      if (hudPlayBtn) hudPlayBtn.textContent = '⏸';
+      const centerPlayBtn = document.getElementById('video-center-play-btn');
+      if (centerPlayBtn) centerPlayBtn.classList.remove('show');
     }
     if (this.videoEl) {
       this.videoEl.play().catch(() => {});
@@ -447,8 +544,12 @@ export class OriginCutsceneManager {
     if (typeof document !== 'undefined') {
       const btn = document.getElementById('cutscene-play-pause-btn');
       if (btn) btn.textContent = '▶ PLAY';
+      const hudPlayBtn = document.getElementById('video-hud-play-btn');
+      if (hudPlayBtn) hudPlayBtn.textContent = '▶';
+      const centerPlayBtn = document.getElementById('video-center-play-btn');
+      if (centerPlayBtn) centerPlayBtn.classList.add('show');
     }
-    if (this.videoEl) {
+    if (this.videoEl && typeof this.videoEl.pause === 'function') {
       this.videoEl.pause();
     }
     if (this.autoAdvanceTimer) {

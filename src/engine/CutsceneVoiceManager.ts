@@ -281,7 +281,7 @@ export class CutsceneVoiceManager {
   private availableVoices: SpeechSynthesisVoice[] = [];
   private hasInitializedVoices: boolean = false;
 
-  // DOM Elements
+  // DOM Elements - Dialogue Card
   private cardEl: HTMLElement | null = null;
   private avatarEl: HTMLElement | null = null;
   private nameEl: HTMLElement | null = null;
@@ -290,6 +290,16 @@ export class CutsceneVoiceManager {
   private wavesEl: HTMLElement | null = null;
   private toggleBtnEl: HTMLElement | null = null;
   private speakBtnEl: HTMLElement | null = null;
+
+  // DOM Elements - In-Video Cinematic Subtitles & Video HUD
+  private videoSubtitlesEl: HTMLElement | null = null;
+  private videoSubAvatarEl: HTMLElement | null = null;
+  private videoSubSpeakerNameEl: HTMLElement | null = null;
+  private videoSubEqualizerEl: HTMLElement | null = null;
+  private videoSubTextEl: HTMLElement | null = null;
+  private videoHudSubtitlesBtnEl: HTMLElement | null = null;
+  private areSubtitlesVisible: boolean = true;
+  private activeBabbleHandle: { stop: () => void } | null = null;
 
   // Event callbacks
   public onDialogueLineStart?: (line: CutsceneDialogueLine, profile: VoiceSpeakerProfile) => void;
@@ -336,6 +346,24 @@ export class CutsceneVoiceManager {
     this.toggleBtnEl = document.getElementById('cutscene-voice-toggle-btn');
     this.speakBtnEl = document.getElementById('cutscene-voice-speak-btn');
 
+    // In-Video Subtitle Elements
+    this.videoSubtitlesEl = document.getElementById('cutscene-video-subtitles');
+    this.videoSubAvatarEl = document.getElementById('video-sub-avatar');
+    this.videoSubSpeakerNameEl = document.getElementById('video-sub-speaker-name');
+    this.videoSubEqualizerEl = document.getElementById('video-sub-equalizer');
+    this.videoSubTextEl = document.getElementById('video-sub-text');
+    this.videoHudSubtitlesBtnEl = document.getElementById('video-hud-subtitles-btn');
+
+    this.videoHudSubtitlesBtnEl?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      this.toggleSubtitles();
+    });
+
+    const hudVoiceBtn = document.getElementById('video-hud-voice-btn');
+    hudVoiceBtn?.addEventListener('click', () => {
+      this.toggleVoice();
+    });
+
     this.updateToggleBtnUI();
 
     this.toggleBtnEl?.addEventListener('click', () => {
@@ -346,6 +374,34 @@ export class CutsceneVoiceManager {
       this.soundEngine.playClick();
       this.replayCurrentChapterDialogue();
     });
+  }
+
+  public toggleSubtitles(visible?: boolean): boolean {
+    if (visible !== undefined) {
+      this.areSubtitlesVisible = visible;
+    } else {
+      this.areSubtitlesVisible = !this.areSubtitlesVisible;
+    }
+
+    if (this.videoSubtitlesEl) {
+      if (this.areSubtitlesVisible) {
+        this.videoSubtitlesEl.classList.remove('subtitles-hidden');
+      } else {
+        this.videoSubtitlesEl.classList.add('subtitles-hidden');
+      }
+    }
+
+    if (this.videoHudSubtitlesBtnEl) {
+      if (this.areSubtitlesVisible) {
+        this.videoHudSubtitlesBtnEl.classList.add('active');
+        this.videoHudSubtitlesBtnEl.textContent = '💬 Subtitles';
+      } else {
+        this.videoHudSubtitlesBtnEl.classList.remove('active');
+        this.videoHudSubtitlesBtnEl.textContent = '💬 Subtitles (Off)';
+      }
+    }
+
+    return this.areSubtitlesVisible;
   }
 
   public playChapter(chapterIndex: number): void {
@@ -403,12 +459,23 @@ export class CutsceneVoiceManager {
       return;
     }
 
-    // Update UI card with character avatar, glowing name, voice tag, and speech text
+    // Update UI card & in-video subtitles with character avatar, glowing name, voice tag, and speech text
     this.updateDialogueUI(line, true);
     this.onDialogueLineStart?.(line, profile);
 
     // Play character procedural vocal tone through sound engine
     this.soundEngine.playCharacterVocalTone(line.speakerId);
+
+    // Calculate speech duration
+    const speechDurationMs = line.durationEstimateMs || Math.max(3200, line.text.length * 65);
+
+    // Play procedural character speech babble for audible voice chatter
+    if (!this.isVoiceMuted) {
+      if (this.activeBabbleHandle) {
+        this.activeBabbleHandle.stop();
+      }
+      this.activeBabbleHandle = this.soundEngine.playCharacterSpeechBabble(line.speakerId, speechDurationMs);
+    }
 
     const finishLine = () => {
       if (this.safetyTimer) {
@@ -418,6 +485,10 @@ export class CutsceneVoiceManager {
       if (this.keepAliveTimer) {
         clearInterval(this.keepAliveTimer);
         this.keepAliveTimer = null;
+      }
+      if (this.activeBabbleHandle) {
+        this.activeBabbleHandle.stop();
+        this.activeBabbleHandle = null;
       }
       this.setSpeakingState(false);
       this.onDialogueLineEnd?.(line);
@@ -483,6 +554,13 @@ export class CutsceneVoiceManager {
       // Safety timeout in case browser event drops
       const maxEstimatedTime = Math.max(5000, line.text.length * 140 + 3500);
       this.safetyTimer = setTimeout(safeFinish, maxEstimatedTime);
+
+      // Resume speech synthesis to prevent browser autoplay block
+      try {
+        window.speechSynthesis.resume();
+      } catch {
+        // ignore
+      }
 
       window.speechSynthesis.speak(utterance);
     } catch {
@@ -553,6 +631,22 @@ export class CutsceneVoiceManager {
         this.cardEl.classList.add('dialogue-pop');
       }
     }
+
+    // In-Video Subtitles Update
+    if (this.videoSubAvatarEl) {
+      this.videoSubAvatarEl.textContent = profile.avatar;
+    }
+    if (this.videoSubSpeakerNameEl) {
+      this.videoSubSpeakerNameEl.textContent = profile.name;
+      this.videoSubSpeakerNameEl.style.color = profile.themeColor;
+      this.videoSubSpeakerNameEl.style.textShadow = `0 0 12px ${profile.glowColor}`;
+    }
+    if (this.videoSubTextEl) {
+      this.videoSubTextEl.textContent = `“${line.text}”`;
+    }
+    if (this.videoSubtitlesEl) {
+      this.videoSubtitlesEl.style.borderColor = profile.themeColor;
+    }
   }
 
   private setSpeakingState(speaking: boolean): void {
@@ -562,6 +656,13 @@ export class CutsceneVoiceManager {
         this.wavesEl.classList.add('active');
       } else {
         this.wavesEl.classList.remove('active');
+      }
+    }
+    if (this.videoSubEqualizerEl) {
+      if (speaking && !this.isVoiceMuted) {
+        this.videoSubEqualizerEl.classList.add('active');
+      } else {
+        this.videoSubEqualizerEl.classList.remove('active');
       }
     }
   }
@@ -581,6 +682,11 @@ export class CutsceneVoiceManager {
     if (this.keepAliveTimer) {
       clearInterval(this.keepAliveTimer);
       this.keepAliveTimer = null;
+    }
+
+    if (this.activeBabbleHandle) {
+      this.activeBabbleHandle.stop();
+      this.activeBabbleHandle = null;
     }
 
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -618,17 +724,29 @@ export class CutsceneVoiceManager {
   }
 
   private updateToggleBtnUI(): void {
-    if (!this.toggleBtnEl) return;
-    if (this.isVoiceMuted) {
-      this.toggleBtnEl.textContent = '🔇 Voices: MUTED';
-      this.toggleBtnEl.classList.remove('active');
-      this.toggleBtnEl.style.borderColor = '#f87171';
-      this.toggleBtnEl.style.color = '#f87171';
-    } else {
-      this.toggleBtnEl.textContent = '🎙️ Voices: ON';
-      this.toggleBtnEl.classList.add('active');
-      this.toggleBtnEl.style.borderColor = '#38bdf8';
-      this.toggleBtnEl.style.color = '#38bdf8';
+    if (this.toggleBtnEl) {
+      if (this.isVoiceMuted) {
+        this.toggleBtnEl.textContent = '🔇 Voices: MUTED';
+        this.toggleBtnEl.classList.remove('active');
+        this.toggleBtnEl.style.borderColor = '#f87171';
+        this.toggleBtnEl.style.color = '#f87171';
+      } else {
+        this.toggleBtnEl.textContent = '🎙️ Voices: ON';
+        this.toggleBtnEl.classList.add('active');
+        this.toggleBtnEl.style.borderColor = '#38bdf8';
+        this.toggleBtnEl.style.color = '#38bdf8';
+      }
+    }
+
+    const hudVoiceBtn = document.getElementById('video-hud-voice-btn');
+    if (hudVoiceBtn) {
+      if (this.isVoiceMuted) {
+        hudVoiceBtn.classList.remove('active');
+        hudVoiceBtn.textContent = '🎙️ Voices (Off)';
+      } else {
+        hudVoiceBtn.classList.add('active');
+        hudVoiceBtn.textContent = '🎙️ Voices';
+      }
     }
   }
 
