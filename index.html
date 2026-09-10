@@ -1152,7 +1152,7 @@
 
       <!-- Real Cinematic Video Chronicle Screen -->
       <div class="cutscene-video-container" id="cutscene-video-container">
-        <video id="cutscene-video-player" class="cutscene-video-player" playsinline preload="auto" loop muted>
+        <video id="cutscene-video-player" class="cutscene-video-player" playsinline preload="auto" muted>
           <source src="/videos/origin_cutscene.mp4" type="video/mp4" />
           <source src="/videos/origin_cutscene.webm" type="video/webm" />
           Your browser does not support HTML5 video.
@@ -1201,12 +1201,12 @@
           <div class="video-hud-scrubber-track" id="cutscene-video-scrubber" title="Click anywhere to jump in the cinematic timeline">
             <div class="video-hud-progress" id="cutscene-video-progress"></div>
             <div class="video-hud-chapter-ticks">
-              <span class="hud-tick" data-chapter="0" style="left: 0%" title="Ch 1: When Titans Collided"></span>
-              <span class="hud-tick" data-chapter="1" style="left: 16.66%" title="Ch 2: Cosmic Rift"></span>
-              <span class="hud-tick" data-chapter="2" style="left: 33.33%" title="Ch 3: Falling Into Realm"></span>
-              <span class="hud-tick" data-chapter="3" style="left: 50%" title="Ch 4: Arch-Wizard's Blessing"></span>
-              <span class="hud-tick" data-chapter="4" style="left: 66.66%" title="Ch 5: Power Siphoned"></span>
-              <span class="hud-tick" data-chapter="5" style="left: 83.33%" title="Ch 6: Round 1000 Mission"></span>
+              <span class="hud-tick" data-chapter="0" style="left: 0%" title="Ch 1: The Titans"></span>
+              <span class="hud-tick" data-chapter="1" style="left: 16.66%" title="Ch 2: The Dimensional Rift"></span>
+              <span class="hud-tick" data-chapter="2" style="left: 33.33%" title="Ch 3: Falling Through"></span>
+              <span class="hud-tick" data-chapter="3" style="left: 50%" title="Ch 4: Wizard Giving Magic"></span>
+              <span class="hud-tick" data-chapter="4" style="left: 66.66%" title="Ch 5: Overlord Stealing Magic"></span>
+              <span class="hud-tick" data-chapter="5" style="left: 83.33%" title="Ch 6: Overlord in Dark Clouds"></span>
             </div>
           </div>
           <div class="video-hud-toolbar">
@@ -1326,18 +1326,27 @@
         </div>
       </div>
 
-      <!-- Chapter 6: Mission: Round 1000 Ultimate Boss -->
+      <!-- Chapter 6: The Void Overlord in the Dark Clouds -->
       <div class="cutscene-scene-content hidden" id="cutscene-scene-6">
         <div class="scene-mission-round1000">
+          <div class="dark-clouds-sky-container">
+            <div class="dark-cloud-layer dark-cloud-back"></div>
+            <div class="dark-cloud-layer dark-cloud-mid"></div>
+            <div class="dark-cloud-lightning"></div>
+          </div>
           <div class="ultimate-boss-beacon">
-            <div class="boss-crown-banner">👑 TARGET: ROUND 1000 BOSS</div>
-            <div class="boss-colossus-silhouette">👹🌌👑</div>
-            <div class="boss-subtitle">THE SUPREME VOID SOVEREIGN</div>
+            <div class="boss-crown-banner">☁️👑 CHAPTER VI: THE VOID OVERLORD IN THE DARK CLOUDS</div>
+            <div class="boss-colossus-silhouette">
+              <span class="cloud-emoji">☁️</span>
+              <span class="boss-silhouette-icon">👹🌌👑</span>
+              <span class="cloud-emoji">☁️</span>
+            </div>
+            <div class="boss-subtitle">THE VOID OVERLORD LOOMS IN THE DARK CLOUDS • ROUND 1000 BOSS</div>
           </div>
           <div class="hero-quest-resolution">
             <div class="hero-starter-trio">🔥 💧 🪨</div>
-            <div class="quest-title">MISSION: RECLAIM THE STOLEN POWER</div>
-            <p class="quest-desc">Conquer the 1000-round arena, defeat the Ultimate Boss, and take back the wizard's stolen magic!</p>
+            <div class="quest-title">MISSION: CONQUER ROUND 1000 & RECLAIM THE MAGIC</div>
+            <p class="quest-desc">Ascend through the arenas to reach the Void Overlord in the dark cosmic clouds and reclaim your stolen power!</p>
           </div>
           <div class="awakening-action-buttons">
             <button id="cutscene-btn-warp-overlord" class="btn-hero-action" style="background: linear-gradient(135deg, #7c3aed, #db2777); border-color: #c084fc; box-shadow: 0 0 25px rgba(192,132,252,0.6);">
@@ -1417,12 +1426,12 @@
           <div class="cutscene-overall-timeline-bar" id="cutscene-overall-timeline-bar">
             <div class="cutscene-overall-progress-fill" id="cutscene-overall-progress-fill"></div>
             <div class="cutscene-overall-ticks">
-              <span class="cot-tick" data-ch="0" style="left: 0%" title="Chapter 1: Titans Collided"></span>
-              <span class="cot-tick" data-ch="1" style="left: 16.66%" title="Chapter 2: Cosmic Rift"></span>
-              <span class="cot-tick" data-ch="2" style="left: 33.33%" title="Chapter 3: Falling In"></span>
-              <span class="cot-tick" data-ch="3" style="left: 50%" title="Chapter 4: Wizard Blessing"></span>
-              <span class="cot-tick" data-ch="4" style="left: 66.66%" title="Chapter 5: Ambushed"></span>
-              <span class="cot-tick" data-ch="5" style="left: 83.33%" title="Chapter 6: Mission"></span>
+              <span class="cot-tick" data-ch="0" style="left: 0%" title="Chapter 1: The Titans"></span>
+              <span class="cot-tick" data-ch="1" style="left: 16.66%" title="Chapter 2: The Dimensional Rift"></span>
+              <span class="cot-tick" data-ch="2" style="left: 33.33%" title="Chapter 3: Falling Through"></span>
+              <span class="cot-tick" data-ch="3" style="left: 50%" title="Chapter 4: Wizard Giving Magic"></span>
+              <span class="cot-tick" data-ch="4" style="left: 66.66%" title="Chapter 5: Overlord Stealing Magic"></span>
+              <span class="cot-tick" data-ch="5" style="left: 83.33%" title="Chapter 6: Overlord in Dark Clouds"></span>
             </div>
           </div>
         </div>

@@ -27,16 +27,16 @@ export interface CutsceneChapter {
 export const CUTSCENE_CHAPTERS: CutsceneChapter[] = [
   {
     id: 1,
-    badge: '⚔️ CHAPTER I • THE COSMIC COLLISION',
+    badge: '⚔️ CHAPTER I • THE TITANS',
     title: 'When Titans Collided',
-    subtitle: 'Two primeval primordial behemoths clashed across the fabric of spacetime!',
+    subtitle: 'Two primeval titans clashed across the fabric of spacetime!',
     narrative:
       'In the beginning, before elements took form, the Magma Colossus and the Void Leviathan fought an apocalyptic battle across the heavens! The clash shook the cosmos and fractured reality itself.',
     themeColor: '#f97316',
   },
   {
     id: 2,
-    badge: '🌌 CHAPTER II • THE DIMENSIONAL TEAR',
+    badge: '🌌 CHAPTER II • THE DIMENSIONAL RIFT',
     title: 'The Dimensional Tear Opens',
     subtitle: 'A colossal dimensional wormhole tore across the heavens, pulling wandering mortals inside!',
     narrative:
@@ -45,7 +45,7 @@ export const CUTSCENE_CHAPTERS: CutsceneChapter[] = [
   },
   {
     id: 3,
-    badge: '🌀 CHAPTER III • THE FALL',
+    badge: '🌀 CHAPTER III • FALLING THROUGH',
     title: 'Falling Through the Rift',
     subtitle: 'Tumbling through hyperspace before crash-landing upon a mysterious miniature world.',
     narrative:
@@ -54,7 +54,7 @@ export const CUTSCENE_CHAPTERS: CutsceneChapter[] = [
   },
   {
     id: 4,
-    badge: '✨ CHAPTER IV • THE GRAND BLESSING',
+    badge: '✨ CHAPTER IV • THE WIZARD GIVING MAGIC',
     title: "The Grand Wizard's Blessing",
     subtitle: 'An ancient Grand Arch-Wizard bestowed godlike elemental power upon you!',
     narrative:
@@ -63,21 +63,21 @@ export const CUTSCENE_CHAPTERS: CutsceneChapter[] = [
   },
   {
     id: 5,
-    badge: '🌑 CHAPTER V • THE VOID AMBUSH',
-    title: 'Ambushed in the Shadows',
-    subtitle: 'The sinister Void Overlord struck from the dark and stole your powers away!',
+    badge: '🌑 CHAPTER V • STEALING THE MAGIC',
+    title: 'The Void Overlord Steals the Magic',
+    subtitle: 'The sinister Void Overlord struck from the dark and violently stole your powers away!',
     narrative:
       'Suddenly, an ominous shadow descended! The Void Overlord struck without warning, siphoning the wizard\'s godlike power from your chest and fleeing into the cosmos, leaving you only the three basic starter embers of Fire, Water, and Earth!',
     themeColor: '#ef4444',
   },
   {
     id: 6,
-    badge: '⚔️👑 CHAPTER VI • MISSION: ROUND 1000',
-    title: 'The Mission to Reclaim the Power',
-    subtitle: 'Ascend through 1000 rounds and conquer the Ultimate Boss to reclaim your destiny!',
+    badge: '☁️👑 CHAPTER VI • THE OVERLORD IN THE DARK CLOUDS',
+    title: 'The Void Overlord in the Dark Clouds',
+    subtitle: 'The sinister Void Overlord looms within the dark cosmic storm clouds!',
     narrative:
-      'The weakened Wizard gasped: "Do not despair! You still hold the Three Starter Embers. Train, master the elements, and battle through the arenas to defeat the Ultimate Boss on Round 1000 and reclaim the stolen power!" Your mission begins now!',
-    themeColor: '#fbbf24',
+      'High above the realms, shrouded in swirling dark storm clouds, the sinister Void Overlord awaits! Wielding your stolen godlike magic, he challenges you to conquer all 1000 rounds and face him in the dark clouds to take back your elemental power!',
+    themeColor: '#8b5cf6',
   },
 ];
 
@@ -105,7 +105,6 @@ export class OriginCutsceneManager {
   // Progress & Duration tracking for remaining time
   private progressTimer: any = null;
   private chapterStartTime: number = Date.now();
-  private chapterDurationMs: number = 8500;
   private isPausedTime: number = 0;
   private accumulatedPausedMs: number = 0;
 
@@ -158,22 +157,27 @@ export class OriginCutsceneManager {
       this.videoEl.addEventListener('timeupdate', () => {
         if (!this.videoEl) return;
 
-        // Loop the 5-second video footage for the active chapter while speech continues,
-        // ensuring the video stays dynamic without prematurely cutting off dialogue!
+        // In Video Mode, smoothly transition chapters in sequence as video advances (5 seconds per chapter)
         if (this.viewMode === 'video' && this.isPlaying) {
-          const segStart = this.currentChapterIndex * 5;
-          const segEnd = segStart + 4.95;
-          if (this.videoEl.currentTime >= segEnd || this.videoEl.currentTime < segStart) {
-            this.videoEl.currentTime = segStart;
+          const curSec = this.videoEl.currentTime;
+          if (curSec >= 29.8) {
+            if (this.currentChapterIndex !== CUTSCENE_CHAPTERS.length - 1) {
+              this.goToChapter(CUTSCENE_CHAPTERS.length - 1, false);
+            }
+            this.pause();
+            return;
+          }
+          const targetChapter = Math.min(CUTSCENE_CHAPTERS.length - 1, Math.max(0, Math.floor(curSec / 5)));
+          if (targetChapter !== this.currentChapterIndex) {
+            this.goToChapter(targetChapter, false);
           }
         }
         this.updateProgressUI();
       });
 
       this.videoEl.addEventListener('ended', () => {
-        if (this.currentChapterIndex === CUTSCENE_CHAPTERS.length - 1) {
-          this.pause();
-        }
+        this.goToChapter(CUTSCENE_CHAPTERS.length - 1, false);
+        this.pause();
       });
     }
 
@@ -376,9 +380,13 @@ export class OriginCutsceneManager {
         }
       } else {
         this.videoContainerEl.classList.add('hidden');
+        if (this.isPlaying) {
+          this.scheduleNext();
+        }
       }
     }
     this.updateSceneVisibility();
+    this.updateProgressUI();
   }
 
   private updateModeBtn(): void {
@@ -473,7 +481,6 @@ export class OriginCutsceneManager {
     this.chapterStartTime = Date.now();
     this.accumulatedPausedMs = 0;
     this.isPausedTime = 0;
-    this.chapterDurationMs = this.getChapterDurationMs(index);
     this.updateProgressUI();
 
     // Trigger multi-voice character dialogue (speaks all narrative and dialogue lines)
@@ -485,33 +492,26 @@ export class OriginCutsceneManager {
     }
   }
 
-  public getChapterDurationMs(index: number): number {
-    if (this.voiceManager.isMuted()) {
-      return 8500;
-    }
-    const lines = this.voiceManager.getChapterLines(index);
-    if (lines.length === 0) return 5000;
-    const linesDuration = lines.reduce((acc, l) => acc + (l.durationEstimateMs || 4000), 0);
-    const pauses = (lines.length - 1) * 350 + 200 + 1800;
-    return Math.max(5000, linesDuration + pauses);
+  public getChapterDurationMs(_index: number): number {
+    return 5000;
   }
 
   public updateProgressUI(): void {
     if (typeof document === 'undefined') return;
-    let subProgress = 0;
-    const now = this.isPlaying ? Date.now() : (this.isPausedTime || Date.now());
-    const elapsedInChapter = Math.max(0, now - this.chapterStartTime - this.accumulatedPausedMs);
 
-    if (this.chapterDurationMs > 0) {
-      subProgress = Math.min(1.0, elapsedInChapter / this.chapterDurationMs);
+    let elapsedSec = 0;
+    const totalDurationSec = 30;
+
+    if (this.videoEl && this.viewMode === 'video' && !isNaN(this.videoEl.currentTime)) {
+      elapsedSec = Math.min(totalDurationSec, Math.max(0, this.videoEl.currentTime));
+    } else {
+      const now = this.isPlaying ? Date.now() : (this.isPausedTime || Date.now());
+      const elapsedInChapter = Math.max(0, now - this.chapterStartTime - this.accumulatedPausedMs);
+      const subProgress = Math.min(1.0, elapsedInChapter / 5000);
+      elapsedSec = Math.min(totalDurationSec, (this.currentChapterIndex + subProgress) * 5);
     }
 
-    const totalChapters = CUTSCENE_CHAPTERS.length; // 6
-    const overallPct = Math.min(100, Math.max(0, ((this.currentChapterIndex + subProgress) / totalChapters) * 100));
-
-    // 30 seconds nominal cutscene duration
-    const totalDurationSec = 30;
-    const elapsedSec = Math.min(totalDurationSec, (overallPct / 100) * totalDurationSec);
+    const overallPct = Math.min(100, Math.max(0, (elapsedSec / totalDurationSec) * 100));
     const remainingSec = Math.max(0, totalDurationSec - elapsedSec);
 
     const pad = (num: number) => String(Math.floor(num)).padStart(2, '0');
@@ -543,16 +543,7 @@ export class OriginCutsceneManager {
     }
     const elapsedText = document.getElementById('cutscene-overall-elapsed-text');
     if (elapsedText) {
-      elapsedText.textContent = `${elapsedStr} / ${totalStr} • Chapter ${this.currentChapterIndex + 1} of ${totalChapters}`;
-    }
-
-    // 3. Keep video looping within chapter footage while dialogue plays
-    if (this.videoEl && this.viewMode === 'video' && this.isPlaying) {
-      const segStart = this.currentChapterIndex * 5;
-      const segEnd = segStart + 4.95;
-      if (this.videoEl.currentTime >= segEnd || this.videoEl.currentTime < segStart) {
-        this.videoEl.currentTime = segStart;
-      }
+      elapsedText.textContent = `${elapsedStr} / ${totalStr} • Chapter ${this.currentChapterIndex + 1} of ${CUTSCENE_CHAPTERS.length}`;
     }
   }
 
@@ -666,8 +657,8 @@ export class OriginCutsceneManager {
       this.autoAdvanceTimer = null;
     }
 
-    if (this.voiceManager.isMuted()) {
-      // In muted mode, advance after 8.5 seconds reading time
+    // In Stage Mode (or if video isn't loaded), smoothly advance chapters in order every 5 seconds
+    if (this.viewMode === 'stage' || !this.videoEl) {
       this.autoAdvanceTimer = setTimeout(() => {
         if (this.isPlaying) {
           if (this.currentChapterIndex < CUTSCENE_CHAPTERS.length - 1) {
@@ -676,19 +667,7 @@ export class OriginCutsceneManager {
             this.pause();
           }
         }
-      }, 8500);
-    } else {
-      // In voice mode, onChapterDialogueComplete drives the chapter advance so the ENTIRE
-      // speech is heard. We set a 35s failsafe timer in case speech synthesis is blocked.
-      this.autoAdvanceTimer = setTimeout(() => {
-        if (this.isPlaying) {
-          if (this.currentChapterIndex < CUTSCENE_CHAPTERS.length - 1) {
-            this.nextChapter();
-          } else {
-            this.pause();
-          }
-        }
-      }, 35000);
+      }, 5000);
     }
   }
 

@@ -2451,6 +2451,71 @@ body {
   justify-content: center;
 }
 
+/* Chapter 6: The Void Overlord in the Dark Clouds Visual Effects */
+.dark-clouds-sky-container {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+  border-radius: 20px;
+}
+
+.dark-cloud-layer {
+  position: absolute;
+  inset: -30px;
+  pointer-events: none;
+}
+
+.dark-cloud-back {
+  background: radial-gradient(ellipse at 35% 25%, rgba(45, 20, 65, 0.75) 0%, rgba(12, 6, 24, 0.92) 65%, transparent 100%);
+  filter: blur(16px);
+  animation: driftClouds 14s ease-in-out infinite alternate;
+}
+
+.dark-cloud-mid {
+  background: radial-gradient(circle at 65% 35%, rgba(60, 25, 90, 0.6) 0%, rgba(18, 8, 36, 0.85) 60%, transparent 100%);
+  filter: blur(10px);
+  animation: driftCloudsReverse 11s ease-in-out infinite alternate;
+}
+
+.dark-cloud-lightning {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 30%, rgba(192, 132, 252, 0.35) 0%, transparent 60%);
+  opacity: 0;
+  animation: cloudLightningFlash 4.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes driftClouds {
+  0% { transform: scale(1) translateX(-15px); }
+  100% { transform: scale(1.08) translateX(20px); }
+}
+
+@keyframes driftCloudsReverse {
+  0% { transform: scale(1.06) translateX(18px); }
+  100% { transform: scale(0.96) translateX(-18px); }
+}
+
+@keyframes cloudLightningFlash {
+  0%, 86%, 93%, 100% { opacity: 0; }
+  88% { opacity: 0.85; }
+  90% { opacity: 0.25; }
+  91% { opacity: 0.95; }
+}
+
+.cloud-emoji {
+  font-size: 2.2rem;
+  filter: drop-shadow(0 0 14px rgba(168, 85, 247, 0.9));
+  animation: floatCloudEmoji 3s ease-in-out infinite alternate;
+}
+
+@keyframes floatCloudEmoji {
+  0% { transform: translateY(0px) scale(0.95); }
+  100% { transform: translateY(-8px) scale(1.05); }
+}
+
 /* Bottom Letterbox Bar */
 .cutscene-letterbox-bottom {
   min-height: 130px;

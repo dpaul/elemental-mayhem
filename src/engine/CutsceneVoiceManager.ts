@@ -117,147 +117,135 @@ export const VOICE_PROFILES: Record<VoiceSpeakerId, VoiceSpeakerProfile> = {
 };
 
 export const CHAPTER_DIALOGUES: Record<number, CutsceneDialogueLine[]> = {
-  // Chapter 1: When Titans Collided
+  // Chapter 1: When Titans Collided (The Titans)
   0: [
     {
       id: 'ch1_line1',
       speakerId: 'narrator',
-      text: 'Long before the arenas were forged, mortal souls lived defenseless under the shadows of cosmic titans. Two primeval giants, the Magma Colossus and the Void Leviathan, collided in a war that shattered the boundaries of reality!',
-      durationEstimateMs: 6500,
+      text: 'Long before the arenas were forged, two primeval giants collided in a war that shattered reality!',
+      durationEstimateMs: 2500,
     },
     {
       id: 'ch1_line2',
       speakerId: 'titan_magma',
       text: 'I am the eternal flame! I will scorch this entire cosmos into ash!',
-      durationEstimateMs: 3800,
+      durationEstimateMs: 2200,
     },
     {
       id: 'ch1_line3',
       speakerId: 'titan_void',
       text: 'The void swallows all light! Submit to the infinite abyss!',
-      durationEstimateMs: 3800,
+      durationEstimateMs: 2200,
     },
   ],
 
-  // Chapter 2: The Dimensional Tear Opens
+  // Chapter 2: The Dimensional Tear Opens (The Dimensional Rift)
   1: [
     {
       id: 'ch2_line1',
       speakerId: 'narrator',
-      text: "The titans' apocalyptic clash tore open a swirling cosmic rift! A singularity of raw spacetime ruptured the heavens, pulling wandering mortals and fractured stars into its gravitational abyss.",
-      durationEstimateMs: 7000,
+      text: "The titans' clash tore open a colossal dimensional rift in the fabric of spacetime!",
+      durationEstimateMs: 2500,
     },
     {
       id: 'ch2_line2',
       speakerId: 'titan_void',
       text: 'Fall... into the dimensional singularity...',
-      durationEstimateMs: 3200,
+      durationEstimateMs: 2000,
     },
   ],
 
-  // Chapter 3: Falling Through the Rift
+  // Chapter 3: Falling Through the Rift (Falling Through)
   2: [
     {
       id: 'ch3_line1',
       speakerId: 'seeker',
       text: "I'm falling! The rift's gravity is tearing me across hyperspace!",
-      durationEstimateMs: 3600,
+      durationEstimateMs: 2400,
     },
     {
       id: 'ch3_line2',
       speakerId: 'narrator',
-      text: 'Sucked through the cosmic wormhole, you tumbled through hyperspace before crash-landing upon a mysterious miniature world, surrounded by ancient ruins and shimmering energy.',
-      durationEstimateMs: 6800,
-    },
-    {
-      id: 'ch3_line3',
-      speakerId: 'seeker',
-      text: 'Where am I? What is this strange mystical world...?',
-      durationEstimateMs: 3400,
+      text: 'You crash-land upon the mystical miniature world of the Arena!',
+      durationEstimateMs: 2200,
     },
   ],
 
-  // Chapter 4: The Grand Wizard's Blessing
+  // Chapter 4: The Grand Wizard's Blessing (The Wizard Giving Magic)
   3: [
     {
       id: 'ch4_line1',
       speakerId: 'narrator',
-      text: 'An ancient Grand Arch-Wizard emerged from the ruins and channeled his godlike powers into your soul! The reaction cascade began, giving you mastery over all fifty elements of the cosmos!',
-      durationEstimateMs: 7200,
+      text: 'An ancient Grand Arch-Wizard channeled godlike elemental magic into your soul!',
+      durationEstimateMs: 2400,
     },
     {
       id: 'ch4_line2',
       speakerId: 'wizard',
-      text: 'Rise, young wanderer! Darkness awakens. Take my life power... all fifty elements are now yours to wield!',
-      durationEstimateMs: 5200,
+      text: 'Rise, young wanderer! Take my power... all fifty elements are now yours!',
+      durationEstimateMs: 2500,
     },
     {
       id: 'ch4_line3',
       speakerId: 'seeker',
-      text: 'By the stars... I can feel the primal magic surging through my hands!',
-      durationEstimateMs: 3800,
+      text: 'By the stars... I can feel the godlike magic surging through my hands!',
+      durationEstimateMs: 2000,
     },
   ],
 
-  // Chapter 5: Ambushed in the Shadows
+  // Chapter 5: Ambushed in the Shadows (Stealing The Magic)
   4: [
     {
       id: 'ch5_line1',
       speakerId: 'narrator',
-      text: "Suddenly, the sky turned pitch black! The sinister Void Overlord struck from the shadows, violently siphoning the wizard's godlike power from your chest!",
-      durationEstimateMs: 6500,
+      text: 'Suddenly, the sky turned black as the sinister Void Overlord struck from the dark!',
+      durationEstimateMs: 2400,
     },
     {
       id: 'ch5_line2',
       speakerId: 'void_overlord',
       text: 'Foolish old wizard! That godlike power belongs to the Void! IT IS MINE!',
-      durationEstimateMs: 4400,
+      durationEstimateMs: 2500,
     },
     {
       id: 'ch5_line3',
       speakerId: 'wizard',
-      text: 'No! You fiend! Protect the starter embers!',
-      durationEstimateMs: 3000,
+      text: 'No! Protect the starter embers!',
+      durationEstimateMs: 1800,
     },
     {
       id: 'ch5_line4',
-      speakerId: 'narrator',
-      text: 'The demon fled into the cosmos, leaving you with only the basic starter embers of Fire, Water, and Earth.',
-      durationEstimateMs: 4800,
-    },
-    {
-      id: 'ch5_line5',
       speakerId: 'seeker',
       text: 'My magic... he violently ripped it away! Only three starter embers remain!',
-      durationEstimateMs: 4000,
+      durationEstimateMs: 2200,
     },
   ],
 
-  // Chapter 6: The Mission to Reclaim the Power
+  // Chapter 6: The Void Overlord in the Dark Clouds (The One in the Dark Clouds)
   5: [
     {
       id: 'ch6_line1',
-      speakerId: 'wizard',
-      text: 'Do not despair! You still hold the Three Starter Embers. Train, master the elements, and battle through the arenas to defeat the Ultimate Boss on Round 1000 and reclaim the stolen power!',
-      durationEstimateMs: 7800,
+      speakerId: 'void_overlord',
+      text: 'From the dark clouds, I rule the cosmos! Face me on Round 1000 if you dare!',
+      durationEstimateMs: 2600,
     },
     {
       id: 'ch6_line2',
-      speakerId: 'void_overlord',
-      text: 'Face me on Round 1000 if you dare, pathetic worm!',
-      durationEstimateMs: 3800,
+      speakerId: 'wizard',
+      text: 'Do not despair! Defeat the Overlord in the dark clouds on Round 1000 to reclaim your power!',
+      durationEstimateMs: 2500,
     },
     {
       id: 'ch6_line3',
       speakerId: 'seeker',
-      text: 'I will train, conquer every arena, and defeat the Void Overlord on Round 1000!',
-      durationEstimateMs: 4200,
+      text: 'I will conquer every arena and defeat the Void Overlord in the dark clouds on Round 1000!',
+      durationEstimateMs: 2400,
     },
     {
       id: 'ch6_line4',
       speakerId: 'narrator',
-      text: 'Your mission begins now! Ascend through the gauntlet and reclaim your destiny!',
-      durationEstimateMs: 4500,
+      text: 'Your mission begins now! Ascend through the arenas and reclaim your destiny!',
+      durationEstimateMs: 2200,
     },
   ],
 };

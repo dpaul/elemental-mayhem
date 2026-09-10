@@ -43,8 +43,8 @@ describe('OriginCutsceneManager', () => {
     expect(CUTSCENE_CHAPTERS[1].title).toBe('The Dimensional Tear Opens');
     expect(CUTSCENE_CHAPTERS[2].title).toBe('Falling Through the Rift');
     expect(CUTSCENE_CHAPTERS[3].title).toBe("The Grand Wizard's Blessing");
-    expect(CUTSCENE_CHAPTERS[4].title).toBe('Ambushed in the Shadows');
-    expect(CUTSCENE_CHAPTERS[5].title).toBe('The Mission to Reclaim the Power');
+    expect(CUTSCENE_CHAPTERS[4].title).toBe('The Void Overlord Steals the Magic');
+    expect(CUTSCENE_CHAPTERS[5].title).toBe('The Void Overlord in the Dark Clouds');
   });
 
   it('should navigate through chapters correctly', () => {
