@@ -102,6 +102,13 @@ export class OriginCutsceneManager {
   private modeBtnEl: HTMLElement | null = null;
   private viewMode: 'video' | 'stage' = 'video';
 
+  // Progress & Duration tracking for remaining time
+  private progressTimer: any = null;
+  private chapterStartTime: number = Date.now();
+  private chapterDurationMs: number = 8500;
+  private isPausedTime: number = 0;
+  private accumulatedPausedMs: number = 0;
+
   // Callbacks
   public onEnterArena?: () => void;
   public onOpenSandbox?: () => void;
@@ -150,23 +157,6 @@ export class OriginCutsceneManager {
 
       this.videoEl.addEventListener('timeupdate', () => {
         if (!this.videoEl) return;
-        const cur = this.videoEl.currentTime;
-        const dur = this.videoEl.duration || 30;
-        const pct = (cur / dur) * 100;
-        if (this.videoProgressEl) {
-          this.videoProgressEl.style.width = `${Math.min(100, Math.max(0, pct))}%`;
-        }
-
-        // Format timestamps 00:xx / 00:30
-        const pad = (num: number) => String(Math.floor(num)).padStart(2, '0');
-        const curSec = Math.min(30, Math.floor(cur));
-        const durSec = Math.floor(dur);
-        const timeStr = `00:${pad(curSec)} / 00:${pad(durSec)}`;
-
-        const timeDisplay = document.getElementById('video-hud-time-display');
-        if (timeDisplay) timeDisplay.textContent = timeStr;
-        const timeTag = document.getElementById('video-time-tag');
-        if (timeTag) timeTag.textContent = `${timeStr} • 60 FPS`;
 
         // Loop the 5-second video footage for the active chapter while speech continues,
         // ensuring the video stays dynamic without prematurely cutting off dialogue!
@@ -177,6 +167,7 @@ export class OriginCutsceneManager {
             this.videoEl.currentTime = segStart;
           }
         }
+        this.updateProgressUI();
       });
 
       this.videoEl.addEventListener('ended', () => {
@@ -220,13 +211,27 @@ export class OriginCutsceneManager {
       const rect = scrubber.getBoundingClientRect();
       const clickX = e.clientX - rect.left;
       const pct = Math.max(0, Math.min(1, clickX / rect.width));
-      const targetTime = pct * 30; // 30-second total video length
-      if (this.videoEl) {
-        this.videoEl.currentTime = targetTime;
-      }
-      const targetChapter = Math.min(CUTSCENE_CHAPTERS.length - 1, Math.floor(targetTime / 5));
-      this.goToChapter(targetChapter, false);
+      const targetChapter = Math.min(CUTSCENE_CHAPTERS.length - 1, Math.floor(pct * CUTSCENE_CHAPTERS.length));
+      this.soundEngine.playCutscenePipBlip();
+      this.goToChapter(targetChapter, true);
     });
+
+    // Full Cutscene Overall Bottom Timeline Bar Click Scrub
+    const bottomTimeline = document.getElementById('cutscene-overall-timeline-wrap');
+    bottomTimeline?.addEventListener('click', (e: MouseEvent) => {
+      const bar = document.getElementById('cutscene-overall-timeline-bar') || bottomTimeline;
+      const rect = bar.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const pct = Math.max(0, Math.min(1, clickX / rect.width));
+      const targetChapter = Math.min(CUTSCENE_CHAPTERS.length - 1, Math.floor(pct * CUTSCENE_CHAPTERS.length));
+      this.soundEngine.playCutscenePipBlip();
+      this.goToChapter(targetChapter, true);
+    });
+
+    // Start Real-Time Cutscene Progress Loop for Remaining Duration
+    if (!this.progressTimer && typeof window !== 'undefined') {
+      this.progressTimer = setInterval(() => this.updateProgressUI(), 60);
+    }
 
     // View mode toggle
     if (this.modeBtnEl) {
@@ -320,11 +325,23 @@ export class OriginCutsceneManager {
     this.musicEngine.start();
     this.musicEngine.setChapter(0);
     this.setViewMode(this.viewMode);
+
+    this.chapterStartTime = Date.now();
+    this.accumulatedPausedMs = 0;
+    this.isPausedTime = 0;
+    if (!this.progressTimer && typeof window !== 'undefined') {
+      this.progressTimer = setInterval(() => this.updateProgressUI(), 60);
+    }
+
     this.goToChapter(0, true);
     this.play();
   }
 
   public close(): void {
+    if (this.progressTimer) {
+      clearInterval(this.progressTimer);
+      this.progressTimer = null;
+    }
     if (typeof document !== 'undefined') {
       const overlay = document.getElementById('origin-cutscene-overlay');
       if (overlay) {
@@ -452,12 +469,90 @@ export class OriginCutsceneManager {
     this.triggerChapterSound(index);
     this.musicEngine.setChapter(index);
 
+    // Track chapter timeline and remaining duration
+    this.chapterStartTime = Date.now();
+    this.accumulatedPausedMs = 0;
+    this.isPausedTime = 0;
+    this.chapterDurationMs = this.getChapterDurationMs(index);
+    this.updateProgressUI();
+
     // Trigger multi-voice character dialogue (speaks all narrative and dialogue lines)
     this.voiceManager.playChapter(index);
 
     // Reset auto-advance timer if playing
     if (this.isPlaying) {
       this.scheduleNext();
+    }
+  }
+
+  public getChapterDurationMs(index: number): number {
+    if (this.voiceManager.isMuted()) {
+      return 8500;
+    }
+    const lines = this.voiceManager.getChapterLines(index);
+    if (lines.length === 0) return 5000;
+    const linesDuration = lines.reduce((acc, l) => acc + (l.durationEstimateMs || 4000), 0);
+    const pauses = (lines.length - 1) * 350 + 200 + 1800;
+    return Math.max(5000, linesDuration + pauses);
+  }
+
+  public updateProgressUI(): void {
+    if (typeof document === 'undefined') return;
+    let subProgress = 0;
+    const now = this.isPlaying ? Date.now() : (this.isPausedTime || Date.now());
+    const elapsedInChapter = Math.max(0, now - this.chapterStartTime - this.accumulatedPausedMs);
+
+    if (this.chapterDurationMs > 0) {
+      subProgress = Math.min(1.0, elapsedInChapter / this.chapterDurationMs);
+    }
+
+    const totalChapters = CUTSCENE_CHAPTERS.length; // 6
+    const overallPct = Math.min(100, Math.max(0, ((this.currentChapterIndex + subProgress) / totalChapters) * 100));
+
+    // 30 seconds nominal cutscene duration
+    const totalDurationSec = 30;
+    const elapsedSec = Math.min(totalDurationSec, (overallPct / 100) * totalDurationSec);
+    const remainingSec = Math.max(0, totalDurationSec - elapsedSec);
+
+    const pad = (num: number) => String(Math.floor(num)).padStart(2, '0');
+    const elapsedStr = `00:${pad(elapsedSec)}`;
+    const remainingStr = `00:${String(Math.ceil(remainingSec)).padStart(2, '0')}`;
+    const totalStr = `00:${pad(totalDurationSec)}`;
+
+    // 1. Update Video Player HUD Progress & Timestamps
+    if (this.videoProgressEl) {
+      this.videoProgressEl.style.width = `${overallPct}%`;
+    }
+    const hudTimeDisplay = document.getElementById('video-hud-time-display');
+    if (hudTimeDisplay) {
+      hudTimeDisplay.textContent = `${elapsedStr} / ${totalStr} (-${remainingStr})`;
+    }
+    const videoTimeTag = document.getElementById('video-time-tag');
+    if (videoTimeTag) {
+      videoTimeTag.textContent = `${elapsedStr} / ${totalStr} • ⏳ ${remainingStr} REMAINING`;
+    }
+
+    // 2. Update Bottom Overall Cutscene Timeline Bar & Badges
+    const overallFill = document.getElementById('cutscene-overall-progress-fill');
+    if (overallFill) {
+      overallFill.style.width = `${overallPct}%`;
+    }
+    const remainingText = document.getElementById('cutscene-overall-remaining-text');
+    if (remainingText) {
+      remainingText.textContent = `${remainingStr} remaining`;
+    }
+    const elapsedText = document.getElementById('cutscene-overall-elapsed-text');
+    if (elapsedText) {
+      elapsedText.textContent = `${elapsedStr} / ${totalStr} • Chapter ${this.currentChapterIndex + 1} of ${totalChapters}`;
+    }
+
+    // 3. Keep video looping within chapter footage while dialogue plays
+    if (this.videoEl && this.viewMode === 'video' && this.isPlaying) {
+      const segStart = this.currentChapterIndex * 5;
+      const segEnd = segStart + 4.95;
+      if (this.videoEl.currentTime >= segEnd || this.videoEl.currentTime < segStart) {
+        this.videoEl.currentTime = segStart;
+      }
     }
   }
 
@@ -521,6 +616,10 @@ export class OriginCutsceneManager {
 
   public play(): void {
     this.isPlaying = true;
+    if (this.isPausedTime > 0) {
+      this.accumulatedPausedMs += (Date.now() - this.isPausedTime);
+      this.isPausedTime = 0;
+    }
     if (typeof document !== 'undefined') {
       const btn = document.getElementById('cutscene-play-pause-btn');
       if (btn) btn.textContent = '⏸ PAUSE';
@@ -535,10 +634,12 @@ export class OriginCutsceneManager {
     this.musicEngine.resume();
     this.voiceManager.replayCurrentChapterDialogue();
     this.scheduleNext();
+    this.updateProgressUI();
   }
 
   public pause(): void {
     this.isPlaying = false;
+    this.isPausedTime = Date.now();
     this.musicEngine.pause();
     this.voiceManager.stopAll();
     if (typeof document !== 'undefined') {
@@ -556,6 +657,7 @@ export class OriginCutsceneManager {
       clearTimeout(this.autoAdvanceTimer);
       this.autoAdvanceTimer = null;
     }
+    this.updateProgressUI();
   }
 
   private scheduleNext(): void {

@@ -78,6 +78,11 @@ describe('Cinematic Video Player & Voice Acting System', () => {
       'video-hud-voice-btn': new MockElement(),
       'video-hud-subtitles-btn': new MockElement(),
       'video-hud-theater-btn': new MockElement(),
+      'cutscene-overall-timeline-wrap': new MockElement(),
+      'cutscene-overall-timeline-bar': new MockElement(),
+      'cutscene-overall-progress-fill': new MockElement(),
+      'cutscene-overall-remaining-text': new MockElement(),
+      'cutscene-overall-elapsed-text': new MockElement(),
       'cutscene-dialogue-card': new MockElement(),
       'cutscene-speaker-avatar': new MockElement(),
       'cutscene-voice-waves': new MockElement(),
@@ -212,4 +217,44 @@ describe('Cinematic Video Player & Voice Acting System', () => {
     expect(centerBtn?.classList.contains('show')).toBe(false);
     expect(hudPlayBtn?.textContent).toBe('⏸');
   });
+
+  it('accurately represents how much longer the cutscene is on both video scrubber and bottom timeline bar', () => {
+    cutsceneManager.initDOM();
+
+    // Start at Chapter 1 (0 of 6)
+    cutsceneManager.goToChapter(0, true);
+    cutsceneManager.pause(); // Pause so time is fixed at start of Chapter 1
+
+    const overallFill = elements['cutscene-overall-progress-fill'];
+    const remainingText = elements['cutscene-overall-remaining-text'];
+    const elapsedText = elements['cutscene-overall-elapsed-text'];
+    const videoProgress = elements['cutscene-video-progress'];
+    const hudTimeDisplay = elements['video-hud-time-display'];
+
+    expect(overallFill?.style.width).toBe('0%');
+    expect(videoProgress?.style.width).toBe('0%');
+    expect(remainingText?.textContent).toBe('00:30 remaining');
+    expect(elapsedText?.textContent).toContain('00:00 / 00:30');
+    expect(hudTimeDisplay?.textContent).toContain('00:00 / 00:30 (-00:30)');
+
+    // Advance to Chapter 4 (3 of 6, halfway through cutscene)
+    cutsceneManager.goToChapter(3, true);
+    cutsceneManager.pause();
+
+    expect(overallFill?.style.width).toBe('50%');
+    expect(videoProgress?.style.width).toBe('50%');
+    expect(remainingText?.textContent).toBe('00:15 remaining');
+    expect(elapsedText?.textContent).toContain('00:15 / 00:30');
+    expect(hudTimeDisplay?.textContent).toContain('00:15 / 00:30 (-00:15)');
+
+    // Advance to Chapter 6 (5 of 6, final chapter)
+    cutsceneManager.goToChapter(5, true);
+    cutsceneManager.pause();
+
+    // At start of Chapter 6 (5/6 = ~83.33%)
+    const fillWidth = parseFloat(overallFill?.style.width || '0');
+    expect(fillWidth).toBeCloseTo(83.33, 1);
+    expect(remainingText?.textContent).toBe('00:05 remaining');
+  });
 });
+

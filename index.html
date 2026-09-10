@@ -1401,6 +1401,31 @@
           <button id="cutscene-play-pause-btn" class="cutscene-nav-btn btn-play-pause" title="Play or Pause Auto-Advance">⏸ PAUSE</button>
           <button id="cutscene-next-btn" class="cutscene-nav-btn btn-next" title="Next Chapter">NEXT ▶</button>
         </div>
+
+        <!-- Full Cutscene Duration Progress Bar at Bottom of Screen -->
+        <div class="cutscene-overall-timeline-wrap" id="cutscene-overall-timeline-wrap" title="Cutscene Progress: Click anywhere to jump to that chapter">
+          <div class="cutscene-overall-timeline-header">
+            <div class="cot-header-left">
+              <span class="cot-icon">⏳</span>
+              <span class="cot-label">CUTSCENE REMAINING:</span>
+              <span class="cot-remaining-time" id="cutscene-overall-remaining-text">00:30 remaining</span>
+            </div>
+            <div class="cot-header-right" id="cutscene-overall-elapsed-text">
+              00:00 / 00:30 • Chapter 1 of 6
+            </div>
+          </div>
+          <div class="cutscene-overall-timeline-bar" id="cutscene-overall-timeline-bar">
+            <div class="cutscene-overall-progress-fill" id="cutscene-overall-progress-fill"></div>
+            <div class="cutscene-overall-ticks">
+              <span class="cot-tick" data-ch="0" style="left: 0%" title="Chapter 1: Titans Collided"></span>
+              <span class="cot-tick" data-ch="1" style="left: 16.66%" title="Chapter 2: Cosmic Rift"></span>
+              <span class="cot-tick" data-ch="2" style="left: 33.33%" title="Chapter 3: Falling In"></span>
+              <span class="cot-tick" data-ch="3" style="left: 50%" title="Chapter 4: Wizard Blessing"></span>
+              <span class="cot-tick" data-ch="4" style="left: 66.66%" title="Chapter 5: Ambushed"></span>
+              <span class="cot-tick" data-ch="5" style="left: 83.33%" title="Chapter 6: Mission"></span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
