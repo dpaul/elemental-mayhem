@@ -8736,7 +8736,13 @@ export function createHeroForElement(element: ElementType): Unit {
   const maxAp = config.bonusStats?.maxAp || 10;
 
   // Deep copy abilities to prevent state bleed
-  const abilities: Ability[] = config.abilities.map((ab) => ({
+  // Normal characters can ONLY have 10 powers; ONLY the Administrator ('Admin') has all of them!
+  const isAdministrator = element === 'Admin' || config.element === 'Admin';
+  const sourceAbilities = isAdministrator
+    ? config.abilities
+    : config.abilities.slice(0, 10);
+
+  const abilities: Ability[] = sourceAbilities.map((ab) => ({
     ...ab,
     currentCooldown: 0,
   }));

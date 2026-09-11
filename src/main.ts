@@ -348,9 +348,10 @@ export class GameApp {
     }
 
     // Live Admin Power Listener:
-    // Whenever a new admin power is created or registered, instantly grant it to the player!
+    // Only the Administrator ('Admin') has all powers!
     onAdminAbilityRegistered((newAbility) => {
-      if (this.hasAdminAccess() || this.selectedElement === 'Admin' || this.hero?.stats?.elementalAffinity === 'Admin') {
+      const isAdministrator = this.selectedElement === 'Admin' || this.hero?.stats?.elementalAffinity === 'Admin';
+      if (isAdministrator) {
         if (this.hero && this.hero.abilities) {
           const existingIdx = this.hero.abilities.findIndex((a) => a.id === newAbility.id);
           if (existingIdx >= 0) {
@@ -1356,7 +1357,13 @@ export class GameApp {
   }
 
   public syncAdminPowers(): void {
-    if (!this.hasAdminAccess() && this.selectedElement !== 'Admin' && this.hero?.stats?.elementalAffinity !== 'Admin') {
+    const isAdministrator = this.selectedElement === 'Admin' || this.hero?.stats?.elementalAffinity === 'Admin';
+    if (!isAdministrator) {
+      // Normal characters can ONLY have 10 powers!
+      if (this.hero && this.hero.abilities && this.hero.abilities.length > 10) {
+        this.hero.abilities = this.hero.abilities.slice(0, 10);
+        this.updateHUD();
+      }
       return;
     }
     if (!this.hero || !this.hero.abilities) return;
@@ -1384,6 +1391,19 @@ export class GameApp {
       return { success: false, count: 0, message: 'No active hero found.' };
     }
 
+    // ONLY the Administrator can have all of them!
+    // If not already the Administrator, transform into the Administrator to wield all powers:
+    if (this.selectedElement !== 'Admin' && this.hero.stats.elementalAffinity !== 'Admin') {
+      this.selectedElement = 'Admin';
+      this.hero.name = 'Administrator';
+      this.hero.avatar = '👑⚡';
+      this.hero.stats.elementalAffinity = 'Admin';
+      this.hero.stats.maxHp = Math.max(this.hero.stats.maxHp, 999);
+      this.hero.stats.currentHp = this.hero.stats.maxHp;
+      this.hero.stats.maxAp = Math.max(this.hero.stats.maxAp, 1000);
+      this.hero.stats.currentAp = this.hero.stats.maxAp;
+    }
+
     populateAdminAbilities();
     const adminAbilities = HERO_CLASSES.Admin.abilities;
     const existingIds = new Set(this.hero.abilities.map((a) => a.id));
@@ -1398,7 +1418,7 @@ export class GameApp {
     }
 
     this.updateHUD();
-    this.combatEngine?.addLog('system', `👑 ADMIN PRIVILEGE: Equipped all ${this.hero.abilities.length} elemental & admin powers!`);
+    this.combatEngine?.addLog('system', `👑 ADMIN PRIVILEGE: Administrator equipped all ${this.hero.abilities.length} elemental & admin powers!`);
     this.renderer?.particleEngine?.triggerScreenShake(6, 250);
     if (this.renderer && this.hero.coord) {
       const pos = this.renderer.gridToScreen(this.hero.coord);
@@ -1410,7 +1430,7 @@ export class GameApp {
     return {
       success: true,
       count: this.hero.abilities.length,
-      message: `Granted all powers! Active arsenal has ${this.hero.abilities.length} abilities.`,
+      message: `Granted all powers to the Administrator! Active arsenal has ${this.hero.abilities.length} abilities.`,
     };
   }
 
@@ -5339,6 +5359,14 @@ export class GameApp {
       this.combatEngine.coopHero.abilities.forEach((a) => (a.currentCooldown = 0));
     }
 
+    // Enforce 10 powers cap for non-admin characters (only Administrator has all of them)
+    if (this.hero.stats.elementalAffinity !== 'Admin' && this.hero.abilities.length > 10) {
+      this.hero.abilities = this.hero.abilities.slice(0, 10);
+    }
+    if (this.isCoopMode && this.combatEngine.coopHero && this.combatEngine.coopHero.stats.elementalAffinity !== 'Admin' && this.combatEngine.coopHero.abilities.length > 10) {
+      this.combatEngine.coopHero.abilities = this.combatEngine.coopHero.abilities.slice(0, 10);
+    }
+
     // If reaching Round 1000 (The Void Overlord showdown), empower hero with the Grand Arch-Wizard's Ascended Blessing!
     if (this.currentRound === 1000) {
       if (this.hero.stats.maxHp < 5000) {
@@ -5561,6 +5589,9 @@ export class GameApp {
     this.deadUnitIds.clear();
 
     this.hero = saveData.hero;
+    if (this.hero && this.hero.stats.elementalAffinity !== 'Admin' && this.hero.abilities && this.hero.abilities.length > 10) {
+      this.hero.abilities = this.hero.abilities.slice(0, 10);
+    }
     this.enemies = saveData.enemies;
 
     this.grid = new Grid(10);

@@ -11,7 +11,7 @@ import {
 } from '../constants/classes';
 import { UnlockManager } from '../engine/UnlockManager';
 import { AdminManager } from '../engine/AdminManager';
-import { Ability, Unit } from '../types';
+import { Ability, Unit, ElementType } from '../types';
 
 describe('Admin Powers & Dynamic Ability Acquisition (Instantly Get New Admin Powers)', () => {
   let unlockManager: UnlockManager;
@@ -202,5 +202,20 @@ describe('Admin Powers & Dynamic Ability Acquisition (Instantly Get New Admin Po
     HERO_CLASSES.Admin.abilities = HERO_CLASSES.Admin.abilities.filter(
       (a) => a.id !== 'admin_fire_test_cataclysm_999' && !a.name.includes('Mega Cataclysm Test')
     );
+  });
+
+  it('should ensure non-admin characters only have 10 powers and only Administrator has all of them', () => {
+    populateAdminAbilities();
+
+    // Administrator has all powers (>400)
+    const adminHero: Unit = createHeroForElement('Admin');
+    expect(adminHero.abilities.length).toBeGreaterThan(400);
+
+    // Mortal heroes have strictly at most 10 powers (standard 10-power kit)
+    const mortalElements: ElementType[] = ['Fire', 'Water', 'Earth', 'Lightning', 'Void', 'Darkness', 'Nature', 'Sky'];
+    for (const elem of mortalElements) {
+      const hero: Unit = createHeroForElement(elem);
+      expect(hero.abilities.length).toBe(10);
+    }
   });
 });
