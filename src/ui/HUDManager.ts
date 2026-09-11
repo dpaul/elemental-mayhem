@@ -291,14 +291,14 @@ export class HUDManager {
     essence: number,
     xp: number,
     round: number,
-    maxRounds: number | string = '10000000000000000000000000000000000000000000000000'
+    maxRounds: number | string = '1,000'
   ): void {
     this.essenceCounter.textContent = `${essence}`;
     this.xpCounter.textContent = `${xp}`;
     const isBoss = round % 5 === 0;
     const maxRoundsStr =
-      typeof maxRounds === 'number' && maxRounds > 1e15
-        ? '10000000000000000000000000000000000000000000000000'
+      typeof maxRounds === 'number'
+        ? maxRounds.toLocaleString()
         : maxRounds.toString();
     if (isBoss) {
       this.roundIndicator.textContent = `ROUND ${round.toLocaleString()} / ${maxRoundsStr} 👑 BOSS`;

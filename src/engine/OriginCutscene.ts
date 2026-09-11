@@ -556,7 +556,8 @@ export class OriginCutsceneManager {
     const subProgress = Math.min(1.0, elapsedInChapter / chapterDuration);
     elapsedSec = Math.min(totalDurationSec, (this.currentChapterIndex + subProgress) * 5);
 
-    const overallPct = Math.min(100, Math.max(0, (elapsedSec / totalDurationSec) * 100));
+    const rawPct = Math.min(100, Math.max(0, (elapsedSec / totalDurationSec) * 100));
+    const overallPct = Math.abs(rawPct - Math.round(rawPct)) < 0.05 ? Math.round(rawPct) : Math.round(rawPct * 10) / 10;
     const remainingSec = Math.max(0, totalDurationSec - elapsedSec);
 
     const pad = (num: number) => String(Math.floor(num)).padStart(2, '0');

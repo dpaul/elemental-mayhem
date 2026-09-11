@@ -1340,30 +1340,30 @@ export class CombatEngine {
 
   public resetRoundState(): void {
     // 1. Restore hero health and AP (mana) to full
-    this.hero.isDead = false;
-    this.hero.stats.currentHp = this.hero.stats.maxHp;
-    this.hero.stats.currentAp = this.hero.stats.maxAp;
+    if (this.hero) {
+      this.hero.isDead = false;
+      this.hero.stats.currentHp = this.hero.stats.maxHp;
+      this.hero.stats.currentAp = this.hero.stats.maxAp;
+      // 2. Clear all status effects on hero
+      this.statusManager.clearStatusEffects(this.hero);
+      // 3. Reset all ability cooldowns
+      this.hero.abilities?.forEach((ability) => {
+        ability.currentCooldown = 0;
+      });
+    }
 
     if (this.coopHero) {
       this.coopHero.isDead = false;
       this.coopHero.stats.currentHp = this.coopHero.stats.maxHp;
       this.coopHero.stats.currentAp = this.coopHero.stats.maxAp;
       this.statusManager.clearStatusEffects(this.coopHero);
-      this.coopHero.abilities.forEach((ability) => {
+      this.coopHero.abilities?.forEach((ability) => {
         ability.currentCooldown = 0;
       });
     }
 
-    // 2. Clear all status effects on hero
-    this.statusManager.clearStatusEffects(this.hero);
-
-    // 3. Reset all ability cooldowns
-    this.hero.abilities.forEach((ability) => {
-      ability.currentCooldown = 0;
-    });
-
     // 4. Clear all hazards from the battlefield
-    this.hazardManager.clearAllHazards();
+    this.hazardManager?.clearAllHazards();
 
     // 5. Clear summons and pending reanimations
     this.zombies = [];

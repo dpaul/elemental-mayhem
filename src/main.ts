@@ -154,8 +154,8 @@ export class GameApp {
   private hero: Unit;
   private enemies: Unit[];
   private currentRound: number = 1;
-  private maxRounds: number = 1e49;
-  public static readonly MAX_ROUNDS_STR: string = '10000000000000000000000000000000000000000000000000';
+  private maxRounds: number = 1000;
+  public static readonly MAX_ROUNDS_STR: string = '1,000';
   private maxRoundsStr: string = GameApp.MAX_ROUNDS_STR;
   private selectedElement: ElementType = 'Fire';
   private selectedClassCategory: string = 'All';
@@ -4695,7 +4695,11 @@ export class GameApp {
         setTimeout(() => {
           this.isRoundVictoryAnimating = false;
           this.isBusy = false;
-          this.advanceToNextRound();
+          if (this.currentRound >= this.maxRounds) {
+            this.showVictoryModal();
+          } else {
+            this.advanceToNextRound();
+          }
         }, 1800);
       }
       return;
@@ -5320,6 +5324,46 @@ export class GameApp {
       this.combatEngine.coopHero.coord = { x: 1, y: 3 };
     }
 
+    // Fully refresh and heal hero for the next round
+    this.hero.isDead = false;
+    this.hero.stats.currentHp = this.hero.stats.maxHp;
+    this.hero.stats.currentAp = this.hero.stats.maxAp;
+    this.hero.statusEffects = [];
+    this.hero.abilities.forEach((a) => (a.currentCooldown = 0));
+
+    if (this.isCoopMode && this.combatEngine.coopHero) {
+      this.combatEngine.coopHero.isDead = false;
+      this.combatEngine.coopHero.stats.currentHp = this.combatEngine.coopHero.stats.maxHp;
+      this.combatEngine.coopHero.stats.currentAp = this.combatEngine.coopHero.stats.maxAp;
+      this.combatEngine.coopHero.statusEffects = [];
+      this.combatEngine.coopHero.abilities.forEach((a) => (a.currentCooldown = 0));
+    }
+
+    // If reaching Round 1000 (The Void Overlord showdown), empower hero with the Grand Arch-Wizard's Ascended Blessing!
+    if (this.currentRound === 1000) {
+      if (this.hero.stats.maxHp < 5000) {
+        this.hero.stats.maxHp = 5000;
+        this.hero.stats.currentHp = 5000;
+      }
+      if (this.hero.stats.maxAp < 8) {
+        this.hero.stats.maxAp = 8;
+        this.hero.stats.currentAp = 8;
+      }
+      if (!this.hero.level || this.hero.level < 50) {
+        this.hero.level = 50;
+      }
+      this.totalEssence = Math.max(this.totalEssence, 50000);
+      this.unlockManager.unlockAllElements(true);
+      for (const ab of this.hero.abilities) {
+        ab.level = Math.max(ab.level || 1, 15);
+        ab.baseDamage = Math.max(ab.baseDamage, 350);
+      }
+      this.combatEngine.addLog(
+        'system',
+        '✨ [ARCH-WIZARD BLESSING] The Grand Arch-Wizard channels the 50-element cascade into your spirit (5,000 HP, 8 AP, Level 15 Spells) to vanquish The Void Overlord!'
+      );
+    }
+
     // Generate new enemies for this round
     this.enemies = this.escalationManager.generateRoundEnemies(this.currentRound);
     this.combatEngine.enemies = this.enemies;
@@ -5369,8 +5413,23 @@ export class GameApp {
     this.updateHomeResumeTile();
     this.soundEngine.playVictoryFanfare();
     this.turnManager.setPhase('VICTORY');
-    this.outcomeTitle.textContent = 'GAUNTLET CONQUERED!';
-    this.outcomeSubtitle.textContent = `You have mastered all ${this.maxRoundsStr} rounds of the Elemental Mayhem!`;
+    if (this.currentRound >= 1000) {
+      this.outcomeTitle.textContent = '👑 VOID OVERLORD VANQUISHED!';
+      this.outcomeSubtitle.textContent = `You have conquered all 1,000 rounds, defeated the Void Overlord, and reclaimed all 50 elemental powers!`;
+      this.totalEssence += 50000;
+      this.totalXp += 50000;
+      this.unlockManager.unlockAllElements(true);
+      this.combatEngine.addLog(
+        'system',
+        '👑 LORE MISSION COMPLETE: THE VOID OVERLORD HAS BEEN VANQUISHED! All stolen godlike elemental magic has been reclaimed (+50,000 Essence)!'
+      );
+      if (this.renderer) {
+        this.renderer.particleEngine.triggerScreenShake(20, 600);
+      }
+    } else {
+      this.outcomeTitle.textContent = 'GAUNTLET CONQUERED!';
+      this.outcomeSubtitle.textContent = `You have mastered all ${this.maxRoundsStr} rounds of the Elemental Mayhem!`;
+    }
     this.renderOutcomeStats();
     this.gameOverModal.classList.remove('hidden');
   }

@@ -1807,8 +1807,8 @@ export class EscalationManager {
           stats: {
             maxHp: 25000,
             currentHp: 25000,
-            maxAp: 8,
-            currentAp: 8,
+            maxAp: 6,
+            currentAp: 6,
             moveCostPerTile: 1,
             elementalAffinity: 'Void',
           },
@@ -1819,12 +1819,12 @@ export class EscalationManager {
               element: 'Void',
               icon: '😈',
               apCost: 2,
-              cooldown: 0,
+              cooldown: 1,
               currentCooldown: 0,
               range: 6,
               aoeRadius: 1,
               targeting: 'SingleUnit',
-              baseDamage: 150,
+              baseDamage: 120,
               appliesStatus: 'Burning',
               statusDuration: 3,
               createsHazard: 'VoidRift',
@@ -1838,14 +1838,14 @@ export class EscalationManager {
               element: 'Void',
               icon: '🌌',
               apCost: 3,
-              cooldown: 0,
+              cooldown: 2,
               currentCooldown: 0,
               range: 5,
-              aoeRadius: 2,
+              aoeRadius: 1,
               targeting: 'SingleUnit',
-              baseDamage: 180,
+              baseDamage: 150,
               createsHazard: 'VoidRift',
-              hazardDuration: 4,
+              hazardDuration: 3,
               description: 'Collapses spacetime around the hero with crushing void gravity.',
               level: 10,
             },
@@ -1855,12 +1855,12 @@ export class EscalationManager {
               element: 'Void',
               icon: '👑',
               apCost: 3,
-              cooldown: 0,
+              cooldown: 3,
               currentCooldown: 0,
-              range: 7,
-              aoeRadius: 2,
+              range: 6,
+              aoeRadius: 1,
               targeting: 'SingleUnit',
-              baseDamage: 220,
+              baseDamage: 180,
               description: 'The supreme reality-shattering finishing strike of the Void Overlord.',
               level: 10,
             },
@@ -1880,8 +1880,8 @@ export class EscalationManager {
           stats: {
             maxHp: 3500,
             currentHp: 3500,
-            maxAp: 5,
-            currentAp: 5,
+            maxAp: 4,
+            currentAp: 4,
             moveCostPerTile: 1,
             elementalAffinity: 'Void',
           },
@@ -1892,12 +1892,12 @@ export class EscalationManager {
               element: 'Void',
               icon: '⚡',
               apCost: 2,
-              cooldown: 0,
+              cooldown: 1,
               currentCooldown: 0,
-              range: 4,
+              range: 3,
               aoeRadius: 0,
               targeting: 'SingleUnit',
-              baseDamage: 85,
+              baseDamage: 45,
               createsHazard: 'VoidRift',
               hazardDuration: 2,
               description: 'Cleaves reality open with dimensional energy.',
@@ -1917,8 +1917,8 @@ export class EscalationManager {
           stats: {
             maxHp: 3500,
             currentHp: 3500,
-            maxAp: 5,
-            currentAp: 5,
+            maxAp: 4,
+            currentAp: 4,
             moveCostPerTile: 1,
             elementalAffinity: 'Void',
           },
@@ -1929,12 +1929,12 @@ export class EscalationManager {
               element: 'Void',
               icon: '⚡',
               apCost: 2,
-              cooldown: 0,
+              cooldown: 1,
               currentCooldown: 0,
-              range: 4,
+              range: 3,
               aoeRadius: 0,
               targeting: 'SingleUnit',
-              baseDamage: 85,
+              baseDamage: 45,
               createsHazard: 'VoidRift',
               hazardDuration: 2,
               description: 'Cleaves reality open with dimensional energy.',
@@ -2113,30 +2113,31 @@ export class EscalationManager {
         break;
 
       default:
-        // Procedural generation for round > 15 up to 10000000000000000000000000000000000000000000000000 rounds
+        // Procedural generation for round > 15 up to 1000
         const isBossRound = round % 5 === 0;
-        const tierMultiplier = Math.min(
-          60,
-          1 + Math.min(25, (round - 15) * 0.08) + Math.log10(Math.max(1, round)) * 1.5
-        );
+        const progressFactor = Math.min(1, Math.max(0, (round - 15) / 985));
+        // HP scales progressively from 1.0x up to 4.5x
+        const hpMultiplier = 1 + progressFactor * 3.5;
+        // Damage scales conservatively from 1.0x to 2.0x so hero HP pool remains viable
+        const damageMultiplier = 1 + progressFactor * 1.0;
 
         if (isBossRound) {
-          const bossHp = Math.floor(350 * tierMultiplier);
+          const bossHp = Math.floor(400 * hpMultiplier);
           const bossAffinity: ElementType = ['Fire', 'Lightning', 'Void', 'Water', 'Earth', 'Poison'][
-            (round / 5) % 6
+            Math.floor(round / 5) % 6
           ] as ElementType;
 
           enemies.push({
             id: `procedural_boss_r${round}`,
-            name: `PRIMORDIAL OVERLORD (Tier ${round / 5} Boss)`,
+            name: `PRIMORDIAL OVERLORD (Tier ${Math.floor(round / 5)} Boss)`,
             faction: 'Enemy',
             avatar: '👑',
             coord: { x: 8, y: 5 },
             stats: {
               maxHp: bossHp,
               currentHp: bossHp,
-              maxAp: 7,
-              currentAp: 7,
+              maxAp: 6,
+              currentAp: 6,
               moveCostPerTile: 1,
               elementalAffinity: bossAffinity,
             },
@@ -2147,12 +2148,12 @@ export class EscalationManager {
                 element: bossAffinity,
                 icon: '💥',
                 apCost: 3,
-                cooldown: 0,
+                cooldown: 1,
                 currentCooldown: 0,
                 range: 5,
                 aoeRadius: 1,
                 targeting: 'SingleUnit',
-                baseDamage: Math.floor(45 * tierMultiplier),
+                baseDamage: Math.floor(35 * damageMultiplier),
                 createsHazard: bossAffinity === 'Fire' ? 'Burning' : bossAffinity === 'Water' ? 'Puddle' : bossAffinity === 'Void' ? 'VoidRift' : 'ToxicMire',
                 hazardDuration: 3,
                 description: 'Unleashes raw primordial calamity.',
@@ -2172,10 +2173,10 @@ export class EscalationManager {
             avatar: '👾',
             coord: { x: 7, y: 2 },
             stats: {
-              maxHp: Math.floor(90 * tierMultiplier),
-              currentHp: Math.floor(90 * tierMultiplier),
-              maxAp: 5,
-              currentAp: 5,
+              maxHp: Math.floor(85 * hpMultiplier),
+              currentHp: Math.floor(85 * hpMultiplier),
+              maxAp: 4,
+              currentAp: 4,
               moveCostPerTile: 1,
               elementalAffinity: bossAffinity,
             },
@@ -2186,12 +2187,12 @@ export class EscalationManager {
                 element: bossAffinity,
                 icon: '⚡',
                 apCost: 2,
-                cooldown: 0,
+                cooldown: 1,
                 currentCooldown: 0,
                 range: 4,
                 aoeRadius: 0,
                 targeting: 'SingleUnit',
-                baseDamage: Math.floor(32 * tierMultiplier),
+                baseDamage: Math.floor(20 * damageMultiplier),
                 description: 'Focused elemental energy.',
                 level: Math.floor(round / 4),
               },
@@ -2207,10 +2208,10 @@ export class EscalationManager {
             avatar: '👾',
             coord: { x: 7, y: 8 },
             stats: {
-              maxHp: Math.floor(90 * tierMultiplier),
-              currentHp: Math.floor(90 * tierMultiplier),
-              maxAp: 5,
-              currentAp: 5,
+              maxHp: Math.floor(85 * hpMultiplier),
+              currentHp: Math.floor(85 * hpMultiplier),
+              maxAp: 4,
+              currentAp: 4,
               moveCostPerTile: 1,
               elementalAffinity: bossAffinity,
             },
@@ -2221,12 +2222,12 @@ export class EscalationManager {
                 element: bossAffinity,
                 icon: '⚡',
                 apCost: 2,
-                cooldown: 0,
+                cooldown: 1,
                 currentCooldown: 0,
                 range: 4,
                 aoeRadius: 0,
                 targeting: 'SingleUnit',
-                baseDamage: Math.floor(32 * tierMultiplier),
+                baseDamage: Math.floor(20 * damageMultiplier),
                 description: 'Focused elemental energy.',
                 level: Math.floor(round / 4),
               },
@@ -2239,7 +2240,7 @@ export class EscalationManager {
           const elements: ElementType[] = ['Fire', 'Water', 'Lightning', 'Earth', 'Poison', 'Void'];
           for (let i = 0; i < 3; i++) {
             const elem = elements[(round + i) % elements.length];
-            const hp = Math.floor((100 + i * 15) * tierMultiplier);
+            const hp = Math.floor((75 + i * 15) * hpMultiplier);
             enemies.push({
               id: `procedural_enemy_${round}_${i}`,
               name: `Ascended ${elem} Adept`,
@@ -2249,8 +2250,8 @@ export class EscalationManager {
               stats: {
                 maxHp: hp,
                 currentHp: hp,
-                maxAp: 5,
-                currentAp: 5,
+                maxAp: 4,
+                currentAp: 4,
                 moveCostPerTile: 1,
                 elementalAffinity: elem,
               },
@@ -2266,7 +2267,7 @@ export class EscalationManager {
                   range: 4,
                   aoeRadius: 0,
                   targeting: 'SingleUnit',
-                  baseDamage: Math.floor(34 * tierMultiplier),
+                  baseDamage: Math.floor(22 * damageMultiplier),
                   description: `Potent surge of ${elem} magic.`,
                   level: Math.floor(round / 4),
                 },
