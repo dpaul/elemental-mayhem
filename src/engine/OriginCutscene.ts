@@ -95,10 +95,12 @@ export class OriginCutsceneManager {
   // Fast, Soft, Cool & Scary Cutscene Music Engine
   public musicEngine: CutsceneMusicEngine;
 
-  // Video Chronicle Integration
+  // Video & Motion Slide Chronicle Integration
   private videoEl: HTMLVideoElement | null = null;
   private videoContainerEl: HTMLElement | null = null;
   private videoProgressEl: HTMLElement | null = null;
+  private sceneImageEl: HTMLImageElement | null = null;
+  private visualFrameEl: HTMLElement | null = null;
   private modeBtnEl: HTMLElement | null = null;
   private viewMode: 'video' | 'stage' = 'video';
 
@@ -151,7 +153,14 @@ export class OriginCutsceneManager {
     this.videoEl = document.getElementById('cutscene-video-player') as HTMLVideoElement | null;
     this.videoContainerEl = document.getElementById('cutscene-video-container');
     this.videoProgressEl = document.getElementById('cutscene-video-progress');
+    this.sceneImageEl = document.getElementById('cutscene-scene-image') as HTMLImageElement | null;
+    this.visualFrameEl = document.getElementById('cutscene-visual-frame');
     this.modeBtnEl = document.getElementById('cutscene-mode-btn');
+
+    // Visual frame click to toggle play/pause
+    this.visualFrameEl?.addEventListener('click', () => {
+      this.togglePlayPause();
+    });
 
     // Video events & sync
     if (this.videoEl) {
@@ -380,16 +389,35 @@ export class OriginCutsceneManager {
     this.updateProgressUI();
   }
 
+  public updateChapterImage(index: number): void {
+    if (this.sceneImageEl) {
+      const src = `/cutscene/scene_${index + 1}.jpg`;
+      this.sceneImageEl.src = src;
+      this.sceneImageEl.classList.remove(
+        'ken-burns-0',
+        'ken-burns-1',
+        'ken-burns-2',
+        'ken-burns-3',
+        'ken-burns-4',
+        'ken-burns-5',
+        'scene-fade-in'
+      );
+      void this.sceneImageEl.offsetWidth; // trigger reflow
+      this.sceneImageEl.classList.add(`ken-burns-${index % 6}`, 'scene-fade-in');
+      this.sceneImageEl.classList.toggle('paused', !this.isPlaying);
+    }
+  }
+
   private updateModeBtn(): void {
     if (!this.modeBtnEl) return;
     if (this.viewMode === 'video') {
-      this.modeBtnEl.textContent = '📹 Video Mode';
+      this.modeBtnEl.textContent = '🎬 Cinematic Slides';
       this.modeBtnEl.classList.add('active-video');
-      this.modeBtnEl.title = 'Current: Video Mode (Click for Interactive Stage)';
+      this.modeBtnEl.title = 'Current: Cinematic Motion Slides (Click for Interactive Stage)';
     } else {
       this.modeBtnEl.textContent = '🎭 Stage Mode';
       this.modeBtnEl.classList.remove('active-video');
-      this.modeBtnEl.title = 'Current: Stage Mode (Click for Cinematic Video)';
+      this.modeBtnEl.title = 'Current: Interactive Stage (Click for Cinematic Motion Slides)';
     }
   }
 
@@ -437,6 +465,9 @@ export class OriginCutsceneManager {
 
       // Update scene visuals based on current mode
       this.updateSceneVisibility();
+
+      // Update high-resolution cinematic scene image with dynamic Ken Burns motion
+      this.updateChapterImage(index);
 
       // Show in-video cinematic chapter title card
       this.showChapterTitleCard(index);
@@ -640,6 +671,7 @@ export class OriginCutsceneManager {
         this.videoEl.play().catch(() => {});
       }
     }
+    this.sceneImageEl?.classList.remove('paused');
     this.musicEngine.resume();
     this.voiceManager.replayCurrentChapterDialogue();
     this.scheduleNext();
@@ -649,6 +681,7 @@ export class OriginCutsceneManager {
   public pause(): void {
     this.isPlaying = false;
     this.isPausedTime = Date.now();
+    this.sceneImageEl?.classList.add('paused');
     this.musicEngine.pause();
     this.voiceManager.stopAll();
     if (typeof document !== 'undefined') {

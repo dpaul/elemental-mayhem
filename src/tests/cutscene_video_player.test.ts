@@ -7,12 +7,13 @@ class MockElement {
   public id: string = '';
   public textContent: string = '';
   public innerHTML: string = '';
+  public src: string = '';
   public style: Record<string, string> = {};
   public disabled: boolean = false;
   public classList = {
     classes: new Set<string>(),
-    add: (c: string) => this.classList.classes.add(c),
-    remove: (c: string) => this.classList.classes.delete(c),
+    add: (...c: string[]) => c.forEach((cls) => this.classList.classes.add(cls)),
+    remove: (...c: string[]) => c.forEach((cls) => this.classList.classes.delete(cls)),
     contains: (c: string) => this.classList.classes.has(c),
     toggle: (c: string, force?: boolean) => {
       if (force === undefined) {
@@ -61,6 +62,8 @@ describe('Cinematic Video Player & Voice Acting System', () => {
       'cutscene-skip-btn': new MockElement(),
       'cutscene-close-btn': new MockElement(),
       'cutscene-video-container': new MockElement(),
+      'cutscene-visual-frame': new MockElement(),
+      'cutscene-scene-image': new MockElement(),
       'cutscene-video-player': new MockElement(),
       'cutscene-video-progress': new MockElement(),
       'cutscene-video-scrubber': new MockElement(),
@@ -314,6 +317,31 @@ describe('Cinematic Video Player & Voice Acting System', () => {
     cutsceneManager.enforceVideoSegmentBoundary();
     expect(video.currentTime).toBe(9.5);
     expect(cutsceneManager.getCurrentChapterIndex()).toBe(1);
+  });
+
+  it('cycles through high-resolution static chapter scene images with dynamic Ken Burns motion classes', () => {
+    cutsceneManager.initDOM();
+    const sceneImg = elements['cutscene-scene-image'];
+
+    // Chapter 1 (index 0) -> scene_1.jpg and ken-burns-0
+    cutsceneManager.goToChapter(0, true);
+    expect(sceneImg.src).toContain('/cutscene/scene_1.jpg');
+    expect(sceneImg.classList.contains('ken-burns-0')).toBe(true);
+    expect(sceneImg.classList.contains('scene-fade-in')).toBe(true);
+
+    // Chapter 4 (index 3) -> scene_4.jpg and ken-burns-3
+    cutsceneManager.goToChapter(3, true);
+    expect(sceneImg.src).toContain('/cutscene/scene_4.jpg');
+    expect(sceneImg.classList.contains('ken-burns-3')).toBe(true);
+    expect(sceneImg.classList.contains('ken-burns-0')).toBe(false);
+
+    // Pause pauses the image animation
+    cutsceneManager.pause();
+    expect(sceneImg.classList.contains('paused')).toBe(true);
+
+    // Play unpauses the image animation
+    cutsceneManager.play();
+    expect(sceneImg.classList.contains('paused')).toBe(false);
   });
 });
 
