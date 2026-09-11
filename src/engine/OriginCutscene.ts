@@ -118,18 +118,14 @@ export class OriginCutsceneManager {
     this.soundEngine = soundEngine;
     this.voiceManager = new CutsceneVoiceManager(soundEngine);
     this.musicEngine = new CutsceneMusicEngine();
+    this.setupVoiceCallbacks();
   }
 
-  public initDOM(): void {
-    const overlay = document.getElementById('origin-cutscene-overlay');
-    if (!overlay) return;
-
-    // Initialize Spoken Dialogue System & Hook Completion for Auto-Advance
-    this.voiceManager.initDOM();
+  private setupVoiceCallbacks(): void {
     this.voiceManager.onChapterDialogueComplete = (chapterIdx) => {
       if (this.isPlaying && chapterIdx === this.currentChapterIndex) {
         if (this.autoAdvanceTimer) clearTimeout(this.autoAdvanceTimer);
-        // Savor the completed scene for 1.8s before moving to next chapter
+        // Savor the completed scene for 1.8s after audio finishes before moving to next chapter
         this.autoAdvanceTimer = setTimeout(() => {
           if (this.isPlaying && chapterIdx === this.currentChapterIndex) {
             if (this.currentChapterIndex < CUTSCENE_CHAPTERS.length - 1) {
@@ -141,6 +137,15 @@ export class OriginCutsceneManager {
         }, 1800);
       }
     };
+  }
+
+  public initDOM(): void {
+    const overlay = document.getElementById('origin-cutscene-overlay');
+    if (!overlay) return;
+
+    // Initialize Spoken Dialogue System & Hook Completion for Auto-Advance
+    this.voiceManager.initDOM();
+    this.setupVoiceCallbacks();
 
     // Elements
     this.videoEl = document.getElementById('cutscene-video-player') as HTMLVideoElement | null;
@@ -156,28 +161,14 @@ export class OriginCutsceneManager {
 
       this.videoEl.addEventListener('timeupdate', () => {
         if (!this.videoEl) return;
-
-        // In Video Mode, smoothly transition chapters in sequence as video advances (5 seconds per chapter)
-        if (this.viewMode === 'video' && this.isPlaying) {
-          const curSec = this.videoEl.currentTime;
-          if (curSec >= 29.8) {
-            if (this.currentChapterIndex !== CUTSCENE_CHAPTERS.length - 1) {
-              this.goToChapter(CUTSCENE_CHAPTERS.length - 1, false);
-            }
-            this.pause();
-            return;
-          }
-          const targetChapter = Math.min(CUTSCENE_CHAPTERS.length - 1, Math.max(0, Math.floor(curSec / 5)));
-          if (targetChapter !== this.currentChapterIndex) {
-            this.goToChapter(targetChapter, false);
-          }
-        }
+        this.enforceVideoSegmentBoundary();
         this.updateProgressUI();
       });
 
       this.videoEl.addEventListener('ended', () => {
-        this.goToChapter(CUTSCENE_CHAPTERS.length - 1, false);
-        this.pause();
+        if (this.viewMode === 'video') {
+          this.enforceVideoSegmentBoundary();
+        }
       });
     }
 
@@ -492,24 +483,47 @@ export class OriginCutsceneManager {
     }
   }
 
-  public getChapterDurationMs(_index: number): number {
-    return 5000;
+  public getChapterDurationMs(index: number): number {
+    const lines = this.voiceManager.getChapterLines(index);
+    if (lines.length === 0) return 6000;
+    const linesDuration = lines.reduce((acc, l) => {
+      const est = l.durationEstimateMs || Math.max(3200, l.text.length * 75);
+      return acc + est;
+    }, 0);
+    // 200ms breath delay + 350ms pause between lines + 1800ms post-dialogue savor time
+    const pauses = Math.max(0, lines.length - 1) * 350 + 200 + 1800;
+    return Math.max(6000, linesDuration + pauses);
+  }
+
+  public enforceVideoSegmentBoundary(): void {
+    if (!this.videoEl || this.viewMode !== 'video') return;
+    const segStart = this.currentChapterIndex * 5;
+    const segHold = segStart + 4.5;
+
+    // Prevent any possibility of overshooting into the next chapter's scene (flicker)
+    if (this.videoEl.currentTime >= segHold) {
+      this.videoEl.currentTime = segHold;
+      if (!this.videoEl.paused) {
+        this.videoEl.pause();
+      }
+    } else if (this.videoEl.currentTime < segStart) {
+      this.videoEl.currentTime = segStart;
+    }
   }
 
   public updateProgressUI(): void {
     if (typeof document === 'undefined') return;
 
+    this.enforceVideoSegmentBoundary();
+
     let elapsedSec = 0;
     const totalDurationSec = 30;
 
-    if (this.videoEl && this.viewMode === 'video' && !isNaN(this.videoEl.currentTime)) {
-      elapsedSec = Math.min(totalDurationSec, Math.max(0, this.videoEl.currentTime));
-    } else {
-      const now = this.isPlaying ? Date.now() : (this.isPausedTime || Date.now());
-      const elapsedInChapter = Math.max(0, now - this.chapterStartTime - this.accumulatedPausedMs);
-      const subProgress = Math.min(1.0, elapsedInChapter / 5000);
-      elapsedSec = Math.min(totalDurationSec, (this.currentChapterIndex + subProgress) * 5);
-    }
+    const now = this.isPlaying ? Date.now() : (this.isPausedTime || Date.now());
+    const elapsedInChapter = Math.max(0, now - this.chapterStartTime - this.accumulatedPausedMs);
+    const chapterDuration = this.getChapterDurationMs(this.currentChapterIndex);
+    const subProgress = Math.min(1.0, elapsedInChapter / chapterDuration);
+    elapsedSec = Math.min(totalDurationSec, (this.currentChapterIndex + subProgress) * 5);
 
     const overallPct = Math.min(100, Math.max(0, (elapsedSec / totalDurationSec) * 100));
     const remainingSec = Math.max(0, totalDurationSec - elapsedSec);
@@ -620,7 +634,11 @@ export class OriginCutsceneManager {
       if (centerPlayBtn) centerPlayBtn.classList.remove('show');
     }
     if (this.videoEl) {
-      this.videoEl.play().catch(() => {});
+      const segStart = this.currentChapterIndex * 5;
+      const segHold = segStart + 4.5;
+      if (this.videoEl.currentTime < segHold) {
+        this.videoEl.play().catch(() => {});
+      }
     }
     this.musicEngine.resume();
     this.voiceManager.replayCurrentChapterDialogue();
@@ -657,18 +675,22 @@ export class OriginCutsceneManager {
       this.autoAdvanceTimer = null;
     }
 
-    // In Stage Mode (or if video isn't loaded), smoothly advance chapters in order every 5 seconds
-    if (this.viewMode === 'stage' || !this.videoEl) {
-      this.autoAdvanceTimer = setTimeout(() => {
-        if (this.isPlaying) {
-          if (this.currentChapterIndex < CUTSCENE_CHAPTERS.length - 1) {
-            this.nextChapter();
-          } else {
-            this.pause();
-          }
+    // Advancing chapters is driven by voiceManager.onChapterDialogueComplete so every dialogue line
+    // is fully spoken and heard.
+    // This timer acts as a reliable safety net failsafe in case browser SpeechSynthesis
+    // drops completion events or speech synthesis is muted/blocked.
+    const chapterDuration = this.getChapterDurationMs(this.currentChapterIndex);
+    const failsafeMs = chapterDuration + 6000;
+
+    this.autoAdvanceTimer = setTimeout(() => {
+      if (this.isPlaying) {
+        if (this.currentChapterIndex < CUTSCENE_CHAPTERS.length - 1) {
+          this.nextChapter();
+        } else {
+          this.pause();
         }
-      }, 5000);
-    }
+      }
+    }, failsafeMs);
   }
 
   private toggleMute(btn?: HTMLElement): void {

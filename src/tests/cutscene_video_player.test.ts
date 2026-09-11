@@ -25,6 +25,7 @@ class MockElement {
       }
     },
   };
+  public currentTime: number = 0;
   private listeners: Record<string, Function[]> = {};
 
   addEventListener(event: string, fn: Function) {
@@ -33,7 +34,11 @@ class MockElement {
   }
 
   click() {
-    this.listeners['click']?.forEach((fn) => fn());
+    this.trigger('click');
+  }
+
+  trigger(event: string) {
+    this.listeners[event]?.forEach((fn) => fn());
   }
 
   setAttribute(_name: string, _val: string) {}
@@ -256,5 +261,60 @@ describe('Cinematic Video Player & Voice Acting System', () => {
     expect(fillWidth).toBeCloseTo(83.33, 1);
     expect(remainingText?.textContent).toBe('00:05 remaining');
   });
+
+  it('stays on each scene long enough for the voiceover to finish before advancing', () => {
+    vi.useFakeTimers();
+    cutsceneManager.initDOM();
+    cutsceneManager.goToChapter(0, true);
+    cutsceneManager.play();
+
+    expect(cutsceneManager.getCurrentChapterIndex()).toBe(0);
+
+    // After 5 seconds (the old premature limit), it should STILL be on Chapter 0
+    vi.advanceTimersByTime(5000);
+    expect(cutsceneManager.getCurrentChapterIndex()).toBe(0);
+
+    // Even after 7 seconds, it remains on Chapter 0 while voiceover is speaking
+    vi.advanceTimersByTime(2000);
+    expect(cutsceneManager.getCurrentChapterIndex()).toBe(0);
+
+    // Now trigger voiceover dialogue completion for Chapter 0
+    cutsceneManager.voiceManager.onChapterDialogueComplete?.(0);
+
+    // Within the 1.8s post-dialogue savor period, it remains on Chapter 0
+    vi.advanceTimersByTime(1000);
+    expect(cutsceneManager.getCurrentChapterIndex()).toBe(0);
+
+    // After the 1.8s savor buffer elapses, it advances to Chapter 1!
+    vi.advanceTimersByTime(850);
+    expect(cutsceneManager.getCurrentChapterIndex()).toBe(1);
+
+    vi.useRealTimers();
+  });
+
+  it('prevents video from overshooting into the next chapter scene to eliminate image flicker', () => {
+    cutsceneManager.initDOM();
+    cutsceneManager.setViewMode('video');
+    cutsceneManager.goToChapter(1, true); // Chapter 2: video slice 5.0s - 10.0s (scene 2)
+    cutsceneManager.play();
+
+    const video = elements['cutscene-video-player'];
+    expect(cutsceneManager.getCurrentChapterIndex()).toBe(1);
+
+    // Simulate video playing near end of chapter 1 segment (9.8s)
+    video.currentTime = 9.8;
+    video.trigger('timeupdate');
+
+    // It should hold at 9.5s (segHold) so it never touches 10.0s where the next image begins
+    expect(video.currentTime).toBe(9.5);
+    expect(cutsceneManager.getCurrentChapterIndex()).toBe(1);
+
+    // Ensure it also holds via enforceVideoSegmentBoundary called in updateProgressUI
+    video.currentTime = 9.99;
+    cutsceneManager.enforceVideoSegmentBoundary();
+    expect(video.currentTime).toBe(9.5);
+    expect(cutsceneManager.getCurrentChapterIndex()).toBe(1);
+  });
 });
+
 
