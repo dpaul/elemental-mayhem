@@ -389,9 +389,34 @@ export class OriginCutsceneManager {
     this.updateProgressUI();
   }
 
+  public getAssetPath(relativePath: string): string {
+    const cleanRel = relativePath.replace(/^\.?\/+/, '');
+    const meta = typeof import.meta !== 'undefined' ? (import.meta as any) : null;
+    const rawBase = meta?.env?.BASE_URL || './';
+    // If base is default root '/' or relative './', use relative './' so GitHub Pages subpaths work without 404
+    if (!rawBase || rawBase === '/' || rawBase === './') {
+      return `./${cleanRel}`;
+    }
+    const base = rawBase.endsWith('/') ? rawBase : `${rawBase}/`;
+    return `${base}${cleanRel}`;
+  }
+
   public updateChapterImage(index: number): void {
     if (this.sceneImageEl) {
-      const src = `/cutscene/scene_${index + 1}.jpg`;
+      const src = this.getAssetPath(`cutscene/scene_${index + 1}.jpg`);
+      this.sceneImageEl.onerror = () => {
+        if (
+          this.sceneImageEl &&
+          typeof this.sceneImageEl.getAttribute === 'function' &&
+          !this.sceneImageEl.getAttribute('data-fallback-tried')
+        ) {
+          this.sceneImageEl.setAttribute('data-fallback-tried', 'true');
+          this.sceneImageEl.src = `./cutscene/scene_${index + 1}.jpg`;
+        }
+      };
+      if (this.sceneImageEl && typeof this.sceneImageEl.removeAttribute === 'function') {
+        this.sceneImageEl.removeAttribute('data-fallback-tried');
+      }
       this.sceneImageEl.src = src;
       this.sceneImageEl.classList.remove(
         'ken-burns-0',

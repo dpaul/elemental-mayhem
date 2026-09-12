@@ -325,13 +325,13 @@ describe('Cinematic Video Player & Voice Acting System', () => {
 
     // Chapter 1 (index 0) -> scene_1.jpg and ken-burns-0
     cutsceneManager.goToChapter(0, true);
-    expect(sceneImg.src).toContain('/cutscene/scene_1.jpg');
+    expect(sceneImg.src).toContain('cutscene/scene_1.jpg');
     expect(sceneImg.classList.contains('ken-burns-0')).toBe(true);
     expect(sceneImg.classList.contains('scene-fade-in')).toBe(true);
 
     // Chapter 4 (index 3) -> scene_4.jpg and ken-burns-3
     cutsceneManager.goToChapter(3, true);
-    expect(sceneImg.src).toContain('/cutscene/scene_4.jpg');
+    expect(sceneImg.src).toContain('cutscene/scene_4.jpg');
     expect(sceneImg.classList.contains('ken-burns-3')).toBe(true);
     expect(sceneImg.classList.contains('ken-burns-0')).toBe(false);
 
@@ -342,6 +342,16 @@ describe('Cinematic Video Player & Voice Acting System', () => {
     // Play unpauses the image animation
     cutsceneManager.play();
     expect(sceneImg.classList.contains('paused')).toBe(false);
+  });
+
+  it('correctly resolves image paths for GitHub Pages subpath deployment', () => {
+    cutsceneManager.initDOM();
+    const sceneImg = elements['cutscene-scene-image'];
+
+    cutsceneManager.updateChapterImage(0);
+    // Path must be relative or use base URL, NOT start with a domain-root slash (/cutscene)
+    expect(sceneImg.src.startsWith('/cutscene')).toBe(false);
+    expect(sceneImg.src).toMatch(/(^\.\/cutscene\/scene_1\.jpg$)|(cutscene\/scene_1\.jpg$)/);
   });
 });
 
