@@ -572,35 +572,28 @@ export class OriginCutsceneManager {
 
     this.enforceVideoSegmentBoundary();
 
-    let elapsedSec = 0;
-    const totalDurationSec = 30;
-
     const now = this.isPlaying ? Date.now() : (this.isPausedTime || Date.now());
     const elapsedInChapter = Math.max(0, now - this.chapterStartTime - this.accumulatedPausedMs);
     const chapterDuration = this.getChapterDurationMs(this.currentChapterIndex);
     const subProgress = Math.min(1.0, elapsedInChapter / chapterDuration);
-    elapsedSec = Math.min(totalDurationSec, (this.currentChapterIndex + subProgress) * 5);
 
-    const rawPct = Math.min(100, Math.max(0, (elapsedSec / totalDurationSec) * 100));
+    const totalChapters = CUTSCENE_CHAPTERS.length;
+    const rawPct = Math.min(100, Math.max(0, ((this.currentChapterIndex + subProgress) / totalChapters) * 100));
     const overallPct = Math.abs(rawPct - Math.round(rawPct)) < 0.05 ? Math.round(rawPct) : Math.round(rawPct * 10) / 10;
-    const remainingSec = Math.max(0, totalDurationSec - elapsedSec);
 
-    const pad = (num: number) => String(Math.floor(num)).padStart(2, '0');
-    const elapsedStr = `00:${pad(elapsedSec)}`;
-    const remainingStr = `00:${String(Math.ceil(remainingSec)).padStart(2, '0')}`;
-    const totalStr = `00:${pad(totalDurationSec)}`;
+    const chapterText = `Chapter ${this.currentChapterIndex + 1} of ${totalChapters}`;
 
-    // 1. Update Video Player HUD Progress & Timestamps
+    // 1. Update Video Player HUD Progress & Chapter Badges
     if (this.videoProgressEl) {
       this.videoProgressEl.style.width = `${overallPct}%`;
     }
     const hudTimeDisplay = document.getElementById('video-hud-time-display');
     if (hudTimeDisplay) {
-      hudTimeDisplay.textContent = `${elapsedStr} / ${totalStr} (-${remainingStr})`;
+      hudTimeDisplay.textContent = chapterText;
     }
     const videoTimeTag = document.getElementById('video-time-tag');
     if (videoTimeTag) {
-      videoTimeTag.textContent = `${elapsedStr} / ${totalStr} • ⏳ ${remainingStr} REMAINING`;
+      videoTimeTag.textContent = chapterText.toUpperCase();
     }
 
     // 2. Update Bottom Overall Cutscene Timeline Bar & Badges
@@ -610,11 +603,12 @@ export class OriginCutsceneManager {
     }
     const remainingText = document.getElementById('cutscene-overall-remaining-text');
     if (remainingText) {
-      remainingText.textContent = `${remainingStr} remaining`;
+      remainingText.textContent = '';
+      remainingText.style.display = 'none';
     }
     const elapsedText = document.getElementById('cutscene-overall-elapsed-text');
     if (elapsedText) {
-      elapsedText.textContent = `${elapsedStr} / ${totalStr} • Chapter ${this.currentChapterIndex + 1} of ${CUTSCENE_CHAPTERS.length}`;
+      elapsedText.textContent = chapterText;
     }
   }
 

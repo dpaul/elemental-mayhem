@@ -226,7 +226,7 @@ describe('Cinematic Video Player & Voice Acting System', () => {
     expect(hudPlayBtn?.textContent).toBe('⏸');
   });
 
-  it('accurately represents how much longer the cutscene is on both video scrubber and bottom timeline bar', () => {
+  it('accurately represents cutscene chapter progression without inaccurate timing strings', () => {
     cutsceneManager.initDOM();
 
     // Start at Chapter 1 (0 of 6)
@@ -234,16 +234,19 @@ describe('Cinematic Video Player & Voice Acting System', () => {
     cutsceneManager.pause(); // Pause so time is fixed at start of Chapter 1
 
     const overallFill = elements['cutscene-overall-progress-fill'];
-    const remainingText = elements['cutscene-overall-remaining-text'];
     const elapsedText = elements['cutscene-overall-elapsed-text'];
     const videoProgress = elements['cutscene-video-progress'];
     const hudTimeDisplay = elements['video-hud-time-display'];
+    const videoTimeTag = elements['video-time-tag'];
 
     expect(overallFill?.style.width).toBe('0%');
     expect(videoProgress?.style.width).toBe('0%');
-    expect(remainingText?.textContent).toBe('00:30 remaining');
-    expect(elapsedText?.textContent).toContain('00:00 / 00:30');
-    expect(hudTimeDisplay?.textContent).toContain('00:00 / 00:30 (-00:30)');
+    expect(elapsedText?.textContent).toBe('Chapter 1 of 6');
+    expect(hudTimeDisplay?.textContent).toBe('Chapter 1 of 6');
+    expect(videoTimeTag?.textContent).toBe('CHAPTER 1 OF 6');
+    // Verify no inaccurate timing strings like 00:30 exist
+    expect(elapsedText?.textContent).not.toContain('00:');
+    expect(hudTimeDisplay?.textContent).not.toContain('00:');
 
     // Advance to Chapter 4 (3 of 6, halfway through cutscene)
     cutsceneManager.goToChapter(3, true);
@@ -251,9 +254,9 @@ describe('Cinematic Video Player & Voice Acting System', () => {
 
     expect(overallFill?.style.width).toBe('50%');
     expect(videoProgress?.style.width).toBe('50%');
-    expect(remainingText?.textContent).toBe('00:15 remaining');
-    expect(elapsedText?.textContent).toContain('00:15 / 00:30');
-    expect(hudTimeDisplay?.textContent).toContain('00:15 / 00:30 (-00:15)');
+    expect(elapsedText?.textContent).toBe('Chapter 4 of 6');
+    expect(hudTimeDisplay?.textContent).toBe('Chapter 4 of 6');
+    expect(videoTimeTag?.textContent).toBe('CHAPTER 4 OF 6');
 
     // Advance to Chapter 6 (5 of 6, final chapter)
     cutsceneManager.goToChapter(5, true);
@@ -262,7 +265,8 @@ describe('Cinematic Video Player & Voice Acting System', () => {
     // At start of Chapter 6 (5/6 = ~83.33%)
     const fillWidth = parseFloat(overallFill?.style.width || '0');
     expect(fillWidth).toBeCloseTo(83.33, 1);
-    expect(remainingText?.textContent).toBe('00:05 remaining');
+    expect(elapsedText?.textContent).toBe('Chapter 6 of 6');
+    expect(hudTimeDisplay?.textContent).toBe('Chapter 6 of 6');
   });
 
   it('stays on each scene long enough for the voiceover to finish before advancing', () => {
