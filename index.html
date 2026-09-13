@@ -904,6 +904,12 @@
               <div class="admin-btn-desc">Warp directly to Round 1,000 to confront THE VOID OVERLORD and reclaim the stolen powers!</div>
             </button>
 
+            <!-- Power 8c2: Watch Dark Clouds Cutscene -->
+            <button class="admin-power-btn" id="admin-btn-dark-clouds-cutscene" style="border-color: #8b5cf6; background: rgba(139, 92, 246, 0.2); box-shadow: 0 0 20px rgba(139, 92, 246, 0.35);">
+              <div class="admin-btn-header" style="color: #c084fc;">🌩️🎬 Play "Ascent to Dark Clouds" Cutscene</div>
+              <div class="admin-btn-desc">Watch the dramatic cinematic cutscene of the hero hurtling through the storm rift into the Dark Clouds!</div>
+            </button>
+
             <!-- Power 8d: Round 30 Essence Fusion Area -->
             <button class="admin-power-btn" id="admin-btn-round-30" style="border-color: #a855f7; background: rgba(168, 85, 247, 0.2); box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);">
               <div class="admin-btn-header" style="color: #d8b4fe;">🔮 Round 30: Celestial Essence Fusion Area</div>
@@ -1525,6 +1531,95 @@
               <span class="cot-tick" data-ch="4" style="left: 66.66%" title="Chapter 5: Overlord Stealing Magic"></span>
               <span class="cot-tick" data-ch="5" style="left: 83.33%" title="Chapter 6: Overlord in Dark Clouds"></span>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  <!-- =====================================================================
+       ASCENT TO THE DARK CLOUDS CUTSCENE OVERLAY (ROUND 1000)
+       ===================================================================== -->
+  <div id="dark-clouds-cutscene-overlay" class="dark-clouds-cutscene-overlay hidden" style="z-index: 310;">
+    <!-- Top Letterbox Bar -->
+    <div class="dc-letterbox dc-letterbox-top">
+      <div class="dc-top-bar">
+        <div class="dc-title-tag">
+          <span class="dc-live-dot"></span>
+          <span class="dc-tag-text">ROUND 1000 CLIMAX • ASCENSION TO THE DARK CLOUDS</span>
+        </div>
+        <div class="dc-top-actions">
+          <button id="dc-btn-mute" class="dc-tool-btn" title="Toggle Sound">🔊 Audio: ON</button>
+          <button id="dc-btn-play-pause" class="dc-tool-btn" title="Pause / Resume">⏸️ Pause</button>
+          <button id="dc-btn-skip" class="dc-tool-btn btn-skip" title="Skip Directly to Battle">⏩ Skip</button>
+          <button id="dc-btn-close" class="dc-close-btn" title="Close Cutscene">✕</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Central Cinematic Stage -->
+    <div class="dc-stage" id="dc-stage">
+      <div class="dc-vignette"></div>
+
+      <!-- Ken Burns Background Scene & Cloud Layers -->
+      <div class="dc-visual-frame">
+        <img id="dc-cutscene-bg-img" class="dc-scene-img ken-burns-0" src="./cutscene/scene_6.jpg" alt="Dark Clouds Scene" />
+        <div class="dc-lightning-flash" id="dc-lightning-flash"></div>
+        <div class="dc-clouds-container" id="dc-clouds-container">
+          <div class="dc-cloud-layer dc-cloud-back"></div>
+          <div class="dc-cloud-layer dc-cloud-mid"></div>
+          <div class="dc-cloud-layer dc-cloud-front"></div>
+        </div>
+        <div class="dc-rift-vortex"></div>
+      </div>
+
+      <!-- Hero Ascending Silhouette -->
+      <div class="dc-hero-ascension" id="dc-hero-ascension">
+        <div class="dc-hero-aura"></div>
+        <div class="dc-hero-avatar">🧙‍♂️✨</div>
+        <div class="dc-hero-element-sparks">🔥💧🪨</div>
+      </div>
+
+      <!-- Void Overlord Silhouette in the Clouds -->
+      <div class="dc-boss-silhouette" id="dc-boss-silhouette">
+        <div class="dc-boss-crown">👑</div>
+        <div class="dc-boss-avatar">👹🌌</div>
+        <div class="dc-boss-eyes">👁️ 👁️</div>
+        <div class="dc-boss-name">THE VOID OVERLORD</div>
+      </div>
+
+      <!-- Action Button (appears in Phase 3) -->
+      <div class="dc-action-wrap">
+        <button id="dc-btn-confront" class="btn-confront-overlord hidden">
+          <span>⚔️</span> CONFRONT THE VOID OVERLORD (ROUND 1000)
+        </button>
+      </div>
+    </div>
+
+    <!-- Bottom Letterbox Bar with Narration & Spoken Subtitles -->
+    <div class="dc-letterbox dc-letterbox-bottom">
+      <div class="dc-bottom-content">
+        <!-- Story Phase Narration Box -->
+        <div class="dc-narration-box">
+          <div class="dc-phase-badge" id="dc-cutscene-badge">⚡ PHASE I • THE RIFT SUNDERS THE ARENA</div>
+          <h2 class="dc-phase-heading" id="dc-cutscene-title">The Sky Tears Open</h2>
+          <div class="dc-phase-subtitle" id="dc-cutscene-subtitle">After 999 battles, an abyssal dimensional rift fractures the heavens!</div>
+          <p class="dc-narrative-text" id="dc-cutscene-narrative">
+            The mortal arenas tremble as celestial thunder shatters the horizon! A colossal dimensional vortex opens above, pulling everything skyward toward the turbulent dark storm clouds!
+          </p>
+        </div>
+
+        <!-- Spoken Character Subtitle / Dialogue Card -->
+        <div class="dc-dialogue-card" id="dc-dialogue-card">
+          <div class="dc-speaker-header">
+            <div class="dc-speaker-badge" id="dc-speaker-badge">
+              <span class="dc-speaker-icon">🎙️</span>
+              <span class="dc-speaker-name" id="dc-speaker-name">CELESTIAL CHRONICLER</span>
+            </div>
+            <div class="dc-speaker-tag">Live Voiceover</div>
+          </div>
+          <div class="dc-speech-bubble">
+            <span class="dc-quote">“</span>
+            <span class="dc-speech-text" id="dc-subtitle-text">At last, on Round 1,000, the heavens shatter as an abyssal rift pulls you skyward!</span>
+            <span class="dc-quote">”</span>
           </div>
         </div>
       </div>

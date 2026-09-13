@@ -16,6 +16,7 @@ import { SoundEngine } from './audio/SoundEngine';
 import { SaveManager, GameSaveData, SavedHazardTile } from './engine/SaveManager';
 import { PlacementManager } from './engine/PlacementManager';
 import { OriginCutsceneManager } from './engine/OriginCutscene';
+import { DarkCloudsCutsceneManager } from './engine/DarkCloudsCutscene';
 import { EssenceMergeManager } from './engine/EssenceMergeManager';
 import { EssenceFusionModal } from './ui/EssenceFusionModal';
 import { ElementType, Unit, Ability, GridCoord, ZombieClass, TileHazardType, PlacementItem, PlacementCategory } from './types';
@@ -242,6 +243,7 @@ export class GameApp {
   // Online Co-op Mode
   private networkManager: NetworkManager;
   public originCutscene: OriginCutsceneManager;
+  public darkCloudsCutscene: DarkCloudsCutsceneManager;
   public essenceMergeManager: EssenceMergeManager;
   public essenceFusionModal: EssenceFusionModal;
   private navFusionBtn: HTMLElement | null = null;
@@ -487,6 +489,18 @@ export class GameApp {
       this.goToVoidOverlord(true);
     };
 
+    this.darkCloudsCutscene = new DarkCloudsCutsceneManager(this.soundEngine);
+    this.darkCloudsCutscene.initDOM();
+    this.darkCloudsCutscene.onComplete = () => {
+      this.triggerDarkCloudsWhirl();
+      this.combatEngine?.addLog(
+        'system',
+        '🌩️ [DARK CLOUDS REACHED] You have ascended into the Dark Clouds! Face The Void Overlord!'
+      );
+      this.updateHUD();
+      this.updateReachableTiles();
+    };
+
     this.essenceFusionModal = new EssenceFusionModal(this.essenceMergeManager, this.soundEngine);
     this.essenceFusionModal.onMergeSuccess = (result) => {
       this.combatEngine?.addLog('system', result.message);
@@ -509,6 +523,12 @@ export class GameApp {
       this.goToRound30(true);
     });
 
+    document.getElementById('admin-btn-dark-clouds-cutscene')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      this.closeAdminPanel();
+      this.playDarkCloudsCutscene();
+    });
+
     document.getElementById('admin-btn-grant-essence-pairs')?.addEventListener('click', () => {
       this.soundEngine.playUnlock();
       this.executeAdminCommand('give pairs');
@@ -521,6 +541,7 @@ export class GameApp {
       (window as any).openFusionArea = () => this.essenceFusionModal.open();
       (window as any).triggerDarkCloudsWhirl = () => this.triggerDarkCloudsWhirl();
       (window as any).setDarkCloudsTheme = (enabled: boolean) => this.setDarkCloudsTheme(enabled);
+      (window as any).playDarkCloudsCutscene = () => this.playDarkCloudsCutscene();
     }
     this.attachCombatEngineHooks(this.combatEngine);
     this.enemyAI = new EnemyAI(this.combatEngine);
@@ -5028,6 +5049,12 @@ export class GameApp {
     };
   }
 
+  public playDarkCloudsCutscene(): void {
+    if (this.darkCloudsCutscene?.isCutscenePlaying()) return;
+    this.cancelAutoTurnCountdown();
+    this.darkCloudsCutscene?.open();
+  }
+
   public triggerDarkCloudsWhirl(): void {
     if (typeof document === 'undefined') return;
     const wrapper = document.getElementById('battlefield-canvas-wrapper');
@@ -5303,6 +5330,18 @@ export class GameApp {
       return { success: true, message: '🌩️ Map whirled into the Dark Clouds (Round 1,000)!' };
     }
 
+    // 1f. Dark Clouds Cutscene Command
+    if (
+      cmd === 'dark clouds cutscene' ||
+      cmd === 'dark cutscene' ||
+      cmd === 'clouds cutscene' ||
+      cmd === 'ascent cutscene' ||
+      cmd === 'cutscene dark clouds'
+    ) {
+      this.playDarkCloudsCutscene();
+      return { success: true, message: '🌩️ Playing "Ascent to the Dark Clouds" Cutscene!' };
+    }
+
     // 2. Specific round jump: "round 15", "level 10", "goto 12", "go to round 5"
     const roundMatch = cmd.match(/^(?:(?:go\s*to|goto)\s+)?(?:round|level)\s+(\d+)$/i);
     if (roundMatch) {
@@ -5461,8 +5500,9 @@ export class GameApp {
       this.combatEngine.coopHero.abilities = this.combatEngine.coopHero.abilities.slice(0, 10);
     }
 
-    // At Round 1000, trigger map whirl and change into the dark clouds!
+    // At Round 1000, trigger cinematic cutscene of going to the dark clouds and transform map!
     if (this.currentRound === 1000) {
+      this.playDarkCloudsCutscene();
       this.triggerDarkCloudsWhirl();
       if (this.hero.stats.maxHp < 5000) {
         this.hero.stats.maxHp = 5000;
