@@ -229,22 +229,20 @@ export class BattlefieldRenderer {
       ctx.fillRect(tx, ty, tileSize, tileSize);
     }
 
-    // 4. Draw Pending Reanimation Graves (Circular Necrotic Seal - Not Squares!)
+    // 4. Draw Pending Reanimation Graves (Arched Sarcophagus Slab - Not a plain circle!)
     for (const p of this.combatEngine.pendingReanimations) {
       const px = gridOffsetX + p.coord.x * tileSize;
       const py = gridOffsetY + p.coord.y * tileSize;
       const pcx = px + tileSize / 2;
       const pcy = py + tileSize / 2;
-      const pRad = (tileSize / 2) * 0.84;
+      const sW = tileSize * 0.76;
+      const sH = tileSize * 0.84;
       ctx.save();
       ctx.fillStyle = 'rgba(132, 204, 22, 0.22)';
-      ctx.beginPath();
-      ctx.arc(pcx, pcy, pRad, 0, Math.PI * 2);
+      this.drawSafeRoundRect(ctx, pcx - sW / 2, pcy - sH / 2, sW, sH, 10);
       ctx.fill();
       ctx.strokeStyle = '#84cc16';
       ctx.lineWidth = 1.8;
-      ctx.beginPath();
-      ctx.arc(pcx, pcy, pRad, 0, Math.PI * 2);
       ctx.stroke();
       ctx.font = '20px sans-serif';
       ctx.textAlign = 'center';
@@ -256,52 +254,84 @@ export class BattlefieldRenderer {
       ctx.restore();
     }
 
-    // 5. Draw Hovered Tile Reticle (Circular Arcane Focus Ring - Not a Square Box!)
+    // 5. Draw Hovered Tile Reticle (Sleek Tactical Corner Brackets - Not a plain circle!)
     if (hoveredCoord) {
       const hx = gridOffsetX + hoveredCoord.x * tileSize;
       const hy = gridOffsetY + hoveredCoord.y * tileSize;
       const hcx = hx + tileSize / 2;
       const hcy = hy + tileSize / 2;
-      const hRad = (tileSize / 2) * 0.88;
+      const bPad = tileSize * 0.1;
+      const bLen = tileSize * 0.26;
+      const left = hx + bPad;
+      const right = hx + tileSize - bPad;
+      const top = hy + bPad;
+      const bottom = hy + tileSize - bPad;
 
       ctx.save();
       ctx.strokeStyle = '#f8fafc';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2.5;
       ctx.shadowColor = '#38bdf8';
-      ctx.shadowBlur = 10;
+      ctx.shadowBlur = 12;
+
+      // Top-Left Corner [
       ctx.beginPath();
-      ctx.arc(hcx, hcy, hRad, 0, Math.PI * 2);
+      ctx.moveTo(left, top + bLen);
+      ctx.lineTo(left, top);
+      ctx.lineTo(left + bLen, top);
       ctx.stroke();
 
-      // Subtle inner ambient radial glow
-      ctx.fillStyle = 'rgba(56, 189, 248, 0.12)';
+      // Top-Right Corner ]
       ctx.beginPath();
-      ctx.arc(hcx, hcy, hRad, 0, Math.PI * 2);
+      ctx.moveTo(right - bLen, top);
+      ctx.lineTo(right, top);
+      ctx.lineTo(right, top + bLen);
+      ctx.stroke();
+
+      // Bottom-Right Corner ]
+      ctx.beginPath();
+      ctx.moveTo(right, bottom - bLen);
+      ctx.lineTo(right, bottom);
+      ctx.lineTo(right - bLen, bottom);
+      ctx.stroke();
+
+      // Bottom-Left Corner [
+      ctx.beginPath();
+      ctx.moveTo(left + bLen, bottom);
+      ctx.lineTo(left, bottom);
+      ctx.lineTo(left, bottom - bLen);
+      ctx.stroke();
+
+      // Subtle Center Diamond Reticle Pip
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.85)';
+      ctx.beginPath();
+      ctx.moveTo(hcx, hcy - 3.5);
+      ctx.lineTo(hcx + 3.5, hcy);
+      ctx.lineTo(hcx, hcy + 3.5);
+      ctx.lineTo(hcx - 3.5, hcy);
+      ctx.closePath();
       ctx.fill();
 
-      // Rotating subtle runic compass pips
-      const hAngle = this.elapsedTotalTimeMs * 0.002;
-      for (let i = 0; i < 4; i++) {
-        const a = hAngle + (i * Math.PI) / 2;
-        const px1 = hcx + Math.cos(a) * (hRad - 4);
-        const py1 = hcy + Math.sin(a) * (hRad - 4);
-        const px2 = hcx + Math.cos(a) * (hRad + 4);
-        const py2 = hcy + Math.sin(a) * (hRad + 4);
-        ctx.beginPath();
-        ctx.moveTo(px1, py1);
-        ctx.lineTo(px2, py2);
-        ctx.stroke();
-      }
+      // Ambient Corner Crosshairs
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.5)';
+      ctx.beginPath();
+      ctx.moveTo(hcx - bLen * 0.7, hcy);
+      ctx.lineTo(hcx + bLen * 0.7, hcy);
+      ctx.moveTo(hcx, hcy - bLen * 0.7);
+      ctx.lineTo(hcx, hcy + bLen * 0.7);
+      ctx.stroke();
       ctx.restore();
 
-      // 5a. Draw Ghost Placement Preview if in placement mode (Circular Summoning Ring)
+      // 5a. Draw Ghost Placement Preview if in placement mode (Chamfered Summoning Prism)
       if (this.activePlacementPreview) {
         const preview = this.activePlacementPreview;
         const isValid = preview.isValid !== false;
+        const gPad = tileSize * 0.12;
+        const gW = tileSize - gPad * 2;
+        const gH = tileSize - gPad * 2;
 
         ctx.save();
-        ctx.beginPath();
-        ctx.arc(hcx, hcy, hRad, 0, Math.PI * 2);
+        this.drawSafeRoundRect(ctx, hx + gPad, hy + gPad, gW, gH, 8);
         ctx.fillStyle = isValid ? 'rgba(52, 211, 153, 0.22)' : 'rgba(239, 68, 68, 0.25)';
         ctx.fill();
         ctx.strokeStyle = isValid ? '#34d399' : '#ef4444';
@@ -321,19 +351,22 @@ export class BattlefieldRenderer {
         if (!isValid) {
           ctx.font = 'bold 15px sans-serif';
           ctx.fillStyle = '#ef4444';
-          ctx.fillText('🚫', hcx + hRad * 0.7, hcy - hRad * 0.5);
+          ctx.fillText('🚫', hcx + tileSize * 0.3, hcy - tileSize * 0.24);
         }
         ctx.restore();
       }
     }
 
-    // 5b. Draw Partner Ghost Hover Reticle (Co-op - Circular Ally Focus)
+    // 5b. Draw Partner Ghost Hover Reticle (Co-op - Purple Tactical Brackets)
     if (this.partnerHoverCoord) {
       const phx = gridOffsetX + this.partnerHoverCoord.x * tileSize;
       const phy = gridOffsetY + this.partnerHoverCoord.y * tileSize;
-      const phcx = phx + tileSize / 2;
-      const phcy = phy + tileSize / 2;
-      const phRad = (tileSize / 2) * 0.88;
+      const bPad = tileSize * 0.1;
+      const bLen = tileSize * 0.24;
+      const left = phx + bPad;
+      const right = phx + tileSize - bPad;
+      const top = phy + bPad;
+      const bottom = phy + tileSize - bPad;
 
       ctx.save();
       ctx.strokeStyle = '#c084fc';
@@ -341,13 +374,27 @@ export class BattlefieldRenderer {
       ctx.setLineDash([4, 4]);
       ctx.shadowColor = '#a855f7';
       ctx.shadowBlur = 10;
+
+      // Brackets
       ctx.beginPath();
-      ctx.arc(phcx, phcy, phRad, 0, Math.PI * 2);
+      ctx.moveTo(left, top + bLen);
+      ctx.lineTo(left, top);
+      ctx.lineTo(left + bLen, top);
+      ctx.moveTo(right - bLen, top);
+      ctx.lineTo(right, top);
+      ctx.lineTo(right, top + bLen);
+      ctx.moveTo(right, bottom - bLen);
+      ctx.lineTo(right, bottom);
+      ctx.lineTo(right - bLen, bottom);
+      ctx.moveTo(left + bLen, bottom);
+      ctx.lineTo(left, bottom);
+      ctx.lineTo(left, bottom - bLen);
       ctx.stroke();
+
       ctx.font = 'bold 9px "Fira Code", monospace';
       ctx.fillStyle = '#f3e8ff';
       ctx.textAlign = 'right';
-      ctx.fillText('ALLY', phcx + phRad - 2, phcy - phRad * 0.5);
+      ctx.fillText('ALLY', right - 2, top + 10);
       ctx.restore();
     }
 
@@ -480,23 +527,68 @@ export class BattlefieldRenderer {
     ctx.fillStyle = floorGrad;
     ctx.fillRect(offsetX, offsetY, totalW, totalH);
 
-    // 2. Central circular sanctuary arena dais rings (Circular ancient dais - Not a square arena!)
+    // 2. Central Sanctuary Arena Dais (Multi-faceted architectural stonework - Not plain circles!)
+    const octR = totalW * 0.42;
     ctx.strokeStyle = this.isDarkCloudsTheme
-      ? 'rgba(168, 85, 247, 0.25)'
-      : 'rgba(255, 255, 255, 0.1)';
-    ctx.lineWidth = 2;
+      ? 'rgba(168, 85, 247, 0.22)'
+      : 'rgba(255, 255, 255, 0.09)';
+    ctx.lineWidth = 1.8;
+
+    // Outer Octagonal Sanctuary Boundary
     ctx.beginPath();
-    ctx.arc(acx, acy, totalW * 0.42, 0, Math.PI * 2);
+    for (let i = 0; i < 8; i++) {
+      const angle = (i * Math.PI) / 4 + Math.PI / 8;
+      const ox = acx + Math.cos(angle) * octR;
+      const oy = acy + Math.sin(angle) * octR;
+      if (i === 0) ctx.moveTo(ox, oy);
+      else ctx.lineTo(ox, oy);
+    }
+    ctx.closePath();
     ctx.stroke();
 
-    ctx.lineWidth = 1.5;
+    // Inlaid Diamond Cardinal Axis
+    const diaR = totalW * 0.28;
+    ctx.lineWidth = 1.4;
+    ctx.strokeStyle = this.isDarkCloudsTheme
+      ? 'rgba(192, 132, 252, 0.18)'
+      : 'rgba(56, 189, 248, 0.08)';
     ctx.beginPath();
-    ctx.arc(acx, acy, totalW * 0.28, 0, Math.PI * 2);
+    ctx.moveTo(acx, acy - diaR);
+    ctx.lineTo(acx + diaR, acy);
+    ctx.lineTo(acx, acy + diaR);
+    ctx.lineTo(acx - diaR, acy);
+    ctx.closePath();
     ctx.stroke();
 
+    // Central Hexagonal Runic Nexus
+    const hexR = totalW * 0.13;
     ctx.lineWidth = 1.2;
     ctx.beginPath();
-    ctx.arc(acx, acy, totalW * 0.14, 0, Math.PI * 2);
+    for (let i = 0; i < 6; i++) {
+      const a = (i * Math.PI) / 3;
+      const hx = acx + Math.cos(a) * hexR;
+      const hy = acy + Math.sin(a) * hexR;
+      if (i === 0) ctx.moveTo(hx, hy);
+      else ctx.lineTo(hx, hy);
+    }
+    ctx.closePath();
+    ctx.fillStyle = this.isDarkCloudsTheme
+      ? 'rgba(168, 85, 247, 0.08)'
+      : 'rgba(56, 189, 248, 0.05)';
+    ctx.fill();
+    ctx.stroke();
+
+    // Cardinal Carved Axis Dividers (Connecting the sanctum)
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(acx, acy - octR);
+    ctx.lineTo(acx, acy - hexR);
+    ctx.moveTo(acx, acy + hexR);
+    ctx.lineTo(acx, acy + octR);
+    ctx.moveTo(acx - octR, acy);
+    ctx.lineTo(acx - hexR, acy);
+    ctx.moveTo(acx + hexR, acy);
+    ctx.lineTo(acx + octR, acy);
     ctx.stroke();
 
     // Corner decorative metal / stone brackets
@@ -519,7 +611,7 @@ export class BattlefieldRenderer {
 
   /**
    * Renders organic, seamless stone floor with natural fissures and ZERO grid lines.
-   * Not everything is a square: tiles feature organic circular nodes and curved veins.
+   * Features diverse natural stone shapes (hex flagstones, diamond inlays, irregular slate slabs, and rounded monoliths).
    */
   private renderRealisticTile(
     ctx: CanvasRenderingContext2D,
@@ -535,10 +627,10 @@ export class BattlefieldRenderer {
     const seed = ((gx * 83 + gy * 47 + 29) % 1000) / 1000;
     const cx = px + size / 2;
     const cy = py + size / 2;
-    const r = size * 0.36;
+    const shapeType = Math.floor(seed * 5);
 
-    // 1. Soft Organic Stepping Node (Circular/Organic, NOT a square, zero straight lines)
-    const nodeGrad = ctx.createLinearGradient(cx - r, cy - r, cx + r, cy + r);
+    // 1. Natural Stone Shading (Gradient adapted to theme)
+    const nodeGrad = ctx.createLinearGradient(cx - size * 0.4, cy - size * 0.4, cx + size * 0.4, cy + size * 0.4);
     if (this.isDarkCloudsTheme) {
       nodeGrad.addColorStop(0, 'rgba(168, 85, 247, 0.09)');
       nodeGrad.addColorStop(0.6, 'rgba(88, 28, 135, 0.04)');
@@ -549,15 +641,78 @@ export class BattlefieldRenderer {
       nodeGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
     }
     ctx.fillStyle = nodeGrad;
+
+    // Diverse Stone Shapes (Not everything is a circle!)
     ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    if (shapeType === 0) {
+      // Shape 0: Chamfered Hexagonal Flagstone Paver
+      const ch = size * 0.14;
+      const pad = size * 0.1;
+      const l = px + pad;
+      const r = px + size - pad;
+      const t = py + pad;
+      const b = py + size - pad;
+      ctx.moveTo(l + ch, t);
+      ctx.lineTo(r - ch, t);
+      ctx.lineTo(r, t + ch);
+      ctx.lineTo(r, b - ch);
+      ctx.lineTo(r - ch, b);
+      ctx.lineTo(l + ch, b);
+      ctx.lineTo(l, b - ch);
+      ctx.lineTo(l, t + ch);
+      ctx.closePath();
+    } else if (shapeType === 1) {
+      // Shape 1: Diamond / Rhombus Stone Inlay
+      const dR = size * 0.38;
+      ctx.moveTo(cx, cy - dR);
+      ctx.lineTo(cx + dR, cy);
+      ctx.lineTo(cx, cy + dR);
+      ctx.lineTo(cx - dR, cy);
+      ctx.closePath();
+    } else if (shapeType === 2) {
+      // Shape 2: Organic Irregular Slate Slab (Natural 6-point polygonal stone)
+      const vOffset = (seed - 0.5) * (size * 0.1);
+      ctx.moveTo(cx - size * 0.36, cy - size * 0.26 + vOffset);
+      ctx.lineTo(cx + size * 0.12, cy - size * 0.38);
+      ctx.lineTo(cx + size * 0.38, cy - size * 0.14 + vOffset);
+      ctx.lineTo(cx + size * 0.32, cy + size * 0.34);
+      ctx.lineTo(cx - size * 0.12, cy + size * 0.40 - vOffset);
+      ctx.lineTo(cx - size * 0.38, cy + size * 0.14);
+      ctx.closePath();
+    } else if (shapeType === 3) {
+      // Shape 3: Rounded Rectangular Bedrock Slab
+      const rw = size * 0.74;
+      const rh = size * 0.74;
+      const rad = size * 0.14;
+      const rx = cx - rw / 2;
+      const ry = cy - rh / 2;
+      ctx.moveTo(rx + rad, ry);
+      ctx.lineTo(rx + rw - rad, ry);
+      ctx.quadraticCurveTo(rx + rw, ry, rx + rw, ry + rad);
+      ctx.lineTo(rx + rw, ry + rh - rad);
+      ctx.quadraticCurveTo(rx + rw, ry + rh, rx + rw - rad, ry + rh);
+      ctx.lineTo(rx + rad, ry + rh);
+      ctx.quadraticCurveTo(rx, ry + rh, rx, ry + rh - rad);
+      ctx.lineTo(rx, ry + rad);
+      ctx.quadraticCurveTo(rx, ry, rx + rad, ry);
+      ctx.closePath();
+    } else {
+      // Shape 4: Soft Organic Oval Sanctuary Stone
+      ctx.ellipse(cx, cy, size * 0.36, size * 0.30, (seed - 0.5) * 0.8, 0, Math.PI * 2);
+    }
     ctx.fill();
+
+    // Subtle edge highlight on stone boundary
+    ctx.strokeStyle = this.isDarkCloudsTheme ? 'rgba(168, 85, 247, 0.08)' : 'rgba(255, 255, 255, 0.05)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
 
     // Subtle center mineral fleck (Satisfies fillRect for unit test verification)
     ctx.fillStyle = this.isDarkCloudsTheme ? 'rgba(192, 132, 252, 0.18)' : 'rgba(255, 255, 255, 0.12)';
     ctx.fillRect(cx - 0.75, cy - 0.75, 1.5, 1.5);
 
     // 2. Organic Surface Mineral Vein (Curved, NO straight lines or border strokes)
+    const r = size * 0.36;
     if (this.isDarkCloudsTheme) {
       // Ethereal pulsating runic vein in stone interior
       const veinPulse = 0.5 + 0.5 * Math.sin(this.elapsedTotalTimeMs * 0.003 + (gx + gy) * 0.8);
