@@ -522,6 +522,7 @@ export class GameApp {
       (window as any).playDarkCloudsCutscene = () => this.playDarkCloudsCutscene();
       (window as any).playVoidOverlordCutscene = () => this.playDarkCloudsCutscene();
       (window as any).killTitans = () => this.killRound1000Titans();
+      (window as any).triggerTitanLastBlow = () => this.executeTitansLastBlowOnRound1000();
     }
     this.attachCombatEngineHooks(this.combatEngine);
     this.enemyAI = new EnemyAI(this.combatEngine);
@@ -2398,10 +2399,6 @@ export class GameApp {
       if ((this.currentRound === 1000 || this.currentRound === 5000) && !this.r1000TitansSummoned && (enemy.id.includes('void_overlord') || enemy.isBoss)) {
         this.r1000TitansSummoned = true;
         await this.summonRound1000Titans(enemy);
-        if (this.currentRound === 1000) {
-          await delay(1200);
-          await this.killRound1000Titans(enemy);
-        }
       }
 
       enemy.stats.currentAp = enemy.stats.maxAp;
@@ -4546,10 +4543,6 @@ export class GameApp {
         if ((this.currentRound === 1000 || this.currentRound === 5000) && !this.r1000TitansSummoned && (enemy.id.includes('void_overlord') || enemy.isBoss)) {
           this.r1000TitansSummoned = true;
           await this.summonRound1000Titans(enemy);
-          if (this.currentRound === 1000) {
-            await delay(1200);
-            await this.killRound1000Titans(enemy);
-          }
         }
 
         this.focusedUnitId = enemy.id;
@@ -4930,6 +4923,9 @@ export class GameApp {
       const level = caster.level ?? this.upgradeManager.getLevelFromEssence(this.totalEssence);
       return this.upgradeManager.calculateEssenceResonanceMultiplier(level, this.totalEssence);
     };
+    engine.onTitanLastBlow = (boss: Unit, colossusDmg: number, leviathanDmg: number) => {
+      void this.executeTitansLastBlowOnRound1000(boss, colossusDmg, leviathanDmg);
+    };
   }
 
   public addElementalEssence(element: ElementType, amount: number = 1, coord?: GridCoord): void {
@@ -5298,6 +5294,21 @@ export class GameApp {
           description: 'Hurls cataclysmic lava bursts across the void arena.',
           level: is10x ? 25 : 15,
         },
+        {
+          id: 'magma_colossus_final_blow',
+          name: is10x ? '10x Volcanic World-Shatter (Last Blow)' : 'Volcanic World-Shatter (Last Blow)',
+          element: 'Fire',
+          icon: '🌋',
+          apCost: 1,
+          cooldown: 0,
+          currentCooldown: 0,
+          range: 8,
+          aoeRadius: 0,
+          targeting: 'SingleUnit',
+          baseDamage: 50000,
+          description: 'The Colossus channels its molten primordial core into a fatal strike against the Void Overlord.',
+          level: is10x ? 50 : 30,
+        },
       ],
       statusEffects: [],
       isDead: false,
@@ -5355,6 +5366,21 @@ export class GameApp {
           description: 'Fires an apocalyptic beam of primal starlight into the boss.',
           level: is10x ? 25 : 15,
         },
+        {
+          id: 'void_leviathan_final_blow',
+          name: is10x ? '10x Abyssal Singularity Maw (Last Blow)' : 'Abyssal Singularity Maw (Last Blow)',
+          element: 'Void',
+          icon: '🌌',
+          apCost: 1,
+          cooldown: 0,
+          currentCooldown: 0,
+          range: 8,
+          aoeRadius: 0,
+          targeting: 'SingleUnit',
+          baseDamage: 50000,
+          description: 'The Leviathan channels infinite cosmic force into a fatal strike against the Void Overlord.',
+          level: is10x ? 50 : 30,
+        },
       ],
       statusEffects: [],
       isDead: false,
@@ -5385,6 +5411,130 @@ export class GameApp {
 
     this.updateHUD();
     await delay(750);
+  }
+
+  public async executeTitansLastBlowOnRound1000(bossUnit?: Unit, colossusDmg: number = 50000, leviathanDmg: number = 50000): Promise<void> {
+    const boss =
+      bossUnit ||
+      this.combatEngine.enemies.find((e) => e.id.includes('void_overlord') || (e.isBoss && this.currentRound === 1000)) ||
+      this.combatEngine.enemies.find((e) => e.isBoss);
+
+    const titans = this.combatEngine.allies.filter(
+      (a) =>
+        a.id.includes('colossus') ||
+        a.id.includes('leviathan') ||
+        a.name.toLowerCase().includes('titan') ||
+        a.name.toLowerCase().includes('colossus') ||
+        a.name.toLowerCase().includes('leviathan')
+    );
+
+    const bossName = boss?.name || 'The Void Overlord';
+    const totalDmg = colossusDmg + leviathanDmg;
+
+    this.hud.updatePhaseBanner('⚡ PRIMORDIAL CATACLYSM: DUAL LAST BLOW!');
+    this.soundEngine.playBossWarhorn();
+    this.soundEngine.playEarthquakeRumble();
+    this.soundEngine.playCosmicSingularity();
+    this.soundEngine.playExplosion();
+
+    if (this.renderer) {
+      this.renderer.particleEngine.triggerScreenShake(48, 2200);
+    }
+
+    this.combatEngine.addLog(
+      'reaction',
+      `⚡ [PRIMORDIAL CATACLYSM: DUAL LAST BLOW] The Primordial Titans channel all remaining cosmic energy for the decisive strike to defeat ${bossName}!`
+    );
+
+    // Locate positions
+    const colossus = titans.find((t) => t.id.includes('colossus') || t.name.toLowerCase().includes('colossus'));
+    const leviathan = titans.find((t) => t.id.includes('leviathan') || t.name.toLowerCase().includes('leviathan'));
+
+    if (this.renderer && boss) {
+      const bPos = this.renderer.gridToScreen(boss.coord);
+
+      if (colossus) {
+        const cPos = this.renderer.gridToScreen(colossus.coord);
+        this.renderer.particleEngine.emit(cPos.x, cPos.y, '#f97316', 70, 7, 'spark');
+        this.renderer.particleEngine.addFloatingText(
+          `🌋 MAGMA COLOSSUS: VOLCANIC WORLD-SHATTER! (-${colossusDmg.toLocaleString()} DMG)`,
+          cPos.x,
+          cPos.y - 45,
+          '#f97316',
+          26
+        );
+      }
+
+      if (leviathan) {
+        const lPos = this.renderer.gridToScreen(leviathan.coord);
+        this.renderer.particleEngine.emit(lPos.x, lPos.y, '#a855f7', 70, 7, 'spark');
+        this.renderer.particleEngine.addFloatingText(
+          `🌌 VOID LEVIATHAN: ABYSSAL SINGULARITY MAW! (-${leviathanDmg.toLocaleString()} DMG)`,
+          lPos.x,
+          lPos.y - 45,
+          '#c084fc',
+          26
+        );
+      }
+
+      // Massive center explosion on the boss
+      this.renderer.particleEngine.emit(bPos.x, bPos.y, '#f97316', 80, 8, 'star');
+      this.renderer.particleEngine.emit(bPos.x, bPos.y, '#a855f7', 80, 8, 'spark');
+      this.renderer.particleEngine.emit(bPos.x, bPos.y, '#ef4444', 60, 6, 'skull');
+      this.renderer.particleEngine.addFloatingText(
+        `💥 TITANS' DECISIVE LAST BLOW: -${totalDmg.toLocaleString()} DMG!`,
+        bPos.x,
+        bPos.y - 65,
+        '#facc15',
+        30
+      );
+      this.renderer.particleEngine.addFloatingText(
+        `👑 ${bossName.toUpperCase()} PERMANENTLY VANQUISHED!`,
+        bPos.x,
+        bPos.y - 25,
+        '#ef4444',
+        28
+      );
+    }
+
+    if (boss) {
+      boss.stats.currentHp = 0;
+      boss.isDead = true;
+      (boss as any).titanLastBlowDelivered = true;
+      this.deadUnitIds.add(boss.id);
+    }
+
+    this.combatEngine.addLog(
+      'system',
+      `💥 TITANS' LAST BLOW DEALT ${totalDmg.toLocaleString()} DAMAGE! ${bossName} has been completely obliterated!`
+    );
+
+    // After unleashing the last blow, the Titans' primordial essence is exhausted and they sacrifice themselves
+    for (const titan of titans) {
+      titan.stats.currentHp = 0;
+      titan.isDead = true;
+      this.deadUnitIds.add(titan.id);
+
+      if (this.renderer) {
+        const pos = this.renderer.gridToScreen(titan.coord);
+        this.renderer.particleEngine.emit(pos.x, pos.y, '#f59e0b', 50, 5, 'spark');
+        this.renderer.particleEngine.addFloatingText(
+          `💀 ${titan.name.toUpperCase()} SACRIFICED IN VICTORY!`,
+          pos.x,
+          pos.y - 40,
+          '#f59e0b',
+          22
+        );
+      }
+      this.combatEngine.addLog(
+        'system',
+        `💀 ${titan.name} sacrificed all ancient life essence delivering the decisive last blow to save the realm!`
+      );
+    }
+
+    this.hud.updatePhaseBanner('🏆 ROUND 1000 VICTORY: THE TITANS VANQUISHED THE VOID OVERLORD!');
+    this.updateHUD();
+    await delay(1200);
   }
 
   public async killRound1000Titans(bossUnit?: Unit): Promise<void> {
@@ -5683,6 +5833,19 @@ export class GameApp {
     if (cmd === 'kill titans' || cmd === 'kill titan' || cmd === 'titans dead' || cmd === 'slay titans') {
       this.killRound1000Titans();
       return { success: true, message: '💀 Primordial Titans have been killed!' };
+    }
+
+    // 1h. Titan Last Blow Command
+    if (
+      cmd === 'titan last blow' ||
+      cmd === 'last blow' ||
+      cmd === 'titans last blow' ||
+      cmd === 'titan finisher' ||
+      cmd === 'titans blow' ||
+      cmd === 'titan blow'
+    ) {
+      void this.executeTitansLastBlowOnRound1000();
+      return { success: true, message: '⚡ Primordial Titans unleashed their decisive LAST BLOW, obliterating the Void Overlord!' };
     }
 
     // 2. Specific round jump: "round 15", "level 10", "goto 12", "go to round 5"

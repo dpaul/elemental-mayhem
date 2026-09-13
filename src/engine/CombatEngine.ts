@@ -65,6 +65,7 @@ export class CombatEngine {
   public onEssenceEarned?: (amount: number, coord: GridCoord) => void;
   public onElementalEssenceEarned?: (element: ElementType, amount: number, coord: GridCoord) => void;
   public getEssenceResonanceMultiplier?: (caster: Unit) => number;
+  public onTitanLastBlow?: (boss: Unit, colossusDmg: number, leviathanDmg: number) => void;
 
   constructor(grid: Grid, hazardManager: TileHazardManager, hero: Unit, enemies: Unit[], coopHero?: Unit) {
     this.grid = grid;
@@ -144,6 +145,67 @@ export class CombatEngine {
       }
     }
     return killedTitans;
+  }
+
+  /**
+   * Triggers the Primordial Titans' decisive last blow against the Round 1000 Void Overlord boss.
+   * Delivers 100,000 damage (50,000 from Magma Colossus + 50,000 from Void Leviathan),
+   * permanently taking out and obliterating the boss, while sacrificing the Titans in the cosmic cataclysm.
+   */
+  public triggerTitanFinalBlow(targetBoss?: Unit): { boss: Unit; colossusDamage: number; leviathanDamage: number } | null {
+    const boss =
+      targetBoss ||
+      this.enemies.find((e) => e.id === 'boss_void_overlord_r1000' || (e.isBoss && this.currentRound === 1000)) ||
+      this.enemies.find((e) => e.isBoss);
+
+    if (!boss) return null;
+
+    const colossus = this.allies.find(
+      (a) => a.id.includes('colossus') || a.name.toLowerCase().includes('colossus')
+    );
+    const leviathan = this.allies.find(
+      (a) => a.id.includes('leviathan') || a.name.toLowerCase().includes('leviathan')
+    );
+
+    const colossusDamage = 50000;
+    const leviathanDamage = 50000;
+    const totalFinisherDamage = colossusDamage + leviathanDamage;
+
+    (boss as any).titanLastBlowDelivered = true;
+    boss.stats.currentHp = 0;
+    boss.isDead = true;
+
+    this.addLog(
+      'system',
+      `⚡ [PRIMORDIAL CATACLYSM: DUAL LAST BLOW] The Primordial Titans unleash their ultimate finisher upon ${boss.name}!`
+    );
+
+    if (colossus) {
+      this.addLog(
+        'system',
+        `🌋 Magma Colossus strikes with Volcanic World-Shatter dealing ${colossusDamage.toLocaleString()} DMG!`
+      );
+    }
+    if (leviathan) {
+      this.addLog(
+        'system',
+        `🌌 Void Leviathan engulfs with Abyssal Singularity Maw dealing ${leviathanDamage.toLocaleString()} DMG!`
+      );
+    }
+
+    this.addLog(
+      'system',
+      `💥 TITANS' DECISIVE LAST BLOW: ${totalFinisherDamage.toLocaleString()} TOTAL DAMAGE! ${boss.name} has been permanently taken out and destroyed!`
+    );
+
+    // The Titans sacrifice their ancient life essence to deliver this blow
+    this.killRound1000Titans('channeling all primordial essence into the ultimate finishing blow');
+
+    if (this.onTitanLastBlow) {
+      this.onTitanLastBlow(boss, colossusDamage, leviathanDamage);
+    }
+
+    return { boss, colossusDamage, leviathanDamage };
   }
 
   public getUnitAt(coord: GridCoord): Unit | null {
@@ -951,7 +1013,7 @@ export class CombatEngine {
             const elemAffinity = unit.stats.elementalAffinity;
             if (elemAffinity && elemAffinity !== 'Neutral' && elemAffinity !== 'Admin') {
               const elemDrop = unit.isBoss ? 2 : 1;
-              this.addLog('system', `✨ Harvested +${elemDrop}x ${elemAffinity} Essence from ${unit.name}! (Merge 2 on Round 30)`);
+              this.addLog('system', `✨ Harvested +${elemDrop}x ${elemAffinity} Essence from ${unit.name}!`);
               if (this.onElementalEssenceEarned) {
                 this.onElementalEssenceEarned(elemAffinity, elemDrop, unit.coord);
               }
@@ -1307,7 +1369,25 @@ export class CombatEngine {
         // Check for unit death vs damaged by zombie
         if (targetUnit.stats.currentHp === 0) {
           targetUnit.isDead = true;
-          this.addLog('system', `☠️ ${targetUnit.name} has been defeated!`);
+
+          // If target is Void Overlord on Round 1000 and Titans are present, trigger Titans' decisive last blow!
+          if (
+            (targetUnit.id === 'boss_void_overlord_r1000' || (targetUnit.isBoss && this.currentRound === 1000)) &&
+            !(targetUnit as any).titanLastBlowDelivered &&
+            this.allies.some(
+              (a) =>
+                !a.isDead &&
+                (a.id.includes('colossus') ||
+                  a.id.includes('leviathan') ||
+                  a.name.toLowerCase().includes('colossus') ||
+                  a.name.toLowerCase().includes('leviathan'))
+            )
+          ) {
+            this.triggerTitanFinalBlow(targetUnit);
+          } else {
+            this.addLog('system', `☠️ ${targetUnit.name} has been defeated!`);
+          }
+
           if (targetUnit.faction === 'Enemy') {
             this.performance.enemiesKilled += 1;
             const essenceDrop = targetUnit.isBoss ? 150 : 25;
@@ -1319,7 +1399,7 @@ export class CombatEngine {
             const elemAffinity = targetUnit.stats.elementalAffinity;
             if (elemAffinity && elemAffinity !== 'Neutral' && elemAffinity !== 'Admin') {
               const elemDrop = targetUnit.isBoss ? 2 : 1;
-              this.addLog('system', `✨ Harvested +${elemDrop}x ${elemAffinity} Essence from ${targetUnit.name}! (Merge 2 on Round 30)`);
+              this.addLog('system', `✨ Harvested +${elemDrop}x ${elemAffinity} Essence from ${targetUnit.name}!`);
               if (this.onElementalEssenceEarned) {
                 this.onElementalEssenceEarned(elemAffinity, elemDrop, targetUnit.coord);
               }

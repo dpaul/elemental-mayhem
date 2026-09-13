@@ -264,4 +264,175 @@ describe('Round 1000 Void Overlord & Primordial Titan Allies', () => {
     expect(combatEngine.getUnitAt({ x: 3, y: 2 })).toBeNull();
     expect(combatEngine.getUnitAt({ x: 3, y: 7 })).toBeNull();
   });
+
+  it('executes the Titans last blow on The Void Overlord via triggerTitanFinalBlow, taking him out and sacrificing the Titans', () => {
+    const enemies = escalation.generateRoundEnemies(1000);
+    const combatEngine = new CombatEngine(grid, hazardManager, hero, enemies);
+    combatEngine.currentRound = 1000;
+
+    const magmaColossus: Unit = {
+      id: 'ally_magma_colossus_r1000',
+      name: 'MAGMA COLOSSUS (Primordial Titan)',
+      faction: 'Player',
+      avatar: '🗿🌋',
+      coord: { x: 3, y: 2 },
+      isBoss: true,
+      stats: {
+        maxHp: 15000,
+        currentHp: 15000,
+        maxAp: 6,
+        currentAp: 6,
+        moveCostPerTile: 1,
+        elementalAffinity: 'Fire',
+      },
+      abilities: [],
+      statusEffects: [],
+      isDead: false,
+    };
+
+    const voidLeviathan: Unit = {
+      id: 'ally_void_leviathan_r1000',
+      name: 'VOID LEVIATHAN (Primordial Titan)',
+      faction: 'Player',
+      avatar: '🌌⚡',
+      coord: { x: 3, y: 7 },
+      isBoss: true,
+      stats: {
+        maxHp: 15000,
+        currentHp: 15000,
+        maxAp: 6,
+        currentAp: 6,
+        moveCostPerTile: 1,
+        elementalAffinity: 'Void',
+      },
+      abilities: [],
+      statusEffects: [],
+      isDead: false,
+    };
+
+    combatEngine.allies.push(magmaColossus, voidLeviathan);
+    const overlord = enemies[0];
+    expect(overlord.isDead).toBe(false);
+    expect(overlord.stats.currentHp).toBeGreaterThan(0);
+
+    let callbackInvoked = false;
+    let recordedColossusDmg = 0;
+    let recordedLeviathanDmg = 0;
+    combatEngine.onTitanLastBlow = (boss, cDmg, lDmg) => {
+      callbackInvoked = true;
+      expect(boss.id).toBe(overlord.id);
+      recordedColossusDmg = cDmg;
+      recordedLeviathanDmg = lDmg;
+    };
+
+    // Trigger the Titans' last blow
+    const result = combatEngine.triggerTitanFinalBlow(overlord);
+    expect(result).not.toBeNull();
+    expect(result?.colossusDamage).toBe(50000);
+    expect(result?.leviathanDamage).toBe(50000);
+
+    // The Void Overlord must be taken out (0 HP and dead)
+    expect(overlord.stats.currentHp).toBe(0);
+    expect(overlord.isDead).toBe(true);
+
+    // The Titans sacrificed themselves in the last blow
+    expect(magmaColossus.isDead).toBe(true);
+    expect(magmaColossus.stats.currentHp).toBe(0);
+    expect(voidLeviathan.isDead).toBe(true);
+    expect(voidLeviathan.stats.currentHp).toBe(0);
+
+    // Callback fired
+    expect(callbackInvoked).toBe(true);
+    expect(recordedColossusDmg).toBe(50000);
+    expect(recordedLeviathanDmg).toBe(50000);
+
+    // Logs verify the last blow
+    const hasLastBlowLog = combatEngine.logs.some((l) =>
+      l.message.includes('PRIMORDIAL CATACLYSM: DUAL LAST BLOW') ||
+      l.message.includes("TITANS' DECISIVE LAST BLOW")
+    );
+    expect(hasLastBlowLog).toBe(true);
+  });
+
+  it('automatically triggers the Titans decisive last blow when fatal damage is dealt to Round 1000 boss', () => {
+    const enemies = escalation.generateRoundEnemies(1000);
+    const combatEngine = new CombatEngine(grid, hazardManager, hero, enemies);
+    combatEngine.currentRound = 1000;
+
+    const magmaColossus: Unit = {
+      id: 'ally_magma_colossus_r1000',
+      name: 'MAGMA COLOSSUS (Primordial Titan)',
+      faction: 'Player',
+      avatar: '🗿🌋',
+      coord: { x: 3, y: 2 },
+      isBoss: true,
+      stats: {
+        maxHp: 15000,
+        currentHp: 15000,
+        maxAp: 6,
+        currentAp: 6,
+        moveCostPerTile: 1,
+        elementalAffinity: 'Fire',
+      },
+      abilities: [],
+      statusEffects: [],
+      isDead: false,
+    };
+
+    const voidLeviathan: Unit = {
+      id: 'ally_void_leviathan_r1000',
+      name: 'VOID LEVIATHAN (Primordial Titan)',
+      faction: 'Player',
+      avatar: '🌌⚡',
+      coord: { x: 3, y: 7 },
+      isBoss: true,
+      stats: {
+        maxHp: 15000,
+        currentHp: 15000,
+        maxAp: 6,
+        currentAp: 6,
+        moveCostPerTile: 1,
+        elementalAffinity: 'Void',
+      },
+      abilities: [],
+      statusEffects: [],
+      isDead: false,
+    };
+
+    combatEngine.allies.push(magmaColossus, voidLeviathan);
+    const overlord = enemies[0];
+
+    // Bring boss to low HP (1 HP)
+    overlord.stats.currentHp = 1;
+    hero.coord = { x: 7, y: 5 };
+
+    // Hero deals fatal strike
+    const fatalStrike = {
+      id: 'fatal_strike',
+      name: 'Fatal Strike',
+      element: 'Fire' as const,
+      icon: '🗡️',
+      apCost: 1,
+      cooldown: 0,
+      currentCooldown: 0,
+      range: 10,
+      aoeRadius: 0,
+      targeting: 'SingleUnit' as const,
+      baseDamage: 100,
+      description: 'Strike',
+      level: 1,
+    };
+
+    const res = combatEngine.executeAbility(hero, fatalStrike, overlord.coord);
+    expect(res.success).toBe(true);
+
+    // Overlord is taken out
+    expect(overlord.stats.currentHp).toBe(0);
+    expect(overlord.isDead).toBe(true);
+
+    // Titans unleashed last blow and sacrificed
+    expect(magmaColossus.isDead).toBe(true);
+    expect(voidLeviathan.isDead).toBe(true);
+    expect(combatEngine.logs.some((l) => l.message.includes('DUAL LAST BLOW'))).toBe(true);
+  });
 });
