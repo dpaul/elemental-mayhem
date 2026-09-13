@@ -406,9 +406,11 @@
             <span class="live-dot"></span>
             <span class="status-tag-text">50 ELEMENTAL REALMS ACTIVE • v0.50 EXPANSION</span>
           </div>
-          <div class="home-quick-actions">
             <button id="home-quick-cutscene-btn" class="home-util-btn btn-cutscene-amber" title="Watch Origin Cutscene: How Mortals Gained Elemental Powers">
               <span class="util-icon">🎬</span> Origin Cutscene
+            </button>
+            <button id="home-quick-void-cutscene-btn" class="home-util-btn btn-cutscene-purple" title="Watch Saga of the Void Overlord in the Dark Clouds">
+              <span class="util-icon">🌩️</span> Void Overlord
             </button>
             <button id="home-quick-sound-btn" class="home-util-btn" title="Toggle Sound Engine">
               <span class="util-icon">🔊</span> Sound ON
@@ -1536,91 +1538,169 @@
       </div>
     </div>
   <!-- =====================================================================
-       ASCENT TO THE DARK CLOUDS CUTSCENE OVERLAY (ROUND 1000)
+       ASCENT TO THE DARK CLOUDS CUTSCENE OVERLAY (ROUND 1000 - SAGA OF THE VOID OVERLORD)
        ===================================================================== -->
   <div id="dark-clouds-cutscene-overlay" class="dark-clouds-cutscene-overlay hidden" style="z-index: 310;">
-    <!-- Top Letterbox Bar -->
-    <div class="dc-letterbox dc-letterbox-top">
-      <div class="dc-top-bar">
-        <div class="dc-title-tag">
-          <span class="dc-live-dot"></span>
-          <span class="dc-tag-text">ROUND 1000 CLIMAX • ASCENSION TO THE DARK CLOUDS</span>
+    <!-- Top Widescreen Letterbox Bar -->
+    <div class="cutscene-letterbox cutscene-letterbox-top">
+      <div class="cutscene-top-bar">
+        <div class="cutscene-title-tag">
+          <span class="cutscene-live-dot" style="background: #c084fc; box-shadow: 0 0 10px #c084fc;"></span>
+          <span class="cutscene-tag-text">ROUND 1000 CHRONICLE • SAGA OF THE VOID OVERLORD</span>
         </div>
-        <div class="dc-top-actions">
-          <button id="dc-btn-mute" class="dc-tool-btn" title="Toggle Sound">🔊 Audio: ON</button>
-          <button id="dc-btn-play-pause" class="dc-tool-btn" title="Pause / Resume">⏸️ Pause</button>
-          <button id="dc-btn-skip" class="dc-tool-btn btn-skip" title="Skip Directly to Battle">⏩ Skip</button>
-          <button id="dc-btn-close" class="dc-close-btn" title="Close Cutscene">✕</button>
+        <div class="cutscene-chapter-indicators" id="dc-chapter-pips">
+          <!-- Populated by DarkCloudsCutsceneManager -->
+        </div>
+        <div class="cutscene-top-actions">
+          <button id="dc-btn-mode" class="cutscene-tool-btn btn-mode" title="Switch between Cinematic Video and Interactive Stage">📹 Video Mode</button>
+          <button id="dc-btn-mute" class="cutscene-tool-btn" title="Toggle Sound">🔊 Audio</button>
+          <button id="dc-btn-skip" class="cutscene-tool-btn btn-skip" title="Skip Directly to Battle">⏩ Skip</button>
+          <button id="dc-btn-close" class="cutscene-close-btn" title="Exit Cutscene">✕</button>
         </div>
       </div>
     </div>
 
-    <!-- Central Cinematic Stage -->
-    <div class="dc-stage" id="dc-stage">
-      <div class="dc-vignette"></div>
+    <!-- Center Cinematic Canvas & Visual Stage -->
+    <div class="cutscene-stage dc-stage" id="dc-stage">
+      <div class="cutscene-stage-vignette dc-vignette"></div>
 
-      <!-- Ken Burns Background Scene & Cloud Layers -->
-      <div class="dc-visual-frame">
-        <img id="dc-cutscene-bg-img" class="dc-scene-img ken-burns-0" src="./cutscene/scene_6.jpg" alt="Dark Clouds Scene" />
-        <div class="dc-lightning-flash" id="dc-lightning-flash"></div>
-        <div class="dc-clouds-container" id="dc-clouds-container">
-          <div class="dc-cloud-layer dc-cloud-back"></div>
-          <div class="dc-cloud-layer dc-cloud-mid"></div>
-          <div class="dc-cloud-layer dc-cloud-front"></div>
-        </div>
-        <div class="dc-rift-vortex"></div>
-      </div>
+      <!-- Real Cinematic Chronicle Screen: High-Res Scene Image Presentation with Dynamic Ken Burns Motion -->
+      <div class="cutscene-video-container dc-video-container">
+        <div class="cutscene-visual-frame dc-visual-frame" id="dc-visual-frame" title="Click to Toggle Play / Pause">
+          <img id="dc-cutscene-bg-img" class="cutscene-scene-image dc-scene-img ken-burns-0" src="./cutscene/scene_6.jpg" alt="Dark Clouds Scene Visual" />
+          
+          <canvas id="dc-lightning-canvas" class="dc-lightning-canvas"></canvas>
+          <div class="dc-lightning-flash" id="dc-lightning-flash"></div>
+          <div class="dc-cinematic-fx-overlay">
+            <div class="dc-film-grain"></div>
+            <div class="dc-anamorphic-streak" id="dc-anamorphic-streak"></div>
+          </div>
+          <div class="dc-clouds-container" id="dc-clouds-container">
+            <div class="dc-cloud-layer dc-cloud-back"></div>
+            <div class="dc-cloud-layer dc-cloud-mid"></div>
+            <div class="dc-cloud-layer dc-cloud-front"></div>
+          </div>
+          <div class="dc-rift-vortex"></div>
 
-      <!-- Hero Ascending Silhouette -->
-      <div class="dc-hero-ascension" id="dc-hero-ascension">
-        <div class="dc-hero-aura"></div>
-        <div class="dc-hero-avatar">🧙‍♂️✨</div>
-        <div class="dc-hero-element-sparks">🔥💧🪨</div>
-      </div>
+          <!-- Stolen Elemental Powers Swirling Around Void Overlord (Hyper-Realistic Plasma Orbs) -->
+          <div class="dc-stolen-elements" id="dc-stolen-elements">
+            <div class="dc-stolen-plasma-orb orb-fire s-spark-1" title="Stolen Fire Essence"><div class="plasma-core"></div><div class="plasma-halo"></div><div class="plasma-flare"></div></div>
+            <div class="dc-stolen-plasma-orb orb-ice s-spark-2" title="Stolen Ice Essence"><div class="plasma-core"></div><div class="plasma-halo"></div><div class="plasma-flare"></div></div>
+            <div class="dc-stolen-plasma-orb orb-lightning s-spark-3" title="Stolen Lightning Essence"><div class="plasma-core"></div><div class="plasma-halo"></div><div class="plasma-flare"></div></div>
+            <div class="dc-stolen-plasma-orb orb-magma s-spark-4" title="Stolen Magma Essence"><div class="plasma-core"></div><div class="plasma-halo"></div><div class="plasma-flare"></div></div>
+            <div class="dc-stolen-plasma-orb orb-crystal s-spark-5" title="Stolen Crystal Essence"><div class="plasma-core"></div><div class="plasma-halo"></div><div class="plasma-flare"></div></div>
+            <div class="dc-stolen-plasma-orb orb-toxic s-spark-6" title="Stolen Toxic Essence"><div class="plasma-core"></div><div class="plasma-halo"></div><div class="plasma-flare"></div></div>
+            <div class="dc-stolen-plasma-orb orb-void s-spark-7" title="Stolen Void Essence"><div class="plasma-core"></div><div class="plasma-halo"></div><div class="plasma-flare"></div></div>
+            <div class="dc-stolen-plasma-orb orb-celestial s-spark-8" title="Stolen Cosmic Essence"><div class="plasma-core"></div><div class="plasma-halo"></div><div class="plasma-flare"></div></div>
+          </div>
 
-      <!-- Void Overlord Silhouette in the Clouds -->
-      <div class="dc-boss-silhouette" id="dc-boss-silhouette">
-        <div class="dc-boss-crown">👑</div>
-        <div class="dc-boss-avatar">👹🌌</div>
-        <div class="dc-boss-eyes">👁️ 👁️</div>
-        <div class="dc-boss-name">THE VOID OVERLORD</div>
-      </div>
-
-      <!-- Action Button (appears in Phase 3) -->
-      <div class="dc-action-wrap">
-        <button id="dc-btn-confront" class="btn-confront-overlord hidden">
-          <span>⚔️</span> CONFRONT THE VOID OVERLORD (ROUND 1000)
-        </button>
-      </div>
-    </div>
-
-    <!-- Bottom Letterbox Bar with Narration & Spoken Subtitles -->
-    <div class="dc-letterbox dc-letterbox-bottom">
-      <div class="dc-bottom-content">
-        <!-- Story Phase Narration Box -->
-        <div class="dc-narration-box">
-          <div class="dc-phase-badge" id="dc-cutscene-badge">⚡ PHASE I • THE RIFT SUNDERS THE ARENA</div>
-          <h2 class="dc-phase-heading" id="dc-cutscene-title">The Sky Tears Open</h2>
-          <div class="dc-phase-subtitle" id="dc-cutscene-subtitle">After 999 battles, an abyssal dimensional rift fractures the heavens!</div>
-          <p class="dc-narrative-text" id="dc-cutscene-narrative">
-            The mortal arenas tremble as celestial thunder shatters the horizon! A colossal dimensional vortex opens above, pulling everything skyward toward the turbulent dark storm clouds!
-          </p>
-        </div>
-
-        <!-- Spoken Character Subtitle / Dialogue Card -->
-        <div class="dc-dialogue-card" id="dc-dialogue-card">
-          <div class="dc-speaker-header">
-            <div class="dc-speaker-badge" id="dc-speaker-badge">
-              <span class="dc-speaker-icon">🎙️</span>
-              <span class="dc-speaker-name" id="dc-speaker-name">CELESTIAL CHRONICLER</span>
+          <!-- Hero Ascension: Volumetric Celestial Ascension Column -->
+          <div class="dc-hero-ascension" id="dc-hero-ascension">
+            <div class="dc-hero-light-pillar"></div>
+            <div class="dc-hero-celestial-core"></div>
+            <div class="dc-hero-elemental-motes">
+              <span class="element-mote mote-fire"></span>
+              <span class="element-mote mote-water"></span>
+              <span class="element-mote mote-earth"></span>
             </div>
-            <div class="dc-speaker-tag">Live Voiceover</div>
           </div>
-          <div class="dc-speech-bubble">
-            <span class="dc-quote">“</span>
-            <span class="dc-speech-text" id="dc-subtitle-text">At last, on Round 1,000, the heavens shatter as an abyssal rift pulls you skyward!</span>
-            <span class="dc-quote">”</span>
+
+          <!-- Void Overlord: Dark Matter Singularity Flare & Cosmic Boss Header -->
+          <div class="dc-boss-silhouette revealed" id="dc-boss-silhouette">
+            <div class="dc-boss-singularity-core"></div>
+            <div class="dc-boss-gravitational-ring"></div>
+            <div class="dc-boss-title-ribbon">
+              <span class="boss-domain-tag">ROUND 1,000 TITAN</span>
+              <div class="dc-boss-name">THE VOID OVERLORD</div>
+            </div>
           </div>
+
+          <!-- Action Button: Confront Void Overlord -->
+          <div class="dc-action-wrap">
+            <button id="dc-btn-confront" class="btn-confront-overlord hidden">
+              <span>⚔️</span> CONFRONT THE VOID OVERLORD (ROUND 1000)
+            </button>
+          </div>
+        </div>
+
+        <!-- Top Video Status Header -->
+        <div class="cutscene-video-top-bar">
+          <div class="cutscene-video-overlay-badge" style="border-color: rgba(192, 132, 252, 0.4); background: rgba(30, 10, 60, 0.7);">
+            <span class="video-rec-blip" style="background: #c084fc; box-shadow: 0 0 8px #c084fc;"></span>
+            <span class="video-badge-text">VOID OVERLORD CHRONICLE • 4K HDR MOTION</span>
+          </div>
+          <div class="video-time-tag" id="dc-top-time-tag">ROUND 1,000 ASCENT</div>
+        </div>
+
+        <!-- Center Pulse Play Button (Visible on Pause or Hover) -->
+        <button class="video-center-play-btn" id="dc-center-play-btn" title="Toggle Play / Pause">
+          <span class="center-play-icon" id="dc-center-play-icon">▶</span>
+        </button>
+
+        <!-- Cinematic Chapter Title Card Flash -->
+        <div class="video-chapter-title-card" id="dc-title-card">
+          <div class="title-card-super" id="dc-title-card-super">CHAPTER I</div>
+          <div class="title-card-main" id="dc-title-card-main">BIRTH OF THE VOID OVERLORD</div>
+          <div class="title-card-sub" id="dc-title-card-sub">The Ancient Singularity</div>
+        </div>
+
+        <!-- In-Video Subtitle & Speaker Box (AAA Game Style) -->
+        <div class="cutscene-video-subtitles" id="dc-video-subtitles">
+          <div class="video-sub-speaker-badge" id="dc-speaker-badge">
+            <span class="video-sub-avatar" id="dc-speaker-avatar">👑🌌</span>
+            <span class="video-sub-speaker-name" id="dc-speaker-name">CELESTIAL CHRONICLER</span>
+            <div class="video-sub-equalizer" id="dc-sub-equalizer">
+              <span class="vs-bar vsb-1"></span>
+              <span class="vs-bar vsb-2"></span>
+              <span class="vs-bar vsb-3"></span>
+              <span class="vs-bar vsb-4"></span>
+            </div>
+          </div>
+          <div class="video-sub-text" id="dc-subtitle-text">
+            “At last, on Round 1,000, the heavens shatter as an abyssal rift pulls you skyward!”
+          </div>
+        </div>
+
+        <!-- Cinematic Video Player HUD Controls Bar -->
+        <div class="cutscene-video-controls-hud" id="dc-video-controls-hud">
+          <div class="video-hud-scrubber-track" id="dc-video-scrubber" title="Click anywhere to jump in the cinematic timeline">
+            <div class="video-hud-progress" id="dc-video-progress" style="background: linear-gradient(90deg, #9333ea, #ec4899);"></div>
+            <div class="video-hud-chapter-ticks">
+              <span class="hud-tick" data-chapter="0" style="left: 0%" title="Ch 1: The Singularity"></span>
+              <span class="hud-tick" data-chapter="1" style="left: 16.66%" title="Ch 2: The Stolen Magic"></span>
+              <span class="hud-tick" data-chapter="2" style="left: 33.33%" title="Ch 3: Tempest Citadel"></span>
+              <span class="hud-tick" data-chapter="3" style="left: 50%" title="Ch 4: 1,000 Arena Trials"></span>
+              <span class="hud-tick" data-chapter="4" style="left: 66.66%" title="Ch 5: Ascension"></span>
+              <span class="hud-tick" data-chapter="5" style="left: 83.33%" title="Ch 6: Final Reckoning"></span>
+            </div>
+          </div>
+          <div class="video-hud-toolbar">
+            <div class="video-hud-left">
+              <button id="dc-btn-play-pause" class="video-hud-btn btn-hud-play" title="Play/Pause">⏸</button>
+              <button id="dc-btn-prev" class="video-hud-btn" title="Previous Chapter">⏮ Prev</button>
+              <button id="dc-btn-next" class="video-hud-btn" title="Next Chapter">Next ⏭</button>
+              <span class="video-hud-time" id="dc-time-display">Chapter 1 of 6</span>
+            </div>
+            <div class="video-hud-right">
+              <button id="dc-btn-voices" class="video-hud-btn active" title="Toggle Spoken Character Voices">🎙️ Voices</button>
+              <button id="dc-btn-subtitles" class="video-hud-btn active" title="Toggle On-Screen Subtitles">💬 Subtitles</button>
+              <button id="dc-btn-theater" class="video-hud-btn" title="Toggle Theater Widescreen Mode">⛶ Theater</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Letterbox Bar with Narration & Chapter Details -->
+    <div class="cutscene-letterbox cutscene-letterbox-bottom">
+      <div class="cutscene-bottom-content">
+        <div class="cutscene-narration-box">
+          <div class="cutscene-chapter-badge" id="dc-cutscene-badge">🌌 CHAPTER I • THE PRIMORDIAL SINGULARITY</div>
+          <h2 class="cutscene-chapter-heading" id="dc-cutscene-title">Birth of the Void Overlord</h2>
+          <div class="cutscene-chapter-subtitle" id="dc-cutscene-subtitle">Before time and elements existed, an ancient darkness watched the cosmos.</div>
+          <p class="cutscene-narrative-text" id="dc-cutscene-narrative">
+            Long before the arenas were carved, the Void Overlord ruled the silent cosmic abyss. Born from the anti-matter core between colliding titans, his hunger for pure elemental energy was insatiable!
+          </p>
         </div>
       </div>
     </div>

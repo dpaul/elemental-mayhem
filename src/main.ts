@@ -542,6 +542,7 @@ export class GameApp {
       (window as any).triggerDarkCloudsWhirl = () => this.triggerDarkCloudsWhirl();
       (window as any).setDarkCloudsTheme = (enabled: boolean) => this.setDarkCloudsTheme(enabled);
       (window as any).playDarkCloudsCutscene = () => this.playDarkCloudsCutscene();
+      (window as any).playVoidOverlordCutscene = () => this.playDarkCloudsCutscene();
     }
     this.attachCombatEngineHooks(this.combatEngine);
     this.enemyAI = new EnemyAI(this.combatEngine);
@@ -2601,6 +2602,11 @@ export class GameApp {
     document.getElementById('home-quick-cutscene-btn')?.addEventListener('click', () => {
       this.soundEngine.playClick();
       this.originCutscene.open();
+    });
+
+    document.getElementById('home-quick-void-cutscene-btn')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      this.playDarkCloudsCutscene();
     });
 
     document.getElementById('home-btn-origin-cta')?.addEventListener('click', () => {

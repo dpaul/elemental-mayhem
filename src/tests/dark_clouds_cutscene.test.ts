@@ -1,11 +1,10 @@
-// Elemental Mayhem - Ascent to the Dark Clouds Cutscene Tests
+// Elemental Mayhem - Ascent to the Dark Clouds / Void Overlord Cutscene Tests
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import {
   DarkCloudsCutsceneManager,
-  DARK_CLOUDS_PHASES,
+  DARK_CLOUDS_CHAPTERS,
   DARK_CLOUDS_DIALOGUE,
 } from '../engine/DarkCloudsCutscene';
-import { SoundEngine } from '../audio/SoundEngine';
 
 class MockElement {
   public id: string = '';
@@ -14,6 +13,7 @@ class MockElement {
   public src: string = '';
   public className: string = '';
   public style: Record<string, string> = {};
+  public children: any[] = [];
   public classList = {
     classes: new Set<string>(),
     add: (...c: string[]) => c.forEach((cls) => this.classList.classes.add(cls)),
@@ -23,18 +23,41 @@ class MockElement {
       if (force === undefined) {
         if (this.classList.classes.has(c)) this.classList.classes.delete(c);
         else this.classList.classes.add(c);
+        return !this.classList.classes.has(c);
       } else if (force) {
         this.classList.classes.add(c);
+        return true;
       } else {
         this.classList.classes.delete(c);
+        return false;
       }
     },
   };
   private listeners: Record<string, Function[]> = {};
 
+  appendChild(el: any) {
+    this.children.push(el);
+  }
+
+  getBoundingClientRect() {
+    return { left: 0, top: 0, width: 600, height: 40 };
+  }
+
   addEventListener(event: string, fn: Function) {
     if (!this.listeners[event]) this.listeners[event] = [];
     this.listeners[event].push(fn);
+  }
+
+  getContext() {
+    return {
+      clearRect: vi.fn(),
+      beginPath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      stroke: vi.fn(),
+      save: vi.fn(),
+      restore: vi.fn(),
+    };
   }
 
   click() {
@@ -42,18 +65,28 @@ class MockElement {
   }
 
   trigger(event: string) {
-    this.listeners[event]?.forEach((fn) => fn());
+    (this.listeners[event] || []).forEach((fn) => fn({ stopPropagation: () => {} }));
   }
 
   setAttribute(_name: string, _val: string) {}
 }
 
-describe('DarkCloudsCutsceneManager (Ascent to the Dark Clouds)', () => {
+describe('DarkCloudsCutsceneManager (Saga of the Void Overlord)', () => {
   let cutscene: DarkCloudsCutsceneManager;
-  let mockSoundEngine: SoundEngine;
-  let elements: Record<string, MockElement> = {};
+  let mockSoundEngine: any;
+  let elements: Record<string, MockElement>;
 
   beforeEach(() => {
+    mockSoundEngine = {
+      playClick: vi.fn(),
+      playSpellCast: vi.fn(),
+      playDarkCloudsWhirl: vi.fn(),
+      playCutsceneWizardBlessing: vi.fn(),
+      playCutsceneBossBraam: vi.fn(),
+      playCharacterVocalTone: vi.fn(),
+      unlockAudio: vi.fn(),
+    };
+
     elements = {
       'dark-clouds-cutscene-overlay': new MockElement(),
       'dc-cutscene-badge': new MockElement(),
@@ -61,18 +94,42 @@ describe('DarkCloudsCutsceneManager (Ascent to the Dark Clouds)', () => {
       'dc-cutscene-subtitle': new MockElement(),
       'dc-cutscene-narrative': new MockElement(),
       'dc-cutscene-bg-img': new MockElement(),
+      'dc-visual-frame': new MockElement(),
       'dc-hero-ascension': new MockElement(),
       'dc-boss-silhouette': new MockElement(),
       'dc-lightning-flash': new MockElement(),
+      'dc-lightning-canvas': new MockElement(),
+      'dc-anamorphic-streak': new MockElement(),
       'dc-clouds-container': new MockElement(),
+      'dc-stolen-elements': new MockElement(),
+      'dc-title-card': new MockElement(),
+      'dc-title-card-super': new MockElement(),
+      'dc-title-card-main': new MockElement(),
+      'dc-title-card-sub': new MockElement(),
+      'dc-video-subtitles': new MockElement(),
       'dc-subtitle-text': new MockElement(),
       'dc-speaker-badge': new MockElement(),
       'dc-speaker-name': new MockElement(),
+      'dc-speaker-avatar': new MockElement(),
+      'dc-sub-equalizer': new MockElement(),
+      'dc-chapter-pips': new MockElement(),
+      'dc-video-progress': new MockElement(),
+      'dc-video-scrubber': new MockElement(),
+      'dc-time-display': new MockElement(),
+      'dc-top-time-tag': new MockElement(),
+      'dc-center-play-btn': new MockElement(),
+      'dc-center-play-icon': new MockElement(),
       'dc-btn-play-pause': new MockElement(),
+      'dc-btn-prev': new MockElement(),
+      'dc-btn-next': new MockElement(),
       'dc-btn-mute': new MockElement(),
       'dc-btn-skip': new MockElement(),
       'dc-btn-close': new MockElement(),
       'dc-btn-confront': new MockElement(),
+      'dc-btn-mode': new MockElement(),
+      'dc-btn-voices': new MockElement(),
+      'dc-btn-subtitles': new MockElement(),
+      'dc-btn-theater': new MockElement(),
     };
 
     elements['dark-clouds-cutscene-overlay'].classList.add('hidden');
@@ -80,6 +137,7 @@ describe('DarkCloudsCutsceneManager (Ascent to the Dark Clouds)', () => {
 
     (globalThis as any).document = {
       getElementById: (id: string) => elements[id] || null,
+      createElement: () => new MockElement(),
     };
 
     (globalThis as any).window = {
@@ -110,11 +168,14 @@ describe('DarkCloudsCutsceneManager (Ascent to the Dark Clouds)', () => {
     vi.restoreAllMocks();
   });
 
-  it('defines 3 distinct story phases for the Dark Clouds ascent', () => {
-    expect(DARK_CLOUDS_PHASES.length).toBe(3);
-    expect(DARK_CLOUDS_PHASES[0].title).toBe('The Sky Tears Open');
-    expect(DARK_CLOUDS_PHASES[1].title).toBe('Ascension Through Dark Clouds');
-    expect(DARK_CLOUDS_PHASES[2].title).toBe('Confronting the Void Overlord');
+  it('defines 6 rich story chapters for the Saga of the Void Overlord', () => {
+    expect(DARK_CLOUDS_CHAPTERS.length).toBe(6);
+    expect(DARK_CLOUDS_CHAPTERS[0].title).toBe('Birth of the Void Overlord');
+    expect(DARK_CLOUDS_CHAPTERS[1].title).toBe('The Grand Wizard Ambushed');
+    expect(DARK_CLOUDS_CHAPTERS[2].title).toBe('Domain of the Dark Clouds');
+    expect(DARK_CLOUDS_CHAPTERS[3].title).toBe("The Overlord's Decree");
+    expect(DARK_CLOUDS_CHAPTERS[4].title).toBe('The Sky Sunders at Round 1,000');
+    expect(DARK_CLOUDS_CHAPTERS[5].title).toBe('Confronting the Void Overlord');
   });
 
   it('scripted dialogue features Narrator, Seeker, Arch-Wizard, and Void Overlord', () => {
@@ -137,18 +198,33 @@ describe('DarkCloudsCutsceneManager (Ascent to the Dark Clouds)', () => {
     expect(mockSoundEngine.playDarkCloudsWhirl).toHaveBeenCalled();
   });
 
-  it('updates narration text and phase classes when rendering phases', () => {
+  it('updates narration text and renders chapters accurately', () => {
     cutscene.initDOM();
-    cutscene.renderPhase(1);
+    cutscene.renderChapter(1);
 
-    expect(cutscene.getCurrentPhase()).toBe(1);
+    expect(cutscene.getCurrentChapter()).toBe(1);
     const badge = elements['dc-cutscene-badge'];
     const title = elements['dc-cutscene-title'];
-    expect(badge.textContent).toBe(DARK_CLOUDS_PHASES[1].badge);
-    expect(title.textContent).toBe('Ascension Through Dark Clouds');
+    expect(badge.textContent).toBe(DARK_CLOUDS_CHAPTERS[1].badge);
+    expect(title.textContent).toBe('The Grand Wizard Ambushed');
 
-    const heroAscension = elements['dc-hero-ascension'];
-    expect(heroAscension.classList.contains('ascending-high')).toBe(true);
+    const pipsContainer = elements['dc-chapter-pips'];
+    expect(pipsContainer.children.length).toBe(6);
+  });
+
+  it('navigates seamlessly across chapters using nextChapter and prevChapter', () => {
+    cutscene.initDOM();
+    cutscene.open(0);
+    expect(cutscene.getCurrentChapter()).toBe(0);
+
+    cutscene.nextChapter();
+    expect(cutscene.getCurrentChapter()).toBe(1);
+
+    cutscene.nextChapter();
+    expect(cutscene.getCurrentChapter()).toBe(2);
+
+    cutscene.prevChapter();
+    expect(cutscene.getCurrentChapter()).toBe(1);
   });
 
   it('updates subtitle UI and triggers visual effects on character dialogue', () => {
@@ -157,25 +233,29 @@ describe('DarkCloudsCutsceneManager (Ascent to the Dark Clouds)', () => {
     overlay.classList.remove('hidden');
 
     // Simulate Seeker speaking
-    cutscene.voiceManager.onDialogueLineStart?.(DARK_CLOUDS_DIALOGUE[1], {
+    const seekerLine = DARK_CLOUDS_DIALOGUE.find((d) => d.speakerId === 'seeker')!;
+    cutscene.voiceManager.onDialogueLineStart?.(seekerLine, {
       id: 'seeker',
       name: 'THE SEEKER',
+      avatar: '🧙‍♂️',
       themeColor: '#38bdf8',
       glowColor: 'rgba(56, 189, 248, 0.8)',
     } as any);
 
     const subtitle = elements['dc-subtitle-text'];
     const speakerName = elements['dc-speaker-name'];
-    expect(subtitle.textContent).toContain(DARK_CLOUDS_DIALOGUE[1].text);
+    expect(subtitle.textContent).toContain(seekerLine.text);
     expect(speakerName.textContent).toBe('THE SEEKER');
 
     const heroAscension = elements['dc-hero-ascension'];
     expect(heroAscension.classList.contains('surge-light')).toBe(true);
 
     // Simulate Void Overlord speaking
-    cutscene.voiceManager.onDialogueLineStart?.(DARK_CLOUDS_DIALOGUE[3], {
+    const overlordLine = DARK_CLOUDS_DIALOGUE.find((d) => d.speakerId === 'void_overlord')!;
+    cutscene.voiceManager.onDialogueLineStart?.(overlordLine, {
       id: 'void_overlord',
       name: 'VOID OVERLORD',
+      avatar: '👑🌌',
       themeColor: '#ec4899',
       glowColor: 'rgba(236, 72, 153, 0.9)',
     } as any);
@@ -224,16 +304,29 @@ describe('DarkCloudsCutsceneManager (Ascent to the Dark Clouds)', () => {
     expect(cutscene.isCutscenePlaying()).toBe(false);
   });
 
-  it('toggles mute state across voice and music engines', () => {
+  it('toggles playback, mute, mode, voices, subtitles, and theater', () => {
     cutscene.initDOM();
-    cutscene.toggleMute();
+    cutscene.open();
 
-    const muteBtn = elements['dc-btn-mute'];
-    expect(muteBtn.textContent).toBe('🔇 Audio: OFF');
+    // Play/Pause
+    cutscene.togglePlayPause();
+    expect(cutscene.isCutscenePlaying()).toBe(false);
+    cutscene.togglePlayPause();
+    expect(cutscene.isCutscenePlaying()).toBe(true);
+
+    // Mute
+    cutscene.toggleMute();
     expect(cutscene.voiceManager.isMuted()).toBe(true);
-
     cutscene.toggleMute();
-    expect(muteBtn.textContent).toBe('🔊 Audio: ON');
     expect(cutscene.voiceManager.isMuted()).toBe(false);
+
+    // Mode
+    cutscene.toggleMode();
+    const overlay = elements['dark-clouds-cutscene-overlay'];
+    expect(overlay.classList.contains('stage-view-active')).toBe(true);
+
+    // Theater
+    cutscene.toggleTheater();
+    expect(overlay.classList.contains('theater-mode')).toBe(true);
   });
 });

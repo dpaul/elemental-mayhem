@@ -5,8 +5,12 @@
 // 3. CPU Battle Arena (.battlefield-layout, .action-bar, .log-entries, .canvas-wrapper)
 
 import { describe, it, expect } from 'vitest';
+// @ts-ignore
 import * as fs from 'fs';
+// @ts-ignore
 import * as path from 'path';
+
+declare const __dirname: string;
 
 describe('Scrollbar Elimination Verification', () => {
   const cssPath = path.resolve(__dirname, '../style.css');

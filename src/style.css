@@ -1583,6 +1583,19 @@ body::-webkit-scrollbar {
   transform: translateY(-1px);
 }
 
+/* Quick Cutscene Purple Utility Button */
+.btn-cutscene-purple {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(126, 34, 206, 0.35)) !important;
+  border: 1px solid #c084fc !important;
+  color: #f3e8ff !important;
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.25);
+}
+.btn-cutscene-purple:hover {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.35), rgba(126, 34, 206, 0.5)) !important;
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.6) !important;
+  transform: translateY(-1px);
+}
+
 /* ==========================================================================
    ORIGIN CUTSCENE CINEMATIC OVERLAY & STAGE
    ========================================================================== */
@@ -6257,10 +6270,56 @@ body::-webkit-scrollbar {
   100% { opacity: 0; }
 }
 
-/* Hero Ascension Silhouette */
+/* Realistic Cinematic Lightning Canvas & FX */
+.dc-lightning-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 24;
+}
+
+.dc-cinematic-fx-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 26;
+  overflow: hidden;
+}
+
+.dc-film-grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.045;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+
+.dc-anamorphic-streak {
+  position: absolute;
+  top: 45%;
+  left: -20%;
+  width: 140%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, rgba(56, 189, 248, 0) 20%, rgba(192, 132, 252, 0.95) 50%, rgba(56, 189, 248, 0) 80%, transparent 100%);
+  filter: drop-shadow(0 0 12px rgba(168, 85, 247, 0.9)) drop-shadow(0 0 24px rgba(56, 189, 248, 0.8));
+  opacity: 0;
+  transform: scaleY(1);
+  transition: opacity 0.3s ease, transform 0.4s ease;
+  pointer-events: none;
+}
+
+.dc-anamorphic-streak.flare-active {
+  opacity: 0.95;
+  transform: scaleY(3);
+}
+
+/* Hero Ascension: Volumetric Celestial Light Shaft */
 .dc-hero-ascension {
   position: absolute;
-  bottom: 25%;
+  bottom: 20%;
   left: 50%;
   transform: translateX(-50%);
   z-index: 30;
@@ -6272,40 +6331,85 @@ body::-webkit-scrollbar {
 }
 
 .dc-hero-ascension.ascending-high {
-  bottom: 52%;
-  transform: translateX(-50%) scale(1.25);
+  bottom: 48%;
+  transform: translateX(-50%) scale(1.2);
 }
 
-.dc-hero-avatar {
-  font-size: 52px;
-  filter: drop-shadow(0 0 25px rgba(192, 132, 252, 0.95));
-  animation: heroFloatBob 2.5s ease-in-out infinite;
+.dc-hero-light-pillar {
+  width: 120px;
+  height: 260px;
+  background: radial-gradient(ellipse at 50% 100%, rgba(56, 189, 248, 0.35) 0%, rgba(168, 85, 247, 0.18) 50%, transparent 80%);
+  filter: blur(8px);
+  animation: heroPillarPulse 3.5s ease-in-out infinite alternate;
 }
 
-.dc-hero-element-sparks {
-  font-size: 20px;
-  letter-spacing: 6px;
-  margin-top: -6px;
-  animation: sparksSpin 3s linear infinite;
+.dc-hero-celestial-core {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #ffffff 10%, #38bdf8 60%, rgba(168, 85, 247, 0.4) 100%);
+  box-shadow: 0 0 24px #38bdf8, 0 0 45px rgba(192, 132, 252, 0.8);
+  margin-top: -14px;
+  animation: heroCoreHover 2.2s ease-in-out infinite alternate;
 }
 
-@keyframes heroFloatBob {
-  0%, 100% { transform: translateY(0) rotate(-2deg); }
-  50% { transform: translateY(-14px) rotate(2deg); }
+.dc-hero-elemental-motes {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
 }
 
-@keyframes sparksSpin {
-  0% { filter: hue-rotate(0deg) drop-shadow(0 0 10px #facc15); }
-  50% { filter: hue-rotate(180deg) drop-shadow(0 0 18px #38bdf8); }
-  100% { filter: hue-rotate(360deg) drop-shadow(0 0 10px #facc15); }
+.element-mote {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  animation: moteOrbit 1.8s infinite ease-in-out alternate;
 }
 
-/* Void Overlord Silhouette */
+.mote-fire {
+  background: #ff4500;
+  box-shadow: 0 0 10px #ff4500, 0 0 18px #f59e0b;
+}
+
+.mote-water {
+  background: #38bdf8;
+  box-shadow: 0 0 10px #38bdf8, 0 0 18px #06b6d4;
+  animation-delay: 0.4s;
+}
+
+.mote-earth {
+  background: #10b981;
+  box-shadow: 0 0 10px #10b981, 0 0 18px #34d399;
+  animation-delay: 0.8s;
+}
+
+.dc-hero-ascension.surge-light .dc-hero-celestial-core {
+  box-shadow: 0 0 45px #ffffff, 0 0 85px #38bdf8, 0 0 140px rgba(168, 85, 247, 0.95);
+  transform: scale(1.6);
+  transition: all 0.4s ease;
+}
+
+@keyframes heroPillarPulse {
+  0% { opacity: 0.6; transform: scaleX(0.9); }
+  100% { opacity: 1; transform: scaleX(1.15); }
+}
+
+@keyframes heroCoreHover {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-8px); }
+}
+
+@keyframes moteOrbit {
+  0% { transform: translateY(0) scale(0.85); opacity: 0.6; }
+  100% { transform: translateY(-12px) scale(1.2); opacity: 1; }
+}
+
+/* Void Overlord: Dark Matter Singularity Flare */
 .dc-boss-silhouette {
   position: absolute;
-  top: 10%;
+  top: 12%;
   left: 50%;
-  transform: translateX(-50%) scale(0.7);
+  transform: translateX(-50%) scale(0.8);
   opacity: 0;
   z-index: 28;
   display: flex;
@@ -6317,27 +6421,257 @@ body::-webkit-scrollbar {
 
 .dc-boss-silhouette.revealed {
   opacity: 1;
-  transform: translateX(-50%) scale(1.15);
+  transform: translateX(-50%) scale(1);
 }
 
-.dc-boss-crown {
-  font-size: 40px;
-  filter: drop-shadow(0 0 20px #ec4899);
-  animation: bossCrownPulse 2s infinite ease-in-out;
+.dc-boss-singularity-core {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #000000 45%, #2e0854 75%, rgba(236, 72, 153, 0.4) 95%, transparent 100%);
+  box-shadow: 0 0 35px rgba(147, 51, 234, 0.8), 0 0 70px rgba(236, 72, 153, 0.5);
+  position: relative;
+  animation: singularityPulse 3s ease-in-out infinite alternate;
 }
 
-.dc-boss-avatar {
-  font-size: 78px;
-  filter: drop-shadow(0 0 35px rgba(168, 85, 247, 0.95));
+.dc-boss-gravitational-ring {
+  position: absolute;
+  top: -12px;
+  left: -12px;
+  right: -12px;
+  bottom: -12px;
+  border-radius: 50%;
+  border: 1px solid rgba(192, 132, 252, 0.45);
+  box-shadow: 0 0 16px rgba(192, 132, 252, 0.4);
+  transform: perspective(300px) rotateX(68deg);
+  animation: ringSpin 8s linear infinite;
+}
+
+.dc-boss-title-ribbon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 10px;
+  background: rgba(10, 3, 20, 0.75);
+  border: 1px solid rgba(168, 85, 247, 0.4);
+  padding: 4px 18px;
+  border-radius: 999px;
+  backdrop-filter: blur(8px);
+}
+
+.boss-domain-tag {
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: #c084fc;
+  font-weight: 700;
+  text-transform: uppercase;
 }
 
 .dc-boss-name {
-  font-size: 14px;
+  font-size: 13px;
   letter-spacing: 4px;
   font-weight: 800;
   color: #f472b6;
-  text-shadow: 0 0 15px rgba(236, 72, 153, 0.8);
-  margin-top: 4px;
+  text-shadow: 0 0 14px rgba(236, 72, 153, 0.8);
+}
+
+.dc-boss-silhouette.pulse-menace {
+  animation: bossMenaceShake 0.6s cubic-bezier(0.36, 0.07, 0.19, 0.97) infinite;
+}
+
+.dc-boss-silhouette.pulse-menace .dc-boss-singularity-core {
+  box-shadow: 0 0 60px rgba(236, 72, 153, 0.95), 0 0 120px rgba(147, 51, 234, 0.9);
+}
+
+@keyframes singularityPulse {
+  0% { transform: scale(0.94); box-shadow: 0 0 25px rgba(147, 51, 234, 0.7); }
+  100% { transform: scale(1.08); box-shadow: 0 0 45px rgba(236, 72, 153, 0.85); }
+}
+
+@keyframes ringSpin {
+  0% { transform: perspective(300px) rotateX(68deg) rotate(0deg); }
+  100% { transform: perspective(300px) rotateX(68deg) rotate(360deg); }
+}
+
+@keyframes bossMenaceShake {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  25% { transform: translateX(-52%) translateY(-2px); }
+  75% { transform: translateX(-48%) translateY(2px); }
+}
+
+/* Stolen Elements: Hyper-Realistic Orbiting Plasma Orbs */
+.dc-stolen-elements {
+  position: absolute;
+  top: 8%;
+  left: 50%;
+  width: 360px;
+  height: 360px;
+  margin-left: -180px;
+  pointer-events: none;
+  z-index: 29;
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 1.5s ease;
+  transform: perspective(600px) rotateX(62deg);
+  animation: dcStolenOrbit 14s linear infinite;
+}
+
+.dc-stolen-elements.orbiting-active {
+  opacity: 1;
+}
+
+.dc-stolen-elements.fury-spin {
+  animation-duration: 3.5s;
+}
+
+@keyframes dcStolenOrbit {
+  0% { transform: perspective(600px) rotateX(62deg) rotate(0deg); }
+  100% { transform: perspective(600px) rotateX(62deg) rotate(360deg); }
+}
+
+/* Plasma Orb Geometry & Visual Shading */
+.dc-stolen-plasma-orb {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Counter-rotate to remain facing viewer */
+  animation: dcCounterRotate 14s linear infinite, dcOrbPulse 2.4s ease-in-out infinite alternate;
+}
+
+.dc-stolen-elements.fury-spin .dc-stolen-plasma-orb {
+  animation-duration: 3.5s, 1.2s;
+}
+
+@keyframes dcCounterRotate {
+  0% { transform: rotate(0deg) rotateX(-62deg); }
+  100% { transform: rotate(-360deg) rotateX(-62deg); }
+}
+
+@keyframes dcOrbPulse {
+  0% { transform: scale(0.9) rotateX(-62deg); }
+  100% { transform: scale(1.22) rotateX(-62deg); }
+}
+
+.dc-stolen-plasma-orb .plasma-core {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 0 6px #ffffff;
+}
+
+.dc-stolen-plasma-orb .plasma-halo {
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  opacity: 0.85;
+}
+
+.dc-stolen-plasma-orb .plasma-flare {
+  position: absolute;
+  width: 140%;
+  height: 140%;
+  border-radius: 50%;
+  filter: blur(4px);
+  opacity: 0.6;
+}
+
+/* Elemental Palette Profiles */
+.orb-fire {
+  background: radial-gradient(circle, #ffedd5 0%, #ff4500 50%, #b91c1c 100%);
+  box-shadow: 0 0 16px #ff4500, 0 0 32px rgba(255, 69, 0, 0.7);
+}
+.orb-fire .plasma-halo { background: radial-gradient(circle, rgba(255, 140, 0, 0.8), transparent 70%); }
+
+.orb-ice {
+  background: radial-gradient(circle, #ffffff 0%, #00f0ff 55%, #0284c7 100%);
+  box-shadow: 0 0 16px #00f0ff, 0 0 30px rgba(0, 240, 255, 0.7);
+}
+.orb-ice .plasma-halo { background: radial-gradient(circle, rgba(56, 189, 248, 0.8), transparent 70%); }
+
+.orb-lightning {
+  background: radial-gradient(circle, #ffffff 0%, #c084fc 50%, #7c3aed 100%);
+  box-shadow: 0 0 18px #c084fc, 0 0 34px rgba(192, 132, 252, 0.8);
+}
+.orb-lightning .plasma-halo { background: radial-gradient(circle, rgba(168, 85, 247, 0.8), transparent 70%); }
+
+.orb-magma {
+  background: radial-gradient(circle, #fef08a 0%, #f97316 50%, #991b1b 100%);
+  box-shadow: 0 0 16px #ea580c, 0 0 32px rgba(234, 88, 12, 0.7);
+}
+.orb-magma .plasma-halo { background: radial-gradient(circle, rgba(249, 115, 22, 0.8), transparent 70%); }
+
+.orb-crystal {
+  background: radial-gradient(circle, #ffffff 0%, #f472b6 50%, #db2777 100%);
+  box-shadow: 0 0 16px #ec4899, 0 0 30px rgba(236, 72, 153, 0.7);
+}
+.orb-crystal .plasma-halo { background: radial-gradient(circle, rgba(244, 114, 182, 0.8), transparent 70%); }
+
+.orb-toxic {
+  background: radial-gradient(circle, #dcfce7 0%, #22c55e 50%, #14532d 100%);
+  box-shadow: 0 0 16px #16a34a, 0 0 28px rgba(22, 163, 74, 0.7);
+}
+.orb-toxic .plasma-halo { background: radial-gradient(circle, rgba(34, 197, 94, 0.8), transparent 70%); }
+
+.orb-void {
+  background: radial-gradient(circle, #e9d5ff 0%, #9333ea 50%, #090212 100%);
+  box-shadow: 0 0 20px #9333ea, 0 0 38px rgba(147, 51, 234, 0.85);
+}
+.orb-void .plasma-halo { background: radial-gradient(circle, rgba(147, 51, 234, 0.9), transparent 70%); }
+
+.orb-celestial {
+  background: radial-gradient(circle, #ffffff 0%, #38bdf8 45%, #f59e0b 100%);
+  box-shadow: 0 0 18px #38bdf8, 0 0 34px rgba(56, 189, 248, 0.75);
+}
+.orb-celestial .plasma-halo { background: radial-gradient(circle, rgba(245, 158, 11, 0.8), transparent 70%); }
+
+.s-spark-1 { top: 0; left: 50%; transform: translate(-50%, -50%); }
+.s-spark-2 { top: 14%; right: 14%; }
+.s-spark-3 { top: 50%; right: 0; transform: translate(50%, -50%); }
+.s-spark-4 { bottom: 14%; right: 14%; }
+.s-spark-5 { bottom: 0; left: 50%; transform: translate(-50%, 50%); }
+.s-spark-6 { bottom: 14%; left: 14%; }
+.s-spark-7 { top: 50%; left: 0; transform: translate(-50%, -50%); }
+.s-spark-8 { top: 14%; left: 14%; }
+
+/* Dark Clouds Interactive Chapter Pips */
+.dc-chapter-indicators {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dc-pip {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(192, 132, 252, 0.4);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  padding: 0;
+}
+
+.dc-pip:hover {
+  background: rgba(192, 132, 252, 0.6);
+  transform: scale(1.2);
+}
+
+.dc-pip.active {
+  width: 32px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #9333ea, #ec4899);
+  border-color: #f472b6;
+  box-shadow: 0 0 14px rgba(236, 72, 153, 0.85);
+}
+
+.dc-pip.visited {
+  background: rgba(168, 85, 247, 0.5);
+  border-color: #c084fc;
 }
 
 /* Confront Button */

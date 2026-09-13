@@ -93,8 +93,17 @@ describe('Round 1000 Map Whirl & Dark Clouds Transformation', () => {
       createLinearGradient: vi.fn(() => ({
         addColorStop: vi.fn(),
       })),
+      createRadialGradient: vi.fn(() => ({
+        addColorStop: vi.fn(),
+      })),
       beginPath: vi.fn(),
+      closePath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
       arc: vi.fn(),
+      ellipse: vi.fn(),
+      quadraticCurveTo: vi.fn(),
+      bezierCurveTo: vi.fn(),
       fill: vi.fn(),
       stroke: vi.fn(),
     };
