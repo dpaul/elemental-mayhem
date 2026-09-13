@@ -66,12 +66,32 @@ export interface AscendingSoul {
   isPlayer?: boolean;
 }
 
+export interface ElementalSwirlOrb {
+  element: string;
+  name: string;
+  color: string;
+  glowColor: string;
+  icon: string;
+  targetX: number;
+  targetY: number;
+  radius: number;
+  initialRadius: number;
+  angle: number;
+  angularVelocity: number;
+  radialVelocity: number;
+  size: number;
+  alpha: number;
+  tail: Array<{ x: number; y: number; alpha: number }>;
+}
+
 export class ParticleEngine {
   private particles: Particle[] = [];
   private floatingTexts: FloatingText[] = [];
   private shockwaves: Shockwave[] = [];
   private beams: BeamEffect[] = [];
   private ascendingSouls: AscendingSoul[] = [];
+  private elementalSwirlOrbs: ElementalSwirlOrb[] = [];
+  private onSwirlCompleteCallback?: () => void;
 
   // Screen Flash & Vignette System (Player Death & Cataclysms)
   public deathFlashAlpha: number = 0;
@@ -293,6 +313,56 @@ export class ParticleEngine {
     }
   }
 
+  /**
+   * Triggers a cinematic swirl of ALL elements (Fire, Water, Earth, Lightning, Void, Chaos, etc.)
+   * spiraling inwards across the arena directly into the target coordinates (the player!).
+   */
+  public triggerElementalSwirl(targetX: number, targetY: number, onComplete?: () => void): void {
+    this.onSwirlCompleteCallback = onComplete;
+    this.elementalSwirlOrbs = [];
+
+    const elementsList = Object.values(CORE_ELEMENTS);
+    const count = elementsList.length;
+
+    elementsList.forEach((el, index) => {
+      // Evenly distribute base angles with multi-turn spiral distribution
+      const baseAngle = (index / count) * Math.PI * 2;
+      // Stagger initial radii from 360 to 580 pixels across the battlefield
+      const initialRadius = 360 + ((index * 31) % 220);
+      // Spiraling inward velocity
+      const radialVelocity = 3.2 + (index % 3) * 0.5;
+      const angularVelocity = 0.052 + (index % 4) * 0.01;
+
+      this.elementalSwirlOrbs.push({
+        element: el.id,
+        name: el.name,
+        color: el.color || '#38bdf8',
+        glowColor: el.glowColor || 'rgba(56, 189, 248, 0.6)',
+        icon: el.icon || '✨',
+        targetX,
+        targetY,
+        radius: initialRadius,
+        initialRadius,
+        angle: baseAngle,
+        angularVelocity,
+        radialVelocity,
+        size: 7 + (index % 3),
+        alpha: 1.0,
+        tail: [],
+      });
+    });
+
+    this.triggerScreenShake(14, 2500);
+  }
+
+  public isElementalSwirlActive(): boolean {
+    return this.elementalSwirlOrbs.length > 0;
+  }
+
+  public getElementalSwirlCount(): number {
+    return this.elementalSwirlOrbs.length;
+  }
+
   public update(deltaTimeMs: number = 16): void {
     // Screen shake update
     if (this.shakeElapsedMs < this.shakeDurationMs) {
@@ -370,6 +440,75 @@ export class ParticleEngine {
       beam.alpha = Math.max(0, 1.0 - beam.elapsedMs / beam.durationMs);
       if (beam.elapsedMs >= beam.durationMs) {
         this.beams.splice(i, 1);
+      }
+    }
+
+    // Update Elemental Swirl Orbs (swirling all elements into the player)
+    if (this.elementalSwirlOrbs.length > 0) {
+      const dtNorm = deltaTimeMs / 16.67;
+      for (let i = this.elementalSwirlOrbs.length - 1; i >= 0; i--) {
+        const orb = this.elementalSwirlOrbs[i];
+
+        // Angular acceleration as the radius gets smaller (conservation of angular momentum)
+        const spinAcc = Math.min(3.5, Math.max(1.0, 300 / Math.max(25, orb.radius)));
+        orb.angle += orb.angularVelocity * spinAcc * dtNorm;
+
+        // Inward radial pulling towards the player
+        orb.radius -= orb.radialVelocity * spinAcc * dtNorm;
+
+        // Elliptical coordinate matching battlefield perspective
+        const curX = orb.targetX + Math.cos(orb.angle) * orb.radius;
+        const curY = orb.targetY + Math.sin(orb.angle) * orb.radius * 0.75;
+
+        // Add to tail
+        orb.tail.push({ x: curX, y: curY, alpha: orb.alpha });
+        if (orb.tail.length > 12) {
+          orb.tail.shift();
+        }
+
+        // Emit intermittent elemental stardust along the trajectory
+        if (Math.random() < 0.35) {
+          this.emit(curX, curY, orb.color, 1, 0.5, 'spark');
+        }
+
+        // When the orb converges into the player
+        if (orb.radius <= 18) {
+          // Burst of the absorbed element into the hero
+          this.emit(orb.targetX, orb.targetY, orb.color, 8, 2.5, 'star');
+          this.emit(orb.targetX, orb.targetY, '#ffffff', 3, 1.8, 'spark');
+          this.addShockwave(orb.targetX, orb.targetY, orb.color, 35, 2.2);
+
+          // Micro floating icon as element enters you
+          if (Math.random() < 0.3) {
+            this.addFloatingText(
+              orb.icon,
+              orb.targetX + (Math.random() * 36 - 18),
+              orb.targetY - 20 - (Math.random() * 20),
+              orb.color,
+              18
+            );
+          }
+
+          this.elementalSwirlOrbs.splice(i, 1);
+
+          // If this was the last element absorbed: Grand Omniversal Convergence explosion!
+          if (this.elementalSwirlOrbs.length === 0) {
+            this.addShockwave(orb.targetX, orb.targetY, '#ec4899', 240, 6.0);
+            this.addShockwave(orb.targetX, orb.targetY, '#38bdf8', 180, 5.0);
+            this.addShockwave(orb.targetX, orb.targetY, '#facc15', 120, 4.0);
+            this.emit(orb.targetX, orb.targetY, '#facc15', 50, 6.5, 'star');
+            this.emit(orb.targetX, orb.targetY, '#38bdf8', 40, 5.5, 'spark');
+            this.emit(orb.targetX, orb.targetY, '#ec4899', 40, 5.5, 'crystal');
+            this.deathFlashColor = '#facc15';
+            this.deathFlashAlpha = 0.55;
+            this.triggerScreenShake(26, 1200);
+
+            if (this.onSwirlCompleteCallback) {
+              this.onSwirlCompleteCallback();
+              this.onSwirlCompleteCallback = undefined;
+            }
+          }
+        }
       }
     }
   }
@@ -527,6 +666,56 @@ export class ParticleEngine {
       grad.addColorStop(1.0, 'rgba(15, 23, 42, 0.92)');
       ctx.fillStyle = grad;
       ctx.fillRect(-100, -100, 1000, 1000);
+      ctx.restore();
+    }
+
+    // 7. Render Elemental Swirl Orbs (Swirling all elements into the player)
+    for (const orb of this.elementalSwirlOrbs) {
+      ctx.save();
+      // Draw glowing comet tail
+      if (orb.tail.length > 1) {
+        ctx.beginPath();
+        ctx.moveTo(orb.tail[0].x, orb.tail[0].y);
+        for (let t = 1; t < orb.tail.length; t++) {
+          ctx.lineTo(orb.tail[t].x, orb.tail[t].y);
+        }
+        ctx.strokeStyle = orb.color;
+        ctx.shadowColor = orb.glowColor;
+        ctx.shadowBlur = 14;
+        ctx.lineWidth = Math.max(1.5, orb.size * 0.45);
+        ctx.globalAlpha = Math.min(1, orb.alpha * 0.85);
+        ctx.stroke();
+      }
+
+      // Draw orb glowing core and icon
+      const curX =
+        orb.tail.length > 0
+          ? orb.tail[orb.tail.length - 1].x
+          : orb.targetX + Math.cos(orb.angle) * orb.radius;
+      const curY =
+        orb.tail.length > 0
+          ? orb.tail[orb.tail.length - 1].y
+          : orb.targetY + Math.sin(orb.angle) * orb.radius * 0.75;
+
+      const grad = ctx.createRadialGradient(curX, curY, 1, curX, curY, orb.size * 1.8);
+      grad.addColorStop(0, '#ffffff');
+      grad.addColorStop(0.4, orb.color);
+      grad.addColorStop(1, 'transparent');
+
+      ctx.fillStyle = grad;
+      ctx.shadowColor = orb.glowColor;
+      ctx.shadowBlur = 18;
+      ctx.beginPath();
+      ctx.arc(curX, curY, orb.size * 1.8, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Render element icon
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `${Math.max(10, Math.round(orb.size * 1.3))}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(orb.icon, curX, curY);
+
       ctx.restore();
     }
 

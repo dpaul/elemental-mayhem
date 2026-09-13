@@ -138,4 +138,32 @@ describe('Round 5000 10x Void Overlord Ascension', () => {
     expect(overlord.stats.currentHp).toBeLessThan(initialHp);
     expect(initialHp - overlord.stats.currentHp).toBeGreaterThan(2500);
   });
+
+  it('triggers the swirl of all elements in ParticleEngine with inward spiraling convergence', async () => {
+    const { ParticleEngine } = await import('../renderer/ParticleEngine');
+    const { SoundEngine } = await import('../audio/SoundEngine');
+    const particleEngine = new ParticleEngine();
+    const soundEngine = new SoundEngine();
+
+    expect(typeof soundEngine.playElementalSwirlConvergence).toBe('function');
+
+    let completed = false;
+    particleEngine.triggerElementalSwirl(400, 300, () => {
+      completed = true;
+    });
+
+    expect(particleEngine.isElementalSwirlActive()).toBe(true);
+    // Over 40 elements present in the swirl
+    expect(particleEngine.getElementalSwirlCount()).toBeGreaterThanOrEqual(40);
+
+    // Advance time in steps to simulate inward convergence
+    for (let step = 0; step < 120; step++) {
+      particleEngine.update(100);
+    }
+
+    // All elements should have converged and absorbed into the player
+    expect(particleEngine.getElementalSwirlCount()).toBe(0);
+    expect(particleEngine.isElementalSwirlActive()).toBe(false);
+    expect(completed).toBe(true);
+  });
 });

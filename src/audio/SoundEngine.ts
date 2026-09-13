@@ -1094,6 +1094,87 @@ export class SoundEngine {
     }, 1200);
   }
 
+  /**
+   * Plays a celestial swirling harmony as all elements converge and absorb into the player.
+   */
+  public playElementalSwirlConvergence(): void {
+    const ctx = this.initContext();
+    if (!ctx || this.isMuted) return;
+
+    const t = ctx.currentTime;
+    const masterGain = this.createGain(ctx, 0.65);
+
+    // 1. Swirling multi-elemental ascending arpeggio notes across the spectrum
+    const elementalFrequencies = [
+      130.81, // C3 (Earth)
+      146.83, // D3 (Nature)
+      164.81, // E3 (Water)
+      196.00, // G3 (Fire)
+      220.00, // A3 (Lightning)
+      261.63, // C4 (Ice)
+      293.66, // D4 (Poison)
+      329.63, // E4 (Wind)
+      392.00, // G4 (Light)
+      440.00, // A4 (Darkness)
+      523.25, // C5 (Chaos)
+      587.33, // D5 (Order)
+      659.25, // E5 (Life)
+      783.99, // G5 (Void)
+      880.00, // A5 (Cosmic)
+      1046.50, // C6 (Omniverse)
+    ];
+
+    elementalFrequencies.forEach((freq, idx) => {
+      const startTime = t + idx * 0.12;
+      const osc = ctx.createOscillator();
+      osc.type = idx % 2 === 0 ? 'sine' : 'triangle';
+      osc.frequency.setValueAtTime(freq, startTime);
+      osc.frequency.exponentialRampToValueAtTime(freq * 1.5, startTime + 0.45);
+
+      const noteGain = ctx.createGain();
+      noteGain.gain.setValueAtTime(0.001, startTime);
+      noteGain.gain.linearRampToValueAtTime(0.28, startTime + 0.04);
+      noteGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.45);
+
+      osc.connect(noteGain);
+      noteGain.connect(masterGain);
+      osc.start(startTime);
+      osc.stop(startTime + 0.5);
+    });
+
+    // 2. Continuous swirling vortex wind glide
+    const swirlOsc = ctx.createOscillator();
+    swirlOsc.type = 'sawtooth';
+    swirlOsc.frequency.setValueAtTime(120, t);
+    swirlOsc.frequency.exponentialRampToValueAtTime(880, t + 1.2);
+    swirlOsc.frequency.linearRampToValueAtTime(1600, t + 2.0);
+
+    const swirlFilter = ctx.createBiquadFilter();
+    swirlFilter.type = 'bandpass';
+    swirlFilter.frequency.setValueAtTime(300, t);
+    swirlFilter.frequency.linearRampToValueAtTime(2400, t + 1.8);
+    swirlFilter.Q.setValueAtTime(3.5, t);
+
+    const swirlGain = ctx.createGain();
+    swirlGain.gain.setValueAtTime(0.01, t);
+    swirlGain.gain.linearRampToValueAtTime(0.35, t + 0.8);
+    swirlGain.gain.linearRampToValueAtTime(0.5, t + 1.8);
+    swirlGain.gain.exponentialRampToValueAtTime(0.001, t + 2.4);
+
+    swirlOsc.connect(swirlFilter);
+    swirlFilter.connect(swirlGain);
+    swirlGain.connect(masterGain);
+    swirlOsc.start(t);
+    swirlOsc.stop(t + 2.45);
+
+    // 3. Climax: Celestial Omniversal chime & cosmic surge upon full absorption
+    setTimeout(() => {
+      this.playCutsceneWizardBlessing();
+      this.playCosmicSingularity();
+      this.playLevelUp();
+    }, 2000);
+  }
+
   public playClick(): void {
     const ctx = this.initContext();
     if (!ctx || this.isMuted) return;

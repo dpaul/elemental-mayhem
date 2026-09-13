@@ -523,6 +523,7 @@ export class GameApp {
       (window as any).playVoidOverlordCutscene = () => this.playDarkCloudsCutscene();
       (window as any).killTitans = () => this.killRound1000Titans();
       (window as any).triggerTitanLastBlow = () => this.executeTitansLastBlowOnRound1000();
+      (window as any).triggerElementalSwirl = () => this.triggerRound5000ElementalSwirl();
     }
     this.attachCombatEngineHooks(this.combatEngine);
     this.enemyAI = new EnemyAI(this.combatEngine);
@@ -5084,6 +5085,10 @@ export class GameApp {
     this.updateHUD();
     this.updateReachableTiles();
 
+    if (isR5000Overlord) {
+      void this.triggerRound5000ElementalSwirl();
+    }
+
     return {
       success: true,
       message: isR5000Overlord
@@ -5145,6 +5150,62 @@ export class GameApp {
         this.renderer.isDarkCloudsTheme = true;
       }
     }, 2200);
+  }
+
+  /**
+   * Triggers a magnificent swirl of ALL elements (Fire, Water, Lightning, Earth, Void, Chaos, Light, Nature, etc.)
+   * spiraling inward across the arena directly into the player ("you"), granting 50,000 HP and omniversal ascendance.
+   */
+  public async triggerRound5000ElementalSwirl(): Promise<void> {
+    if (typeof document === 'undefined') return;
+
+    const vortex = document.getElementById('elemental-swirl-vortex');
+    const heroPos = this.renderer ? this.renderer.gridToScreen(this.hero.coord) : { x: 400, y: 400 };
+
+    // 1. Play celestial swirling arpeggio audio
+    this.soundEngine?.playElementalSwirlConvergence?.();
+
+    // 2. Activate CSS swirl vortex overlay
+    vortex?.classList.remove('hidden');
+
+    // 3. Trigger screen shake and floating text on hero
+    if (this.renderer) {
+      this.renderer.particleEngine?.triggerScreenShake?.(16, 2600);
+      this.renderer.particleEngine?.addFloatingText?.(
+        '🌀 ALL ELEMENTS SWIRL INTO YOU!',
+        heroPos.x,
+        heroPos.y - 50,
+        '#38bdf8',
+        30
+      );
+      this.renderer.particleEngine?.addFloatingText?.(
+        '✨ 50,000 HP OMNIVERSAL CONVERGENCE!',
+        heroPos.x,
+        heroPos.y - 20,
+        '#facc15',
+        24
+      );
+
+      // Trigger the canvas particle engine multi-elemental spiraling orbs
+      this.renderer.particleEngine?.triggerElementalSwirl?.(heroPos.x, heroPos.y, () => {
+        this.combatEngine?.addLog(
+          'system',
+          '🌟 [OMNIVERSAL INTEGRATION COMPLETE] All elemental streams have fused into your core essence!'
+        );
+      });
+    }
+
+    // 4. Update HUD and combat log
+    this.hud?.updatePhaseBanner('🌀 ROUND 5,000: ALL ELEMENTS SWIRL INTO YOUR ESSENCE (50,000 HP)!');
+    this.combatEngine?.addLog(
+      'system',
+      '🌀 [OMNIVERSAL CONVERGENCE] At Round 5,000, a cosmic vortex of ALL 42+ elements swirls across the cosmos and absorbs directly into YOU (50,000 HP)!'
+    );
+
+    // 5. Hide overlay after convergence finishes
+    setTimeout(() => {
+      vortex?.classList.add('hidden');
+    }, 2800);
   }
 
   public setDarkCloudsTheme(enabled: boolean, animate: boolean = false): void {
@@ -5848,6 +5909,21 @@ export class GameApp {
       return { success: true, message: '⚡ Primordial Titans unleashed their decisive LAST BLOW, obliterating the Void Overlord!' };
     }
 
+    // 1i. Elemental Swirl (Round 5000) Command
+    if (
+      cmd === 'elemental swirl' ||
+      cmd === 'element swirl' ||
+      cmd === 'elements swirl' ||
+      cmd === 'swirl' ||
+      cmd === 'round 5000 swirl' ||
+      cmd === 'boss 5000 swirl' ||
+      cmd === 'swirl elements' ||
+      cmd === 'all elements swirl'
+    ) {
+      void this.triggerRound5000ElementalSwirl();
+      return { success: true, message: '🌀 All elements are swirling into your essence (50,000 HP)!' };
+    }
+
     // 2. Specific round jump: "round 15", "level 10", "goto 12", "go to round 5"
     const roundMatch = cmd.match(/^(?:(?:go\s*to|goto)\s+)?(?:round|level)\s+(\d+)$/i);
     if (roundMatch) {
@@ -6096,6 +6172,7 @@ export class GameApp {
       this.playDarkCloudsCutscene();
       this.triggerDarkCloudsWhirl();
       this.setDarkCloudsTheme(true);
+      void this.triggerRound5000ElementalSwirl();
       const allPlayers = this.getAllActivePlayers();
       for (const p of allPlayers) {
         if (p.stats.maxHp < 50000) {

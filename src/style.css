@@ -455,6 +455,199 @@ body::-webkit-scrollbar {
   font-family: 'Outfit', sans-serif;
 }
 
+/* 2b. Round 5000: Swirl of All Elements Inward Convergence Vortex */
+.elemental-swirl-vortex {
+  position: absolute;
+  inset: 0;
+  z-index: 46;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at center, rgba(56, 189, 248, 0.22) 0%, rgba(168, 85, 247, 0.4) 45%, rgba(8, 4, 20, 0.88) 85%);
+  animation: swirlVortexFadeInOut 2.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+@keyframes swirlVortexFadeInOut {
+  0% { opacity: 0; transform: scale(0.85); }
+  12% { opacity: 1; transform: scale(1); }
+  85% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.15); filter: blur(4px); }
+}
+
+.elemental-swirl-rings {
+  position: absolute;
+  width: 520px;
+  height: 520px;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    rgba(255, 107, 53, 0.6) 0deg,
+    rgba(0, 210, 255, 0.6) 45deg,
+    rgba(255, 208, 0, 0.6) 90deg,
+    rgba(74, 222, 128, 0.6) 135deg,
+    rgba(103, 232, 249, 0.6) 180deg,
+    rgba(168, 85, 247, 0.6) 225deg,
+    rgba(244, 63, 94, 0.6) 270deg,
+    rgba(250, 204, 21, 0.6) 315deg,
+    rgba(255, 107, 53, 0.6) 360deg
+  );
+  filter: blur(8px);
+  mask: radial-gradient(circle, transparent 40%, black 70%);
+  -webkit-mask: radial-gradient(circle, transparent 40%, black 70%);
+  animation: elementalSwirlSpinInward 2.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+@keyframes elementalSwirlSpinInward {
+  0% {
+    transform: rotate(0deg) scale(1.6);
+    opacity: 0.2;
+  }
+  30% {
+    transform: rotate(360deg) scale(1.1);
+    opacity: 0.9;
+  }
+  75% {
+    transform: rotate(1080deg) scale(0.5);
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(1800deg) scale(0.05);
+    opacity: 0;
+  }
+}
+
+.elemental-swirl-rainbow-aura {
+  position: absolute;
+  width: 380px;
+  height: 380px;
+  border-radius: 50%;
+  border: 4px dashed rgba(250, 204, 21, 0.85);
+  box-shadow:
+    0 0 50px rgba(56, 189, 248, 0.8),
+    0 0 90px rgba(236, 72, 153, 0.7),
+    inset 0 0 60px rgba(250, 204, 21, 0.8);
+  animation: elementalAuraPulse 1.2s infinite linear;
+}
+
+@keyframes elementalAuraPulse {
+  0% { transform: rotate(0deg) scale(0.92); opacity: 0.6; }
+  50% { transform: rotate(180deg) scale(1.08); opacity: 1; }
+  100% { transform: rotate(360deg) scale(0.92); opacity: 0.6; }
+}
+
+.elemental-swirl-orbit-elements {
+  position: absolute;
+  width: 320px;
+  height: 320px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: elementalOrbitSpinInward 2.6s cubic-bezier(0.25, 0.85, 0.25, 1) forwards;
+  z-index: 3;
+}
+
+@keyframes elementalOrbitSpinInward {
+  0% {
+    transform: rotate(0deg) scale(1.5);
+    opacity: 0.3;
+  }
+  30% {
+    transform: rotate(400deg) scale(1.05);
+    opacity: 1;
+  }
+  75% {
+    transform: rotate(1200deg) scale(0.45);
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(1900deg) scale(0.05);
+    opacity: 0;
+  }
+}
+
+.swirl-elem {
+  position: absolute;
+  font-size: 1.7rem;
+  filter: drop-shadow(0 0 12px currentColor);
+  animation: elemFloatPulse 0.6s infinite alternate ease-in-out;
+}
+
+.swirl-elem.el-fire { transform: translate(140px, 0); color: #ff6b35; }
+.swirl-elem.el-water { transform: translate(100px, 100px); color: #00d2ff; }
+.swirl-elem.el-lightning { transform: translate(0, 140px); color: #ffd000; }
+.swirl-elem.el-earth { transform: translate(-100px, 100px); color: #ca8a04; }
+.swirl-elem.el-void { transform: translate(-140px, 0); color: #c084fc; }
+.swirl-elem.el-nature { transform: translate(-100px, -100px); color: #4ade80; }
+.swirl-elem.el-ice { transform: translate(0, -140px); color: #67e8f9; }
+.swirl-elem.el-poison { transform: translate(100px, -100px); color: #22c55e; }
+.swirl-elem.el-light { transform: translate(65px, 65px); color: #facc15; }
+.swirl-elem.el-darkness { transform: translate(-65px, 65px); color: #9333ea; }
+.swirl-elem.el-chaos { transform: translate(-65px, -65px); color: #ec4899; }
+.swirl-elem.el-life { transform: translate(65px, -65px); color: #f43f5e; }
+.swirl-elem.el-time { transform: translate(130px, -45px); color: #38bdf8; }
+.swirl-elem.el-celestial { transform: translate(-130px, 45px); color: #fbbf24; }
+
+@keyframes elemFloatPulse {
+  0% { transform: scale(0.9) rotate(-6deg); }
+  100% { transform: scale(1.15) rotate(6deg); }
+}
+
+.elemental-swirl-banner-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 16px 32px;
+  background: rgba(12, 6, 28, 0.92);
+  border: 2px solid rgba(56, 189, 248, 0.85);
+  box-shadow:
+    0 0 45px rgba(236, 72, 153, 0.65),
+    0 0 25px rgba(56, 189, 248, 0.7),
+    inset 0 0 25px rgba(250, 204, 21, 0.35);
+  border-radius: 18px;
+  backdrop-filter: blur(10px);
+  z-index: 4;
+  margin-top: 140px;
+  animation: swirlBannerPop 0.5s ease-out forwards;
+}
+
+@keyframes swirlBannerPop {
+  0% { transform: scale(0.85); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.elemental-swirl-badge {
+  font-family: 'Cinzel', serif;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: #facc15;
+  text-shadow: 0 0 14px rgba(250, 204, 21, 0.9);
+  margin-bottom: 6px;
+}
+
+.elemental-swirl-title {
+  margin: 0;
+  font-family: 'Cinzel Decorative', 'Cinzel', serif;
+  font-size: 1.45rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, #38bdf8, #f472b6, #facc15);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 20px rgba(56, 189, 248, 0.8);
+  letter-spacing: 1.5px;
+}
+
+.elemental-swirl-desc {
+  margin: 6px 0 0 0;
+  font-size: 0.88rem;
+  color: #e2e8f0;
+  font-family: 'Outfit', sans-serif;
+}
+
 /* 3. Dark Clouds Atmosphere Layers (Rendered Behind Canvas) */
 .dark-clouds-backdrop {
   position: absolute;
