@@ -139,6 +139,30 @@ export class OriginCutsceneManager {
         }, 1800);
       }
     };
+
+    this.voiceManager.onDialogueLineStart = (line) => {
+      if (typeof document === 'undefined') return;
+      const magmaEl = document.getElementById('c-titan-magma');
+      const voidEl = document.getElementById('c-titan-void');
+
+      if (line.speakerId === 'titan_magma') {
+        magmaEl?.classList.add('magma-attacking');
+      } else if (line.speakerId === 'titan_void') {
+        voidEl?.classList.add('void-attacking');
+      }
+    };
+
+    this.voiceManager.onDialogueLineEnd = (line) => {
+      if (typeof document === 'undefined') return;
+      const magmaEl = document.getElementById('c-titan-magma');
+      const voidEl = document.getElementById('c-titan-void');
+
+      if (line.speakerId === 'titan_magma') {
+        magmaEl?.classList.remove('magma-attacking');
+      } else if (line.speakerId === 'titan_void') {
+        voidEl?.classList.remove('void-attacking');
+      }
+    };
   }
 
   public initDOM(): void {
@@ -457,6 +481,22 @@ export class OriginCutsceneManager {
           sc.classList.add('hidden');
         }
       }
+    }
+
+    // Dynamic Titans Battle Overlay: active on Chapter 1 ("When Titans Collided")
+    const titansOverlay = document.getElementById('cutscene-titans-battle-overlay');
+    if (titansOverlay) {
+      if (this.currentChapterIndex === 0) {
+        titansOverlay.classList.remove('hidden');
+      } else {
+        titansOverlay.classList.add('hidden');
+      }
+    }
+
+    // Reset titan attacking animations if navigating away from Chapter 1
+    if (this.currentChapterIndex !== 0) {
+      document.getElementById('c-titan-magma')?.classList.remove('magma-attacking');
+      document.getElementById('c-titan-void')?.classList.remove('void-attacking');
     }
   }
 

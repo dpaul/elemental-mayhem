@@ -1921,7 +1921,439 @@ body {
 }
 
 /* ========================================================
-   SCENE 1: CLASH OF THE TWO TITANS
+   SCENE 1: CINEMATIC TITANS ATTACKING EACH OTHER BATTLE OVERLAY
+   ======================================================== */
+.cutscene-titans-battle-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 36px;
+  pointer-events: none;
+  box-sizing: border-box;
+  animation: battleArenaFadeIn 0.8s ease-out forwards;
+}
+
+.cutscene-titans-battle-overlay.hidden {
+  display: none !important;
+}
+
+@keyframes battleArenaFadeIn {
+  0% { opacity: 0; transform: scale(0.96); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* Titan Sides */
+.c-titan-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+  width: 220px;
+  z-index: 5;
+}
+
+/* Badges */
+.c-titan-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.82);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(245, 158, 11, 0.5);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7), 0 0 15px rgba(245, 158, 11, 0.4);
+}
+
+.c-titan-void .c-titan-badge {
+  border-color: rgba(168, 85, 247, 0.5);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7), 0 0 15px rgba(168, 85, 247, 0.4);
+}
+
+.c-titan-icon {
+  font-size: 1.6rem;
+  filter: drop-shadow(0 0 8px #f59e0b);
+}
+
+.c-titan-void .c-titan-icon {
+  filter: drop-shadow(0 0 8px #a855f7);
+}
+
+.c-titan-titles {
+  display: flex;
+  flex-direction: column;
+}
+
+.c-titan-titles.titles-right {
+  text-align: right;
+}
+
+.c-titan-title {
+  font-family: var(--font-display, sans-serif);
+  font-size: 0.88rem;
+  font-weight: 900;
+  letter-spacing: 1.2px;
+  color: #fbbf24;
+  text-shadow: 0 0 10px rgba(251, 191, 36, 0.7);
+}
+
+.title-void {
+  color: #c084fc !important;
+  text-shadow: 0 0 10px rgba(192, 132, 252, 0.8) !important;
+}
+
+.c-titan-sub {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+/* Titan Body & Animated Auras */
+.c-titan-body-wrap {
+  position: relative;
+  width: 130px;
+  height: 130px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.c-titan-aura {
+  position: absolute;
+  inset: -15px;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.aura-magma {
+  background: radial-gradient(circle, rgba(239, 68, 68, 0.55) 0%, rgba(245, 158, 11, 0.25) 50%, transparent 75%);
+  animation: magmaAuraPulse 1.8s infinite alternate ease-in-out;
+}
+
+@keyframes magmaAuraPulse {
+  0% { transform: scale(0.9); opacity: 0.6; filter: blur(6px); }
+  100% { transform: scale(1.3); opacity: 1; filter: blur(12px); }
+}
+
+.aura-void {
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.6) 0%, rgba(56, 189, 248, 0.3) 50%, transparent 75%);
+  animation: voidAuraPulse 1.8s infinite alternate ease-in-out;
+}
+
+@keyframes voidAuraPulse {
+  0% { transform: scale(0.9) rotate(0deg); opacity: 0.6; filter: blur(6px); }
+  100% { transform: scale(1.35) rotate(180deg); opacity: 1; filter: blur(14px); }
+}
+
+/* Attacking Titan Sprites with Aggressive Combat Strikes */
+.c-titan-sprite {
+  font-size: 4.8rem;
+  position: relative;
+  z-index: 2;
+  will-change: transform, filter;
+}
+
+.sprite-magma {
+  animation: magmaTitanAttack 1.6s infinite ease-in-out;
+  filter: drop-shadow(0 0 25px rgba(245, 158, 11, 0.9)) drop-shadow(0 0 45px rgba(239, 68, 68, 0.7));
+}
+
+@keyframes magmaTitanAttack {
+  0% { transform: translateX(0) scale(1) rotate(-2deg); }
+  25% { transform: translateX(18px) scale(1.1) rotate(4deg); }
+  45% { transform: translateX(-8px) scale(0.96) rotate(-5deg); }
+  60% { transform: translateX(52px) scale(1.24) rotate(8deg); filter: drop-shadow(0 0 40px #f97316) brightness(1.35); }
+  80% { transform: translateX(30px) scale(1.12) rotate(2deg); }
+  100% { transform: translateX(0) scale(1) rotate(-2deg); }
+}
+
+.sprite-void {
+  animation: voidTitanAttack 1.6s infinite ease-in-out;
+  filter: drop-shadow(0 0 25px rgba(168, 85, 247, 0.9)) drop-shadow(0 0 45px rgba(56, 189, 248, 0.7));
+}
+
+@keyframes voidTitanAttack {
+  0% { transform: translateX(0) scale(1) rotate(2deg); }
+  25% { transform: translateX(-18px) scale(1.1) rotate(-4deg); }
+  45% { transform: translateX(8px) scale(0.96) rotate(5deg); }
+  60% { transform: translateX(-52px) scale(1.24) rotate(-8deg); filter: drop-shadow(0 0 40px #a855f7) brightness(1.35); }
+  80% { transform: translateX(-30px) scale(1.12) rotate(-2deg); }
+  100% { transform: translateX(0) scale(1) rotate(2deg); }
+}
+
+/* Attacking Fists / Thrust Energy */
+.c-titan-fists {
+  position: absolute;
+  font-size: 2.2rem;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.fists-left {
+  right: -25px;
+  top: 50%;
+  transform: translateY(-50%);
+  animation: magmaFistPunch 1.6s infinite ease-in-out;
+}
+
+@keyframes magmaFistPunch {
+  0%, 45%, 100% { transform: translate(0, -50%) scale(0.8); opacity: 0; }
+  55% { transform: translate(45px, -50%) scale(1.3); opacity: 1; filter: drop-shadow(0 0 20px #ef4444); }
+  75% { transform: translate(25px, -50%) scale(1); opacity: 0.7; }
+}
+
+.fists-right {
+  left: -25px;
+  top: 50%;
+  transform: translateY(-50%);
+  animation: voidFistPunch 1.6s infinite ease-in-out;
+}
+
+@keyframes voidFistPunch {
+  0%, 45%, 100% { transform: translate(0, -50%) scale(0.8); opacity: 0; }
+  55% { transform: translate(-45px, -50%) scale(1.3); opacity: 1; filter: drop-shadow(0 0 20px #a855f7); }
+  75% { transform: translate(-25px, -50%) scale(1); opacity: 0.7; }
+}
+
+/* Projectile Attack Barrages */
+.magma-fireball-stream {
+  position: absolute;
+  right: -60px;
+  top: 45%;
+  pointer-events: none;
+}
+
+.magma-orb {
+  position: absolute;
+  font-size: 1.8rem;
+  animation: magmaFlyRight 1.6s infinite linear;
+}
+
+.orb-1 { animation-delay: 0.1s; }
+.orb-2 { animation-delay: 0.6s; font-size: 2.1rem; }
+.orb-3 { animation-delay: 1.1s; font-size: 2.4rem; }
+
+@keyframes magmaFlyRight {
+  0% { transform: translate(0, 0) scale(0.4) rotate(0deg); opacity: 0; }
+  15% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { transform: translate(160px, -15px) scale(1.2) rotate(360deg); opacity: 0; filter: drop-shadow(0 0 20px #f97316); }
+}
+
+.void-orb-stream {
+  position: absolute;
+  left: -60px;
+  top: 45%;
+  pointer-events: none;
+}
+
+.void-orb {
+  position: absolute;
+  font-size: 1.8rem;
+  animation: voidFlyLeft 1.6s infinite linear;
+}
+
+.vorb-1 { animation-delay: 0.25s; }
+.vorb-2 { animation-delay: 0.75s; font-size: 2.1rem; }
+.vorb-3 { animation-delay: 1.25s; font-size: 2.4rem; }
+
+@keyframes voidFlyLeft {
+  0% { transform: translate(0, 0) scale(0.4) rotate(0deg); opacity: 0; }
+  15% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { transform: translate(-160px, 15px) scale(1.2) rotate(-360deg); opacity: 0; filter: drop-shadow(0 0 20px #a855f7); }
+}
+
+/* Center Clash Zone with Clashing Energy Beams & Explosive Core */
+.c-titan-clash-zone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 220px;
+  height: 150px;
+  z-index: 6;
+}
+
+.clash-beam {
+  height: 10px;
+  width: 80px;
+  border-radius: 6px;
+  position: relative;
+  z-index: 1;
+}
+
+.beam-magma {
+  background: linear-gradient(90deg, transparent, #f97316, #ef4444);
+  box-shadow: 0 0 25px #ef4444, 0 0 50px #f97316;
+  animation: magmaBeamPulse 0.4s infinite alternate ease-in-out;
+}
+
+@keyframes magmaBeamPulse {
+  0% { transform: scaleY(0.7) scaleX(0.9); opacity: 0.8; }
+  100% { transform: scaleY(1.4) scaleX(1.1); opacity: 1; }
+}
+
+.beam-void {
+  background: linear-gradient(-90deg, transparent, #8b5cf6, #38bdf8);
+  box-shadow: 0 0 25px #8b5cf6, 0 0 50px #38bdf8;
+  animation: voidBeamPulse 0.4s infinite alternate ease-in-out;
+}
+
+@keyframes voidBeamPulse {
+  0% { transform: scaleY(1.4) scaleX(1.1); opacity: 1; }
+  100% { transform: scaleY(0.7) scaleX(0.9); opacity: 0.8; }
+}
+
+.clash-collision-core {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+}
+
+.collision-flash {
+  font-size: 3.8rem;
+  filter: drop-shadow(0 0 35px #ffffff) drop-shadow(0 0 60px #fde047);
+  animation: clashCoreBurst 0.6s infinite alternate ease-in-out;
+}
+
+@keyframes clashCoreBurst {
+  0% { transform: scale(0.9) rotate(-10deg); filter: brightness(1) drop-shadow(0 0 20px #fff); }
+  100% { transform: scale(1.35) rotate(15deg); filter: brightness(1.7) drop-shadow(0 0 50px #fde047); }
+}
+
+.collision-rings {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.ring-a {
+  width: 90px;
+  height: 90px;
+  border: 3px solid rgba(251, 191, 36, 0.85);
+  animation: collisionRingExpand 1.2s infinite ease-out;
+}
+
+.ring-b {
+  width: 90px;
+  height: 90px;
+  border: 3px solid rgba(168, 85, 247, 0.85);
+  animation: collisionRingExpand 1.2s infinite ease-out 0.6s;
+}
+
+@keyframes collisionRingExpand {
+  0% { transform: scale(0.2); opacity: 1; }
+  100% { transform: scale(3); opacity: 0; }
+}
+
+.collision-sparks {
+  position: absolute;
+  font-size: 1.1rem;
+  letter-spacing: 4px;
+  color: #fde047;
+  text-shadow: 0 0 10px #facc15;
+  animation: clashSparksJitter 0.2s infinite alternate;
+}
+
+@keyframes clashSparksJitter {
+  0% { transform: translate(-3px, 2px) rotate(-5deg); }
+  100% { transform: translate(3px, -2px) rotate(5deg); }
+}
+
+/* Health / Power Status Bars */
+.c-titan-hp-bar {
+  width: 140px;
+  height: 8px;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+}
+
+.c-titan-hp-fill {
+  height: 100%;
+  border-radius: 6px;
+}
+
+.hp-magma {
+  width: 94%;
+  background: linear-gradient(90deg, #f59e0b, #ef4444);
+  box-shadow: 0 0 12px #ef4444;
+  animation: hpPulseMagma 2.2s infinite alternate;
+}
+
+@keyframes hpPulseMagma {
+  0% { width: 96%; }
+  50% { width: 88%; }
+  100% { width: 92%; }
+}
+
+.hp-void {
+  width: 96%;
+  background: linear-gradient(90deg, #8b5cf6, #38bdf8);
+  box-shadow: 0 0 12px #8b5cf6;
+  animation: hpPulseVoid 2.2s infinite alternate 0.5s;
+}
+
+@keyframes hpPulseVoid {
+  0% { width: 92%; }
+  50% { width: 98%; }
+  100% { width: 90%; }
+}
+
+/* Floating Battle Damage Numbers */
+.c-titan-damage-tag {
+  font-family: var(--font-display, sans-serif);
+  font-size: 0.82rem;
+  font-weight: 900;
+  color: #ef4444;
+  background: rgba(0, 0, 0, 0.75);
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid #ef4444;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.7);
+  animation: damageTagPop 1.6s infinite ease-out;
+}
+
+.tag-void {
+  color: #c084fc !important;
+  border-color: #c084fc !important;
+  box-shadow: 0 0 12px rgba(192, 132, 252, 0.7) !important;
+  animation: damageTagPop 1.6s infinite ease-out 0.8s;
+}
+
+@keyframes damageTagPop {
+  0%, 100% { transform: translateY(0) scale(0.9); opacity: 0; }
+  35% { transform: translateY(-12px) scale(1.15); opacity: 1; }
+  65% { transform: translateY(-18px) scale(1); opacity: 0.8; }
+  85% { transform: translateY(-24px) scale(0.9); opacity: 0; }
+}
+
+/* Supercharged States during character dialogue */
+.c-titan-side.magma-attacking .sprite-magma {
+  animation: magmaTitanAttack 0.9s infinite ease-in-out !important;
+  filter: drop-shadow(0 0 50px #ff5722) brightness(1.5) !important;
+}
+
+.c-titan-side.void-attacking .sprite-void {
+  animation: voidTitanAttack 0.9s infinite ease-in-out !important;
+  filter: drop-shadow(0 0 50px #9c27b0) brightness(1.5) !important;
+}
+
+/* ========================================================
+   SCENE 1: CLASH OF THE TWO TITANS (STAGE MODE FALLBACK)
    ======================================================== */
 .scene-titans-clash {
   display: flex;

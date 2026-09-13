@@ -106,6 +106,9 @@ describe('Cinematic Video Player & Voice Acting System', () => {
       'cutscene-prev-btn': new MockElement(),
       'cutscene-play-pause-btn': new MockElement(),
       'cutscene-next-btn': new MockElement(),
+      'cutscene-titans-battle-overlay': new MockElement(),
+      'c-titan-magma': new MockElement(),
+      'c-titan-void': new MockElement(),
     };
 
     (globalThis as any).document = {
@@ -356,6 +359,49 @@ describe('Cinematic Video Player & Voice Acting System', () => {
     // Path must be relative or use base URL, NOT start with a domain-root slash (/cutscene)
     expect(sceneImg.src.startsWith('/cutscene')).toBe(false);
     expect(sceneImg.src).toMatch(/(^\.\/cutscene\/scene_1\.jpg$)|(cutscene\/scene_1\.jpg$)/);
+  });
+
+  it('activates the titans attacking battle overlay in Chapter 1 and triggers attack animations on dialogue', () => {
+    cutsceneManager.initDOM();
+
+    const overlay = elements['cutscene-titans-battle-overlay'];
+    const magmaTitan = elements['c-titan-magma'];
+    const voidTitan = elements['c-titan-void'];
+
+    // In Chapter 1 (index 0), titans battle overlay is displayed
+    cutsceneManager.goToChapter(0, true);
+    expect(overlay.classList.contains('hidden')).toBe(false);
+
+    // Dialogue line starts for Magma Colossus -> attacks
+    cutsceneManager.voiceManager.onDialogueLineStart?.(
+      { id: 'magma_line', speakerId: 'titan_magma', text: 'I shall incinerate this void!' },
+      VOICE_PROFILES.titan_magma
+    );
+    expect(magmaTitan.classList.contains('magma-attacking')).toBe(true);
+
+    // Dialogue line ends -> finishes attack burst
+    cutsceneManager.voiceManager.onDialogueLineEnd?.(
+      { id: 'magma_line', speakerId: 'titan_magma', text: 'I shall incinerate this void!' }
+    );
+    expect(magmaTitan.classList.contains('magma-attacking')).toBe(false);
+
+    // Dialogue line starts for Void Leviathan -> attacks
+    cutsceneManager.voiceManager.onDialogueLineStart?.(
+      { id: 'void_line', speakerId: 'titan_void', text: 'Entropy devours all creation!' },
+      VOICE_PROFILES.titan_void
+    );
+    expect(voidTitan.classList.contains('void-attacking')).toBe(true);
+
+    cutsceneManager.voiceManager.onDialogueLineEnd?.(
+      { id: 'void_line', speakerId: 'titan_void', text: 'Entropy devours all creation!' }
+    );
+    expect(voidTitan.classList.contains('void-attacking')).toBe(false);
+
+    // Moving to Chapter 2 (index 1) hides the titans battle overlay
+    cutsceneManager.goToChapter(1, true);
+    expect(overlay.classList.contains('hidden')).toBe(true);
+    expect(magmaTitan.classList.contains('magma-attacking')).toBe(false);
+    expect(voidTitan.classList.contains('void-attacking')).toBe(false);
   });
 });
 

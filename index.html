@@ -1155,6 +1155,73 @@
         <div class="cutscene-visual-frame" id="cutscene-visual-frame" title="Click to Toggle Play / Pause">
           <img id="cutscene-scene-image" class="cutscene-scene-image ken-burns-0" src="./cutscene/scene_1.jpg" alt="Cutscene Scene Visual" />
           <video id="cutscene-video-player" class="cutscene-video-player hidden" playsinline preload="none" muted style="display: none;"></video>
+          
+          <!-- Chapter 1: The Titans Attacking Each Other Dynamic Battle Layer -->
+          <div class="cutscene-titans-battle-overlay" id="cutscene-titans-battle-overlay">
+            <!-- Magma Colossus (Attacking from Left) -->
+            <div class="c-titan-side c-titan-magma" id="c-titan-magma">
+              <div class="c-titan-badge">
+                <span class="c-titan-icon">🌋</span>
+                <div class="c-titan-titles">
+                  <span class="c-titan-title">MAGMA COLOSSUS</span>
+                  <span class="c-titan-sub">Primeval Fire & Earth</span>
+                </div>
+              </div>
+              <div class="c-titan-body-wrap">
+                <div class="c-titan-aura aura-magma"></div>
+                <div class="c-titan-sprite sprite-magma">🗿🌋🔥</div>
+                <div class="c-titan-fists fists-left">✊🔥</div>
+              </div>
+              <!-- Magma Attack Spells & Projectiles -->
+              <div class="magma-fireball-stream">
+                <span class="magma-orb orb-1">☄️</span>
+                <span class="magma-orb orb-2">🔥</span>
+                <span class="magma-orb orb-3">💥</span>
+              </div>
+              <div class="c-titan-hp-bar">
+                <div class="c-titan-hp-fill hp-magma"></div>
+              </div>
+              <div class="c-titan-damage-tag" id="c-magma-damage-tag">-14,500!</div>
+            </div>
+
+            <!-- Clash Center: Energy Collision & Impact Blast -->
+            <div class="c-titan-clash-zone" id="c-titan-clash-zone">
+              <div class="clash-beam beam-magma"></div>
+              <div class="clash-collision-core">
+                <div class="collision-flash">💥</div>
+                <div class="collision-rings ring-a"></div>
+                <div class="collision-rings ring-b"></div>
+                <div class="collision-sparks">⚡🔥⚡🔥</div>
+              </div>
+              <div class="clash-beam beam-void"></div>
+            </div>
+
+            <!-- Void Leviathan (Attacking from Right) -->
+            <div class="c-titan-side c-titan-void" id="c-titan-void">
+              <div class="c-titan-badge">
+                <div class="c-titan-titles titles-right">
+                  <span class="c-titan-title title-void">VOID LEVIATHAN</span>
+                  <span class="c-titan-sub">Abyssal Singularity</span>
+                </div>
+                <span class="c-titan-icon">🌌</span>
+              </div>
+              <div class="c-titan-body-wrap">
+                <div class="c-titan-aura aura-void"></div>
+                <div class="c-titan-sprite sprite-void">🌌⚡👾</div>
+                <div class="c-titan-fists fists-right">⚡🔮</div>
+              </div>
+              <!-- Void Attack Spells & Projectiles -->
+              <div class="void-orb-stream">
+                <span class="void-orb vorb-1">🔮</span>
+                <span class="void-orb vorb-2">⚡</span>
+                <span class="void-orb vorb-3">🌀</span>
+              </div>
+              <div class="c-titan-hp-bar">
+                <div class="c-titan-hp-fill hp-void"></div>
+              </div>
+              <div class="c-titan-damage-tag tag-void" id="c-void-damage-tag">-15,800!</div>
+            </div>
+          </div>
         </div>
 
         <!-- Top Video Status Header -->
