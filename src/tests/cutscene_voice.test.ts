@@ -199,4 +199,54 @@ describe('CutsceneVoiceManager & Spoken Dialogue System', () => {
 
     expect(startSpy).toHaveBeenCalledWith(line, VOICE_PROFILES.wizard);
   });
+
+  it('should not finish a dialogue line prematurely even if speech synthesis onend or onerror triggers early', () => {
+    vi.useFakeTimers();
+    let spokenUtterance: any = null;
+    (globalThis as any).window = {
+      speechSynthesis: {
+        speaking: false,
+        cancel: vi.fn(),
+        getVoices: vi.fn().mockReturnValue([]),
+        speak: vi.fn((u) => {
+          spokenUtterance = u;
+        }),
+        pause: vi.fn(),
+        resume: vi.fn(),
+      },
+    };
+    (globalThis as any).SpeechSynthesisUtterance = class {
+      public pitch = 1;
+      public rate = 1;
+      public volume = 1;
+      public voice = null;
+      public text: string;
+      public onend: (() => void) | null = null;
+      public onerror: ((e: any) => void) | null = null;
+      constructor(text: string) {
+        this.text = text;
+      }
+    };
+
+    const doneSpy = vi.fn();
+    const line = CHAPTER_DIALOGUES[0][0]; // 6000ms durationEstimate
+    voiceManager.speakLine(line, doneSpy);
+
+    // Speech synthesis immediately fires an error or early onend at 50ms
+    spokenUtterance?.onerror?.({ error: 'canceled' });
+
+    // After 2 seconds, line must NOT have completed yet
+    vi.advanceTimersByTime(2000);
+    expect(doneSpy).not.toHaveBeenCalled();
+
+    // After 5 seconds, line must still NOT have completed
+    vi.advanceTimersByTime(3000);
+    expect(doneSpy).not.toHaveBeenCalled();
+
+    // At 6000ms (full speech duration), line completes!
+    vi.advanceTimersByTime(1100);
+    expect(doneSpy).toHaveBeenCalledTimes(1);
+
+    vi.useRealTimers();
+  });
 });

@@ -484,27 +484,28 @@ export class CutsceneVoiceManager {
     };
 
     if (this.isVoiceMuted) {
-      // In muted mode, allow reading duration based on text length
-      const readingDuration = line.durationEstimateMs || Math.max(3000, line.text.length * 60);
+      // In muted mode, allow reading duration based on speechDurationMs
       const simTimer = setTimeout(() => {
         finishLine();
-      }, readingDuration);
+      }, speechDurationMs);
       this.scheduledTimers.push(simTimer);
       return;
     }
 
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
-      const fallbackDuration = line.durationEstimateMs || Math.max(3000, line.text.length * 60);
       const simTimer = setTimeout(() => {
         finishLine();
-      }, fallbackDuration);
+      }, speechDurationMs);
       this.scheduledTimers.push(simTimer);
       return;
     }
 
+    const lineStartTime = Date.now();
+
     try {
-      // Cancel previous utterance cleanly before starting this one
-      window.speechSynthesis.cancel();
+      if (window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+      }
 
       const utterance = new SpeechSynthesisUtterance(line.text);
       utterance.pitch = profile.pitch;
@@ -523,11 +524,26 @@ export class CutsceneVoiceManager {
       const safeFinish = () => {
         if (hasFinished) return;
         hasFinished = true;
-        finishLine();
+
+        // Ensure the line stays active for at least the full spoken/reading duration
+        const elapsed = Date.now() - lineStartTime;
+        const remaining = Math.max(0, speechDurationMs - elapsed);
+        if (remaining > 0) {
+          const holdTimer = setTimeout(() => {
+            finishLine();
+          }, remaining);
+          this.scheduledTimers.push(holdTimer);
+        } else {
+          finishLine();
+        }
       };
 
       utterance.onend = safeFinish;
-      utterance.onerror = safeFinish;
+      utterance.onerror = () => {
+        // When speech synthesis errors or drops, safeFinish guarantees
+        // the procedural voice babble and dialogue remain active for the full speech duration!
+        safeFinish();
+      };
 
       // Speech keep-alive loop to prevent Chrome pausing long utterances
       this.keepAliveTimer = setInterval(() => {
@@ -552,7 +568,16 @@ export class CutsceneVoiceManager {
 
       window.speechSynthesis.speak(utterance);
     } catch {
-      finishLine();
+      const elapsed = Date.now() - lineStartTime;
+      const remaining = Math.max(0, speechDurationMs - elapsed);
+      if (remaining > 0) {
+        const catchTimer = setTimeout(() => {
+          finishLine();
+        }, remaining);
+        this.scheduledTimers.push(catchTimer);
+      } else {
+        finishLine();
+      }
     }
   }
 
@@ -748,6 +773,10 @@ export class CutsceneVoiceManager {
 
   public isCurrentlySpeaking(): boolean {
     return this.isSpeaking;
+  }
+
+  public isDialogueActive(): boolean {
+    return this.isQueueActive;
   }
 
   public isVoicesLoaded(): boolean {

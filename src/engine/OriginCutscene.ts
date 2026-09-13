@@ -693,7 +693,9 @@ export class OriginCutsceneManager {
     }
     this.sceneImageEl?.classList.remove('paused');
     this.musicEngine.resume();
-    this.voiceManager.replayCurrentChapterDialogue();
+    if (!this.voiceManager.isDialogueActive()) {
+      this.voiceManager.replayCurrentChapterDialogue();
+    }
     this.scheduleNext();
     this.updateProgressUI();
   }
