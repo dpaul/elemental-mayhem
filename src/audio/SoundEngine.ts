@@ -1054,6 +1054,46 @@ export class SoundEngine {
     }
   }
 
+  public playDarkCloudsWhirl(): void {
+    const ctx = this.initContext();
+    if (!ctx || this.isMuted) return;
+
+    const t = ctx.currentTime;
+    const masterGain = this.createGain(ctx, 0.6);
+
+    // Swirling frequency sweep (pitch rises, whirls, then drops)
+    const osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(80, t);
+    osc.frequency.exponentialRampToValueAtTime(880, t + 0.9);
+    osc.frequency.linearRampToValueAtTime(1400, t + 1.4);
+    osc.frequency.exponentialRampToValueAtTime(60, t + 2.2);
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(350, t);
+    filter.frequency.linearRampToValueAtTime(3000, t + 1.3);
+    filter.frequency.exponentialRampToValueAtTime(200, t + 2.2);
+
+    const env = ctx.createGain();
+    env.gain.setValueAtTime(0.05, t);
+    env.gain.linearRampToValueAtTime(0.5, t + 0.6);
+    env.gain.linearRampToValueAtTime(0.7, t + 1.4);
+    env.gain.exponentialRampToValueAtTime(0.001, t + 2.2);
+
+    osc.connect(filter);
+    filter.connect(env);
+    env.connect(masterGain);
+    osc.start(t);
+    osc.stop(t + 2.25);
+
+    // Heavy Thunder Boom & Rumble as the vortex collapses into the clouds
+    setTimeout(() => {
+      this.playSpellCast('thunder');
+      this.playEarthquakeRumble();
+    }, 1200);
+  }
+
   public playClick(): void {
     const ctx = this.initContext();
     if (!ctx || this.isMuted) return;

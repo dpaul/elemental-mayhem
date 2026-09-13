@@ -519,6 +519,8 @@ export class GameApp {
       (window as any).goToRound1000 = () => this.goToVoidOverlord(true);
       (window as any).goToRound30 = () => this.goToRound30(true);
       (window as any).openFusionArea = () => this.essenceFusionModal.open();
+      (window as any).triggerDarkCloudsWhirl = () => this.triggerDarkCloudsWhirl();
+      (window as any).setDarkCloudsTheme = (enabled: boolean) => this.setDarkCloudsTheme(enabled);
     }
     this.attachCombatEngineHooks(this.combatEngine);
     this.enemyAI = new EnemyAI(this.combatEngine);
@@ -5026,6 +5028,85 @@ export class GameApp {
     };
   }
 
+  public triggerDarkCloudsWhirl(): void {
+    if (typeof document === 'undefined') return;
+    const wrapper = document.getElementById('battlefield-canvas-wrapper');
+    const canvas = document.getElementById('battlefield-canvas');
+    const vortex = document.getElementById('map-whirl-vortex');
+    const backdrop = document.getElementById('dark-clouds-backdrop');
+    const banner = document.getElementById('dark-clouds-realm-banner');
+
+    // 1. Play sound & screen vibration
+    this.soundEngine?.playDarkCloudsWhirl?.();
+    if (this.renderer) {
+      this.renderer.particleEngine?.triggerScreenShake?.(24, 2200);
+      const pos = this.renderer.gridToScreen(this.hero.coord);
+      this.renderer.particleEngine?.addFloatingText?.(
+        '🌩️ REALM RIFT: MAP WHIRLING INTO DARK CLOUDS! ⚡',
+        pos.x,
+        pos.y - 45,
+        '#c084fc',
+        28
+      );
+    }
+
+    // 2. Show vortex overlay and whirling animation on canvas
+    vortex?.classList.remove('hidden');
+    canvas?.classList.remove('map-whirling');
+    void (canvas as any)?.offsetWidth; // Trigger reflow
+    canvas?.classList.add('map-whirling');
+
+    // 3. Log realm transition
+    this.combatEngine?.addLog(
+      'system',
+      '🌩️ [REALM COLLAPSE] At Round 1,000, the map whirls through an abyssal dimensional rift into THE DARK CLOUDS! The Void Overlord descends from the tempest!'
+    );
+
+    // 4. Transform into Dark Clouds once the whirl reaches its apex
+    setTimeout(() => {
+      canvas?.classList.remove('map-whirling');
+      vortex?.classList.add('hidden');
+      wrapper?.classList.add('dark-clouds-realm');
+      backdrop?.classList.remove('hidden');
+      banner?.classList.remove('hidden');
+      if (this.renderer) {
+        this.renderer.isDarkCloudsTheme = true;
+      }
+    }, 2200);
+  }
+
+  public setDarkCloudsTheme(enabled: boolean, animate: boolean = false): void {
+    if (typeof document === 'undefined') return;
+    if (enabled && animate) {
+      this.triggerDarkCloudsWhirl();
+      return;
+    }
+
+    const wrapper = document.getElementById('battlefield-canvas-wrapper');
+    const canvas = document.getElementById('battlefield-canvas');
+    const vortex = document.getElementById('map-whirl-vortex');
+    const backdrop = document.getElementById('dark-clouds-backdrop');
+    const banner = document.getElementById('dark-clouds-realm-banner');
+
+    if (enabled) {
+      wrapper?.classList.add('dark-clouds-realm');
+      backdrop?.classList.remove('hidden');
+      banner?.classList.remove('hidden');
+      if (this.renderer) {
+        this.renderer.isDarkCloudsTheme = true;
+      }
+    } else {
+      canvas?.classList.remove('map-whirling');
+      vortex?.classList.add('hidden');
+      wrapper?.classList.remove('dark-clouds-realm');
+      backdrop?.classList.add('hidden');
+      banner?.classList.add('hidden');
+      if (this.renderer) {
+        this.renderer.isDarkCloudsTheme = false;
+      }
+    }
+  }
+
   public executeAdminCommand(input: string): { success: boolean; message: string } {
     const raw = input.trim();
     if (!raw) return { success: false, message: 'Command is empty.' };
@@ -5209,6 +5290,19 @@ export class GameApp {
       return { success: true, message: '✨ Granted 2x essence pairs for all major disciplines!' };
     }
 
+    // 1e. Map Whirl / Dark Clouds Command
+    if (
+      cmd === 'whirl' ||
+      cmd === 'map whirl' ||
+      cmd === 'dark clouds' ||
+      cmd === 'dark cloud' ||
+      cmd === 'clouds' ||
+      cmd === 'test whirl'
+    ) {
+      this.triggerDarkCloudsWhirl();
+      return { success: true, message: '🌩️ Map whirled into the Dark Clouds (Round 1,000)!' };
+    }
+
     // 2. Specific round jump: "round 15", "level 10", "goto 12", "go to round 5"
     const roundMatch = cmd.match(/^(?:(?:go\s*to|goto)\s+)?(?:round|level)\s+(\d+)$/i);
     if (roundMatch) {
@@ -5367,8 +5461,9 @@ export class GameApp {
       this.combatEngine.coopHero.abilities = this.combatEngine.coopHero.abilities.slice(0, 10);
     }
 
-    // If reaching Round 1000 (The Void Overlord showdown), empower hero with the Grand Arch-Wizard's Ascended Blessing!
+    // At Round 1000, trigger map whirl and change into the dark clouds!
     if (this.currentRound === 1000) {
+      this.triggerDarkCloudsWhirl();
       if (this.hero.stats.maxHp < 5000) {
         this.hero.stats.maxHp = 5000;
         this.hero.stats.currentHp = 5000;
@@ -5390,6 +5485,8 @@ export class GameApp {
         'system',
         '✨ [ARCH-WIZARD BLESSING] The Grand Arch-Wizard channels the 50-element cascade into your spirit (5,000 HP, 8 AP, Level 15 Spells) to vanquish The Void Overlord!'
       );
+    } else if (this.currentRound < 1000) {
+      this.setDarkCloudsTheme(false);
     }
 
     // Generate new enemies for this round
@@ -5633,6 +5730,7 @@ export class GameApp {
 
     const canvas = document.getElementById('battlefield-canvas') as HTMLCanvasElement;
     this.renderer = new BattlefieldRenderer(canvas, this.combatEngine);
+    this.setDarkCloudsTheme(this.currentRound >= 1000);
     this.enemyAI = new EnemyAI(this.combatEngine);
 
     const roundBadge = document.getElementById('round-indicator');
@@ -5721,6 +5819,7 @@ export class GameApp {
     this.isHotseatMode = false;
     this.isSandboxMode = false;
     this.sandboxToolbar?.classList.add('hidden');
+    this.setDarkCloudsTheme(false);
     this.isHeroDeathAnimating = false;
     this.isRoundVictoryAnimating = false;
     this.deadUnitIds.clear();

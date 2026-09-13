@@ -26,6 +26,7 @@ export class BattlefieldRenderer {
     color?: string;
     isValid?: boolean;
   } | null = null;
+  public isDarkCloudsTheme: boolean = false;
 
   constructor(canvas: HTMLCanvasElement, combatEngine: CombatEngine) {
     this.canvas = canvas;
@@ -143,13 +144,21 @@ export class BattlefieldRenderer {
         const tile = combatEngine.grid.getTile({ x, y })!;
 
         // Base Tile Floor
-        ctx.fillStyle = (x + y) % 2 === 0 ? '#111722' : '#0c1017';
-        ctx.fillRect(px, py, tileSize, tileSize);
+        if (this.isDarkCloudsTheme) {
+          ctx.fillStyle = (x + y) % 2 === 0 ? 'rgba(26, 16, 48, 0.72)' : 'rgba(14, 8, 28, 0.76)';
+          ctx.fillRect(px, py, tileSize, tileSize);
 
-        // Subtle Ambient Grid Line Glow
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(px, py, tileSize, tileSize);
+          ctx.strokeStyle = 'rgba(168, 85, 247, 0.2)';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(px, py, tileSize, tileSize);
+        } else {
+          ctx.fillStyle = (x + y) % 2 === 0 ? '#111722' : '#0c1017';
+          ctx.fillRect(px, py, tileSize, tileSize);
+
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(px, py, tileSize, tileSize);
+        }
 
         // Draw Animated Tile Hazards
         if (tile.hazard.type !== 'None') {
@@ -161,6 +170,11 @@ export class BattlefieldRenderer {
           this.renderObstacle(ctx, px, py, tileSize, tile.obstacleIcon || '🪨');
         }
       }
+    }
+
+    // Atmospheric Dark Clouds Pass over the battlefield grid
+    if (this.isDarkCloudsTheme) {
+      this.renderDarkCloudsAtmosphere(ctx);
     }
     ctx.restore();
 
@@ -313,6 +327,34 @@ export class BattlefieldRenderer {
     this.particleEngine.render(ctx);
 
     ctx.restore(); // Restore screen shake translation
+  }
+
+  private renderDarkCloudsAtmosphere(ctx: CanvasRenderingContext2D): void {
+    const t = this.elapsedTotalTimeMs * 0.001;
+    ctx.save();
+
+    // Drifting dark storm clouds over the floor
+    const cloudGradient = ctx.createLinearGradient(0, 0, this.canvas.width, this.canvas.height);
+    const pulseA = Math.sin(t * 0.8) * 0.04 + 0.08;
+    const pulseB = Math.cos(t * 0.6) * 0.04 + 0.12;
+    cloudGradient.addColorStop(0, `rgba(88, 28, 135, ${pulseA})`);
+    cloudGradient.addColorStop(0.5, `rgba(15, 10, 30, ${pulseB})`);
+    cloudGradient.addColorStop(1, `rgba(59, 130, 246, ${pulseA * 0.7})`);
+    ctx.fillStyle = cloudGradient;
+    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    // Periodic distant lightning flash illuminating the cloudscape
+    const lightningCycle = this.elapsedTotalTimeMs % 3600;
+    if (lightningCycle < 140 || (lightningCycle > 200 && lightningCycle < 280)) {
+      const flashAlpha =
+        lightningCycle < 140
+          ? (1 - lightningCycle / 140) * 0.28
+          : (1 - (lightningCycle - 200) / 80) * 0.38;
+      ctx.fillStyle = `rgba(224, 231, 255, ${flashAlpha})`;
+      ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+
+    ctx.restore();
   }
 
   private renderHazard(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, type: TileHazardType): void {
