@@ -285,9 +285,8 @@
 
     <!-- Bottom Action Dock -->
     <footer class="action-dock glass-card">
-      <!-- Hero Status Bar -->
       <div class="hero-status">
-        <div class="hero-avatar" id="hero-avatar-icon">🔥</div>
+        <div class="hero-avatar" id="hero-avatar-icon"><img src="./portraits/hero_bust.jpg" alt="Hero" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;"></div>
         <div class="hero-meters">
           <div class="meter-group">
             <div class="meter-header">
@@ -333,8 +332,12 @@
           </select>
           <span class="ability-count-badge" id="ability-count-badge">500 Powers</span>
         </div>
-        <div class="action-bar" id="ability-action-bar">
-          <!-- Dynamic ability slots injected by JavaScript -->
+        <div class="action-bar-scroll-container">
+          <button id="action-bar-prev-btn" class="action-bar-nav-btn nav-prev hidden" title="Scroll moves left" aria-label="Scroll moves left">◀</button>
+          <div class="action-bar" id="ability-action-bar">
+            <!-- Dynamic ability slots injected by JavaScript -->
+          </div>
+          <button id="action-bar-next-btn" class="action-bar-nav-btn nav-next hidden" title="Scroll moves right" aria-label="Scroll moves right">▶</button>
         </div>
       </div>
 
@@ -406,6 +409,7 @@
             <span class="live-dot"></span>
             <span class="status-tag-text">50 ELEMENTAL REALMS ACTIVE • v0.50 EXPANSION</span>
           </div>
+          <div class="home-quick-actions">
             <button id="home-quick-cutscene-btn" class="home-util-btn btn-cutscene-amber" title="Watch Origin Cutscene: How Mortals Gained Elemental Powers">
               <span class="util-icon">🎬</span> Origin Cutscene
             </button>
@@ -806,32 +810,32 @@
           <div class="admin-powers-grid">
             <!-- Power 1: Infinite AP -->
             <button class="admin-power-btn" id="admin-btn-ap">
-              <div class="admin-btn-header">⚡ Set 99 AP</div>
-              <div class="admin-btn-desc">Instantly refills and expands current Action Points to 99 for infinite movement & spellcasting.</div>
+              <div class="admin-btn-header">⚡ Set 99 AP (Everyone Playing)</div>
+              <div class="admin-btn-desc">Instantly refills and expands current Action Points to 99 for all players and friendly allies across the match.</div>
             </button>
 
             <!-- Power 2: God HP -->
             <button class="admin-power-btn" id="admin-btn-hp">
-              <div class="admin-btn-header">💖 God Mode HP (9999 HP)</div>
-              <div class="admin-btn-desc">Fully heals hero and sets maximum health to 9999 HP.</div>
+              <div class="admin-btn-header">💖 God Mode HP (All Players - 9999 HP)</div>
+              <div class="admin-btn-desc">Fully heals and sets maximum health to 9999 HP for all active players and friendly allies.</div>
             </button>
 
             <!-- Power 3: Admin Smite -->
             <button class="admin-power-btn" id="admin-btn-smite">
               <div class="admin-btn-header">☠️ Admin Smite (Kill All Enemies)</div>
-              <div class="admin-btn-desc">Calls down catastrophic lightning & supernova smiting every enemy instantly!</div>
+              <div class="admin-btn-desc">Calls down catastrophic lightning & supernova smiting every enemy instantly for everyone playing!</div>
             </button>
 
             <!-- Power 3b: Mass Resurrection (Clear Walls & Floor Hazards) -->
             <button class="admin-power-btn" id="admin-btn-mass-resurrection" style="border-color: #a855f7; background: rgba(168, 85, 247, 0.15);">
-              <div class="admin-btn-header" style="color: #c084fc;">🧹 Mass Resurrection (Clear Walls & Floor Hazards)</div>
-              <div class="admin-btn-desc">Admin Privilege: Shatters and clears ALL walls, obstacles, and floor hazards across the entire arena!</div>
+              <div class="admin-btn-header" style="color: #c084fc;">🧹 Mass Resurrection (Clear Walls & Hazards)</div>
+              <div class="admin-btn-desc">Admin Privilege: Shatters all walls & hazards and revives all fallen players and allies across the match!</div>
             </button>
 
             <!-- Power 3c: Grant All Powers & Admin Spells -->
             <button class="admin-power-btn" id="admin-btn-grant-powers" style="border-color: #ec4899; background: rgba(236, 72, 153, 0.15);">
-              <div class="admin-btn-header" style="color: #f472b6;">👑 Grant All Admin Powers to Current Hero</div>
-              <div class="admin-btn-desc">Instantly equips all dedicated admin powers and all 500+ elemental spells to your current hero's hand!</div>
+              <div class="admin-btn-header" style="color: #f472b6;">👑 Grant All Admin Powers (All Players)</div>
+              <div class="admin-btn-desc">Instantly equips all dedicated admin powers and elemental spells to everyone currently playing!</div>
             </button>
 
             <!-- Power 3d: Create New Admin Power -->
@@ -928,6 +932,12 @@
             <button class="admin-power-btn" id="admin-btn-jump-1000">
               <div class="admin-btn-header">🌌 Warp +1,000 Rounds</div>
               <div class="admin-btn-desc">Instantly teleports 1,000 rounds deeper into the gauntlet!</div>
+            </button>
+
+            <!-- Power 9b: Jump to Round 5000 (10x Void Overlord) -->
+            <button class="admin-power-btn" id="admin-btn-jump-5000">
+              <div class="admin-btn-header">⚡ Round 5,000 (10x Void Overlord)</div>
+              <div class="admin-btn-desc">Confront The Void Overlord in his 10x more powerful ascended god form!</div>
             </button>
 
             <!-- Power 10: Cosmic 1,000,000 Round Warp -->

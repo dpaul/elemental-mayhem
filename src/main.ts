@@ -155,8 +155,8 @@ export class GameApp {
   private hero: Unit;
   private enemies: Unit[];
   private currentRound: number = 1;
-  private maxRounds: number = 1000;
-  public static readonly MAX_ROUNDS_STR: string = '1,000';
+  private maxRounds: number = 5000;
+  public static readonly MAX_ROUNDS_STR: string = '5,000';
   private maxRoundsStr: string = GameApp.MAX_ROUNDS_STR;
   private selectedElement: ElementType = 'Fire';
   private selectedClassCategory: string = 'All';
@@ -175,6 +175,7 @@ export class GameApp {
   private focusedUnitId: string | null = null;
   private lastFrameTime: number = performance.now();
   private deadUnitIds: Set<string> = new Set();
+  private r1000TitansSummoned: boolean = false;
 
   // Home Screen & Starfield Background
   private homeScreen: HTMLElement;
@@ -537,6 +538,7 @@ export class GameApp {
     if (typeof window !== 'undefined') {
       (window as any).goToVoidOverlord = () => this.goToVoidOverlord(true);
       (window as any).goToRound1000 = () => this.goToVoidOverlord(true);
+      (window as any).goToRound5000 = () => this.goToVoidOverlord5000(true);
       (window as any).goToRound30 = () => this.goToRound30(true);
       (window as any).openFusionArea = () => this.essenceFusionModal.open();
       (window as any).triggerDarkCloudsWhirl = () => this.triggerDarkCloudsWhirl();
@@ -1410,51 +1412,84 @@ export class GameApp {
     }
   }
 
-  public grantAllAdminPowers(): { success: boolean; count: number; message: string } {
-    if (!this.hero || !this.hero.abilities) {
-      return { success: false, count: 0, message: 'No active hero found.' };
+  public getAllActivePlayers(): Unit[] {
+    const players: Unit[] = [];
+    if (this.hero) {
+      players.push(this.hero);
     }
+    if (this.isCoopMode && this.combatEngine?.coopHero) {
+      players.push(this.combatEngine.coopHero);
+    }
+    if (this.isHotseatMode) {
+      const p2 = this.enemies.find((e) => e.id === 'hero_p2');
+      if (p2) {
+        players.push(p2);
+      }
+    }
+    return players;
+  }
 
-    // ONLY the Administrator can have all of them!
-    // If not already the Administrator, transform into the Administrator to wield all powers:
-    if (this.selectedElement !== 'Admin' && this.hero.stats.elementalAffinity !== 'Admin') {
-      this.selectedElement = 'Admin';
-      this.hero.name = 'Administrator';
-      this.hero.avatar = '👑⚡';
-      this.hero.stats.elementalAffinity = 'Admin';
-      this.hero.stats.maxHp = Math.max(this.hero.stats.maxHp, 999);
-      this.hero.stats.currentHp = this.hero.stats.maxHp;
-      this.hero.stats.maxAp = Math.max(this.hero.stats.maxAp, 1000);
-      this.hero.stats.currentAp = this.hero.stats.maxAp;
+  public getAllPlayerAllies(): Unit[] {
+    const allies: Unit[] = [];
+    if (this.combatEngine?.allies) {
+      allies.push(...this.combatEngine.allies.filter((a) => !a.isDead));
+    }
+    if (this.combatEngine?.zombies) {
+      allies.push(...this.combatEngine.zombies.filter((z) => z.faction === 'Player' && !z.isDead));
+    }
+    if (this.combatEngine?.lifeBeings) {
+      allies.push(...this.combatEngine.lifeBeings.filter((b) => b.faction === 'Player' && !b.isDead));
+    }
+    return allies;
+  }
+
+  public grantAllAdminPowers(): { success: boolean; count: number; message: string } {
+    const players = this.getAllActivePlayers();
+    if (players.length === 0) {
+      return { success: false, count: 0, message: 'No active players found.' };
     }
 
     populateAdminAbilities();
     const adminAbilities = HERO_CLASSES.Admin.abilities;
-    const existingIds = new Set(this.hero.abilities.map((a) => a.id));
-    let added = 0;
+    let maxAbilities = 0;
 
-    for (const ab of adminAbilities) {
-      if (!existingIds.has(ab.id)) {
-        this.hero.abilities.push({ ...ab, currentCooldown: 0 });
-        existingIds.add(ab.id);
-        added++;
+    for (const p of players) {
+      if (p.stats.elementalAffinity !== 'Admin') {
+        p.name = p.id === 'hero_p2' ? 'Administrator (Player 2)' : (p.id === 'hero_coop_p2' ? 'Administrator (Co-op Ally)' : 'Administrator');
+        p.avatar = '👑⚡';
+        p.stats.elementalAffinity = 'Admin';
+        p.stats.maxHp = Math.max(p.stats.maxHp, 999);
+        p.stats.currentHp = p.stats.maxHp;
+        p.stats.maxAp = Math.max(p.stats.maxAp, 1000);
+        p.stats.currentAp = p.stats.maxAp;
+      }
+
+      const existingIds = new Set(p.abilities.map((a) => a.id));
+      for (const ab of adminAbilities) {
+        if (!existingIds.has(ab.id)) {
+          p.abilities.push({ ...ab, currentCooldown: 0 });
+          existingIds.add(ab.id);
+        }
+      }
+      maxAbilities = Math.max(maxAbilities, p.abilities.length);
+
+      if (this.renderer && p.coord) {
+        const pos = this.renderer.gridToScreen(p.coord);
+        this.renderer.particleEngine.addFloatingText(`👑 ALL POWERS GRANTED!`, pos.x, pos.y - 35, '#ec4899', 26);
       }
     }
 
+    this.selectedElement = 'Admin';
     this.updateHUD();
-    this.combatEngine?.addLog('system', `👑 ADMIN PRIVILEGE: Administrator equipped all ${this.hero.abilities.length} elemental & admin powers!`);
-    this.renderer?.particleEngine?.triggerScreenShake(6, 250);
-    if (this.renderer && this.hero.coord) {
-      const pos = this.renderer.gridToScreen(this.hero.coord);
-      this.renderer.particleEngine.addFloatingText(`👑 ALL POWERS GRANTED!`, pos.x, pos.y - 35, '#ec4899', 26);
-    }
+    this.combatEngine?.addLog('system', `👑 ADMIN PRIVILEGE: Granted all elemental & admin powers to EVERYONE playing (${players.length} players armed)!`);
+    this.renderer?.particleEngine?.triggerScreenShake(8, 300);
     if (this.soundEngine) {
       this.soundEngine.playLevelUp();
     }
     return {
       success: true,
-      count: this.hero.abilities.length,
-      message: `Granted all powers to the Administrator! Active arsenal has ${this.hero.abilities.length} abilities.`,
+      count: maxAbilities,
+      message: `Granted all powers to everyone playing! Active arsenal has ${maxAbilities} abilities across ${players.length} players.`,
     };
   }
 
@@ -1648,7 +1683,7 @@ export class GameApp {
 
       card.innerHTML = `
         <div class="class-card-header">
-          <span class="class-avatar">${config.avatar}</span>
+          <span class="class-avatar" style="width: 44px; height: 44px; border-radius: 50%; overflow: hidden; display: inline-flex; align-items: center; justify-content: center; border: 2px solid ${elemData.color}; box-shadow: 0 0 10px ${elemData.glowColor};"><img src="./portraits/human_${elem.toLowerCase()}.jpg" alt="${config.className}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.replaceWith('${config.avatar}')"></span>
           <div class="class-info">
             <div class="class-name">${config.className}</div>
             ${badgeHtml}
@@ -1759,7 +1794,7 @@ export class GameApp {
 
       card.innerHTML = `
         <div class="class-card-header">
-          <span class="class-avatar">${config.avatar}</span>
+          <span class="class-avatar" style="width: 44px; height: 44px; border-radius: 50%; overflow: hidden; display: inline-flex; align-items: center; justify-content: center; border: 2px solid ${elemData.color}; box-shadow: 0 0 10px ${elemData.glowColor};"><img src="./portraits/human_${elem.toLowerCase()}.jpg" alt="${config.className}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.replaceWith('${config.avatar}')"></span>
           <div class="class-info">
             <div class="class-name">${config.className}</div>
             ${badgeHtml}
@@ -2081,6 +2116,16 @@ export class GameApp {
         this.showDefeatModal();
         break;
       }
+      case 'ADMIN_COMMAND': {
+        this.combatEngine?.addLog(
+          'system',
+          `👑 [ONLINE ADMIN SYNC] Player ${msg.senderPlayer} invoked admin command: "${msg.command}"! Affecting everyone playing!`
+        );
+        this.executeAdminCommand(msg.command, { fromNetwork: true, senderPlayer: msg.senderPlayer });
+        this.renderer?.particleEngine?.triggerScreenShake(8, 250);
+        this.soundEngine?.playLevelUp();
+        break;
+      }
       case 'CURSOR_HOVER': {
         this.renderer.partnerHoverCoord = msg.coord;
         break;
@@ -2307,8 +2352,13 @@ export class GameApp {
 
     await delay(250);
 
-    // 1. Allied Minions (Zombies & Beings of Life)
+    if (this.combatEngine.isVoidOverlordZombieUsurpationActive()) {
+      this.combatEngine.usurpPlayerZombiesForVoidOverlord();
+    }
+
+    // 1. Allied Minions & Titans (Magma Colossus, Void Leviathan, Zombies & Beings of Life)
     const alliedMinions = [
+      ...this.combatEngine.allies.filter((a) => !a.isDead && a.faction === 'Player'),
       ...this.combatEngine.zombies.filter((z) => !z.isDead && z.faction === 'Player'),
       ...this.combatEngine.lifeBeings.filter((b) => !b.isDead && b.faction === 'Player'),
     ];
@@ -2366,6 +2416,13 @@ export class GameApp {
 
     for (const enemy of this.combatEngine.enemies) {
       if (enemy.isDead || this.combatEngine.areAllHeroesDead()) break;
+
+      // On Round 1000 or Round 5000, when the Void Overlord takes his first turn, summon Magma Colossus and Void Leviathan!
+      if ((this.currentRound === 1000 || this.currentRound === 5000) && !this.r1000TitansSummoned && (enemy.id.includes('void_overlord') || enemy.isBoss)) {
+        this.r1000TitansSummoned = true;
+        await this.summonRound1000Titans(enemy);
+      }
+
       enemy.stats.currentAp = enemy.stats.maxAp;
       enemy.abilities.forEach((a) => {
         if (a.currentCooldown > 0) a.currentCooldown--;
@@ -2824,51 +2881,16 @@ export class GameApp {
     });
 
     document.getElementById('admin-btn-ap')?.addEventListener('click', () => {
-      if (!this.adminManager.canUseAdminCommands(this.isHotseatMode, this.hotseatCurrentPlayer)) {
-        this.openAdminPanel();
-        return;
-      }
-      this.hero.stats.maxAp = 99;
-      this.hero.stats.currentAp = 99;
-      this.renderer.particleEngine.triggerScreenShake(8, 250);
-      const pos = this.renderer.gridToScreen(this.hero.coord);
-      this.renderer.particleEngine.addFloatingText('⚡ 99 AP GOD POWER!', pos.x, pos.y - 30, '#fde68a', 26);
-      this.combatEngine.addLog('system', '👑 ADMIN: Granted 99 AP to Creator champion!');
-      this.updateReachableTiles();
-      this.updateHUD();
+      this.executeAdminCommand('ap');
     });
 
     document.getElementById('admin-btn-hp')?.addEventListener('click', () => {
-      if (!this.adminManager.canUseAdminCommands(this.isHotseatMode, this.hotseatCurrentPlayer)) {
-        this.openAdminPanel();
-        return;
-      }
-      this.hero.stats.maxHp = 9999;
-      this.hero.stats.currentHp = 9999;
-      this.renderer.particleEngine.triggerScreenShake(8, 250);
-      const pos = this.renderer.gridToScreen(this.hero.coord);
-      this.renderer.particleEngine.addFloatingText('💖 9999 HP GOD MODE!', pos.x, pos.y - 30, '#4ade80', 26);
-      this.combatEngine.addLog('system', '👑 ADMIN: Set Creator HP to 9999 (Invincibility)!');
-      this.updateHUD();
+      this.executeAdminCommand('heal');
     });
 
     document.getElementById('admin-btn-smite')?.addEventListener('click', () => {
-      if (!this.adminManager.canUseAdminCommands(this.isHotseatMode, this.hotseatCurrentPlayer)) {
-        this.openAdminPanel();
-        return;
-      }
-      this.renderer.particleEngine.triggerScreenShake(20, 600);
-      this.combatEngine.addLog('system', '👑 ADMIN SMITE: Obliterated all enemies!');
-      for (const enemy of this.enemies) {
-        if (!enemy.isDead) {
-          enemy.stats.currentHp = 0;
-          enemy.isDead = true;
-          this.renderer.triggerDeathAnimation(enemy, 'Light');
-        }
-      }
+      this.executeAdminCommand('smite');
       this.closeAdminPanel();
-      this.updateHUD();
-      this.checkCombatState();
     });
 
     document.getElementById('admin-btn-mass-resurrection')?.addEventListener('click', () => {
@@ -2881,11 +2903,7 @@ export class GameApp {
     });
 
     document.getElementById('admin-btn-grant-powers')?.addEventListener('click', () => {
-      if (!this.adminManager.canUseAdminCommands(this.isHotseatMode, this.hotseatCurrentPlayer)) {
-        this.openAdminPanel();
-        return;
-      }
-      this.grantAllAdminPowers();
+      this.executeAdminCommand('grant all admin powers');
       this.closeAdminPanel();
     });
 
@@ -3053,32 +3071,12 @@ export class GameApp {
     });
 
     document.getElementById('admin-btn-cleanse')?.addEventListener('click', () => {
-      if (!this.adminManager.canUseAdminCommands(this.isHotseatMode, this.hotseatCurrentPlayer)) {
-        this.openAdminPanel();
-        return;
-      }
-      for (let x = 0; x < this.grid.size; x++) {
-        for (let y = 0; y < this.grid.size; y++) {
-          const tile = this.grid.getTile({ x, y });
-          if (tile) {
-            tile.hazard = { type: 'None', duration: 0, damagePerTurn: 0, element: 'Neutral' };
-          }
-        }
-      }
-      this.combatEngine.addLog('system', '👑 ADMIN: Cleansed all hazards from battlefield!');
+      this.executeAdminCommand('cleanse');
       this.closeAdminPanel();
-      this.updateHUD();
     });
 
     document.getElementById('admin-btn-resources')?.addEventListener('click', () => {
-      if (!this.adminManager.canUseAdminCommands(this.isHotseatMode, this.hotseatCurrentPlayer)) {
-        this.openAdminPanel();
-        return;
-      }
-      this.totalEssence += 9999;
-      this.totalXp += 9999;
-      this.updateHUD();
-      this.combatEngine.addLog('system', '👑 ADMIN: Granted +9999 Essence and +9999 XP to Creator!');
+      this.executeAdminCommand('add essence 9999');
     });
 
     document.getElementById('admin-btn-next-round')?.addEventListener('click', () => {
@@ -3108,6 +3106,10 @@ export class GameApp {
       this.currentRound += 999;
       this.advanceToNextRound();
       this.combatEngine.addLog('system', `👑 ADMIN: Warped 1,000 rounds forward to Round ${this.currentRound.toLocaleString()}!`);
+    });
+
+    document.getElementById('admin-btn-jump-5000')?.addEventListener('click', () => {
+      this.goToVoidOverlord5000();
     });
 
     document.getElementById('admin-btn-jump-1000000')?.addEventListener('click', () => {
@@ -4069,6 +4071,7 @@ export class GameApp {
     const allUnits = [
       this.hero,
       ...(this.combatEngine.coopHero ? [this.combatEngine.coopHero] : []),
+      ...this.combatEngine.allies,
       ...this.combatEngine.zombies,
       ...this.combatEngine.lifeBeings,
       ...this.combatEngine.enemies,
@@ -4443,9 +4446,13 @@ export class GameApp {
     this.updateHUD();
 
     await delay(250);
+    if (this.combatEngine.isVoidOverlordZombieUsurpationActive()) {
+      this.combatEngine.usurpPlayerZombiesForVoidOverlord();
+    }
 
-    // 1. Allied Minions (Zombies & Beings of Life)
+    // 1. Allied Minions & Titans (Magma Colossus, Void Leviathan, Zombies & Beings of Life)
     const alliedMinions = [
+      ...this.combatEngine.allies.filter((a) => !a.isDead && a.faction === 'Player'),
       ...this.combatEngine.zombies.filter((z) => !z.isDead && z.faction === 'Player'),
       ...this.combatEngine.lifeBeings.filter((b) => !b.isDead && b.faction === 'Player'),
     ];
@@ -4457,7 +4464,7 @@ export class GameApp {
       const liveEnemies = this.enemies.filter((e) => !e.isDead);
       if (liveEnemies.length === 0) break;
 
-      // Prefer non-boss enemies since Bosses are completely immune to Zombies and Beings of Life
+      // Prefer non-boss enemies for zombies/life beings since bosses are immune to them
       const nonBossEnemies = liveEnemies.filter((e) => !e.isBoss);
       const targetPool = (minion.isZombie || minion.isLifeBeing) && nonBossEnemies.length > 0 ? nonBossEnemies : liveEnemies;
 
@@ -4488,12 +4495,20 @@ export class GameApp {
 
           this.playAbilitySounds(step.ability);
           const projDuration = alliedMinions.length > 50 ? 50 : 200;
+          const projColor = minion.stats.elementalAffinity === 'Fire'
+            ? '#f97316'
+            : minion.stats.elementalAffinity === 'Void'
+            ? '#c084fc'
+            : minion.isLifeBeing
+            ? '#4ade80'
+            : '#84cc16';
+
           await new Promise<void>((resolve) => {
             this.renderer.projManager.spawnProjectile(
               startPos,
               targetPos,
               step.ability.element,
-              minion.isLifeBeing ? '#4ade80' : '#84cc16',
+              projColor,
               projDuration,
               () => {
                 const targetUnit = this.combatEngine.getUnitAt(step.targetCoord);
@@ -4514,14 +4529,14 @@ export class GameApp {
                     `-${step.ability.baseDamage}`,
                     targetPos.x,
                     targetPos.y - 15,
-                    minion.isLifeBeing ? '#4ade80' : '#84cc16',
-                    22
+                    projColor,
+                    24
                   );
                 }
                 if (step.ability.appliesStatus === 'Rooted') {
                   this.soundEngine.playRoot();
                 }
-                this.checkAndTriggerDeaths(minion.isLifeBeing ? 'Life' : 'Undead');
+                this.checkAndTriggerDeaths(minion.stats.elementalAffinity);
                 resolve();
               }
             );
@@ -4545,6 +4560,12 @@ export class GameApp {
     if (!(this.isSandboxMode && !this.sandboxAiEnabled)) {
       for (const enemy of enemyCombatants) {
         if (enemy.isDead) continue;
+
+        // On Round 1000 or Round 5000, when the Void Overlord takes his first turn, summon Magma Colossus and Void Leviathan!
+        if ((this.currentRound === 1000 || this.currentRound === 5000) && !this.r1000TitansSummoned && (enemy.id.includes('void_overlord') || enemy.isBoss)) {
+          this.r1000TitansSummoned = true;
+          await this.summonRound1000Titans(enemy);
+        }
 
         this.focusedUnitId = enemy.id;
         this.hud.updatePhaseBanner(`ENEMY: ${enemy.name.toUpperCase()}`);
@@ -4839,10 +4860,20 @@ export class GameApp {
       this.unlockManager.unlockAllElements(true);
       this.combatEngine.addLog(
         'system',
-        '👑 LORE MISSION COMPLETE: THE VOID OVERLORD HAS BEEN VANQUISHED! All stolen godlike elemental magic has been reclaimed (+50,000 Essence)!'
+        '👑 [THE VOID OVERLORD RETREATS!] The Void Overlord was defeated, but his dark astral core fled into the deep cosmos! You must now journey to Round 5,000 to confront him in his 10X MORE POWERFUL ascended form!'
       );
       this.soundEngine.playVictoryFanfare();
-      this.renderer.particleEngine.triggerScreenShake(20, 600);
+      this.soundEngine.playBossWarhorn();
+      this.renderer.particleEngine.triggerScreenShake(22, 700);
+    } else if (this.currentRound === 5000) {
+      this.totalEssence += 500000;
+      this.totalXp += 500000;
+      this.combatEngine.addLog(
+        'system',
+        '👑 TRUE COSMIC VICTORY: THE 10X VOID OVERLORD HAS BEEN VANQUISHED FOREVER ON ROUND 5,000 (+500,000 Essence)!'
+      );
+      this.soundEngine.playVictoryFanfare();
+      this.renderer.particleEngine.triggerScreenShake(25, 1000);
     }
 
     const progress = this.upgradeManager.getEssenceProgress(this.totalEssence);
@@ -4889,9 +4920,22 @@ export class GameApp {
   }
 
   private attachCombatEngineHooks(engine: CombatEngine): void {
-    engine.onZombieSpawn = () => {
+    engine.onZombieSpawn = (zombie: Unit) => {
       this.soundEngine.playZombieSpawn();
       this.soundEngine.playZombieScream();
+      if (engine.isVoidOverlordZombieUsurpationActive() && zombie.faction === 'Enemy') {
+        this.soundEngine.playDarkSiphon();
+        if (this.renderer) {
+          const pos = this.renderer.gridToScreen(zombie.coord);
+          this.renderer.particleEngine.addFloatingText(
+            '🌌 USURPED BY VOID OVERLORD!',
+            pos.x,
+            pos.y - 25,
+            '#ec4899',
+            24
+          );
+        }
+      }
     };
     engine.onEssenceEarned = (amount: number, coord: GridCoord) => {
       this.addEssence(amount, coord);
@@ -4982,6 +5026,10 @@ export class GameApp {
     return this.goToLastLevel(1000, bypassAuth);
   }
 
+  public goToVoidOverlord5000(bypassAuth: boolean = false): { success: boolean; message: string } {
+    return this.goToLastLevel(5000, bypassAuth);
+  }
+
   public goToRound30(bypassAuth: boolean = false): { success: boolean; message: string } {
     const res = this.goToLastLevel(30, bypassAuth);
     if (res.success) {
@@ -5015,20 +5063,26 @@ export class GameApp {
     }
     this.hero.stats.currentAp = Math.max(this.hero.stats.currentAp, this.hero.stats.maxAp);
 
+    const isR5000Overlord = targetRound === 5000;
     const isOverlord = targetRound === 1000;
+    const isR100Overlord = targetRound === 100;
     const isCrucible = targetRound === 30;
     const pos = this.renderer.gridToScreen(this.hero.coord);
-    this.renderer.particleEngine.triggerScreenShake(isOverlord ? 22 : isCrucible ? 14 : 10, isOverlord ? 650 : isCrucible ? 450 : 350);
+    this.renderer.particleEngine.triggerScreenShake(isR5000Overlord ? 25 : isOverlord || isR100Overlord ? 22 : isCrucible ? 14 : 10, isR5000Overlord ? 750 : isOverlord || isR100Overlord ? 650 : isCrucible ? 450 : 350);
     this.renderer.particleEngine.addFloatingText(
-      isOverlord
+      isR5000Overlord
+        ? `👑 ROUND 5,000: 10X VOID OVERLORD!`
+        : isOverlord
         ? `👑 ROUND 1,000: THE VOID OVERLORD!`
+        : isR100Overlord
+        ? `👑 ROUND 100: THE VOID OVERLORD!`
         : isCrucible
         ? `🌟 ROUND 30: THE CELESTIAL FUSION CRUCIBLE!`
         : `👑 LAST LEVEL: ROUND ${this.currentRound}!`,
       pos.x,
       pos.y - 35,
-      isOverlord ? '#c084fc' : isCrucible ? '#facc15' : '#f59e0b',
-      isOverlord ? 30 : isCrucible ? 26 : 28
+      isR5000Overlord ? '#ec4899' : isOverlord || isR100Overlord ? '#c084fc' : isCrucible ? '#facc15' : '#f59e0b',
+      isR5000Overlord ? 32 : isOverlord || isR100Overlord ? 30 : isCrucible ? 26 : 28
     );
     this.soundEngine.playWarp();
     if (isCrucible) {
@@ -5038,8 +5092,12 @@ export class GameApp {
     }
     this.combatEngine.addLog(
       'system',
-      isOverlord
+      isR5000Overlord
+        ? `👑 ADMIN COMMAND: Warped to Round 5,000! Facing THE 10X VOID OVERLORD (Final Ascended God - 10 Times More Powerful)!`
+        : isOverlord
         ? `👑 ADMIN COMMAND: Warped to Round 1,000! Facing THE VOID OVERLORD (Ultimate Boss - Reclaim Stolen Magic)!`
+        : isR100Overlord
+        ? `👑 ADMIN COMMAND: Warped to Round 100! Facing THE VOID OVERLORD (Tier 20 Boss)!`
         : isCrucible
         ? `🌟 ADMIN COMMAND: Warped to Round 30! Entered THE CELESTIAL FUSION CRUCIBLE (Merge 2 Matching Essences)!`
         : `👑 ADMIN COMMAND: Warped to Last Level (Round ${this.currentRound})! Facing THE VOID ARCHON (Supreme Boss)!`
@@ -5049,7 +5107,9 @@ export class GameApp {
 
     return {
       success: true,
-      message: isOverlord
+      message: isR5000Overlord
+        ? `Warped to Round 5,000: Confronting THE 10X VOID OVERLORD (Final Ascended God)!`
+        : isOverlord
         ? `Warped to Round 1,000: Confronting THE VOID OVERLORD (Ultimate Boss)!`
         : `Warped to Last Level: Round ${this.currentRound} (The Void Archon Supreme Boss)!`,
     };
@@ -5140,15 +5200,229 @@ export class GameApp {
     }
   }
 
-  public executeAdminCommand(input: string): { success: boolean; message: string } {
+  private findNearestAvailableTile(preferred: GridCoord): GridCoord {
+    if (this.grid.isInBounds(preferred) && !this.grid.getTile(preferred)?.isObstacle && this.combatEngine.getUnitAt(preferred) === null) {
+      return preferred;
+    }
+    const visited = new Set<string>();
+    const queue: GridCoord[] = [preferred];
+    visited.add(`${preferred.x},${preferred.y}`);
+
+    while (queue.length > 0) {
+      const curr = queue.shift()!;
+      if (this.grid.isInBounds(curr) && !this.grid.getTile(curr)?.isObstacle && this.combatEngine.getUnitAt(curr) === null) {
+        return curr;
+      }
+      for (const n of this.grid.getNeighbors(curr)) {
+        const key = `${n.x},${n.y}`;
+        if (!visited.has(key)) {
+          visited.add(key);
+          queue.push(n);
+        }
+      }
+    }
+    return preferred;
+  }
+
+  public async summonRound1000Titans(bossUnit?: Unit): Promise<void> {
+    const is10x = this.currentRound === 5000;
+    const bossName = bossUnit?.name || (is10x ? 'The 10x Void Overlord' : 'The Void Overlord');
+    const banner = is10x ? '⚡ 10X ASCENDED TITANS AWAKEN TO AID YOU!' : '⚡ PRIMORDIAL TITANS AWAKEN TO AID YOU!';
+    this.hud.updatePhaseBanner(banner);
+    this.renderer.particleEngine.triggerScreenShake(is10x ? 25 : 20, 1000);
+    this.soundEngine.playBossWarhorn();
+    this.soundEngine.playEarthquakeRumble();
+    this.soundEngine.playCosmicSingularity();
+    this.soundEngine.playLevelUp();
+
+    this.combatEngine.addLog(
+      'reaction',
+      `🌋 [PRIMORDIAL RECKONING] As ${bossName} prepares his strike, the ancient heavens rupture!`
+    );
+    this.combatEngine.addLog(
+      'reaction',
+      is10x
+        ? '🔥 [TITAN ALLY] THE 10X MAGMA COLOSSUS surges from primordial magma with 150,000 HP to fight by your side!'
+        : '🔥 [TITAN ALLY] THE MAGMA COLOSSUS surges from primordial magma to fight by your side!'
+    );
+    this.combatEngine.addLog(
+      'reaction',
+      is10x
+        ? '🌌 [TITAN ALLY] THE 10X VOID LEVIATHAN breaches the cosmic rift with 150,000 HP to strike down the Void Overlord!'
+        : '🌌 [TITAN ALLY] THE VOID LEVIATHAN breaches the cosmic rift to strike down the Void Overlord!'
+    );
+
+    // Find free tiles near player
+    const magmaCoord = this.findNearestAvailableTile({ x: 3, y: 2 });
+    const leviathanCoord = this.findNearestAvailableTile({ x: 3, y: 7 });
+
+    const titanHp = is10x ? 150000 : 15000;
+    const titanAp = is10x ? 8 : 6;
+    const slamDmg = is10x ? 5000 : 500;
+    const eruptionDmg = is10x ? 7500 : 750;
+    const mawDmg = is10x ? 5200 : 520;
+    const supernovaDmg = is10x ? 8000 : 800;
+
+    const magmaColossus: Unit = {
+      id: is10x ? 'ally_magma_colossus_r5000' : 'ally_magma_colossus_r1000',
+      name: is10x ? 'MAGMA COLOSSUS (10x Ascended Titan)' : 'MAGMA COLOSSUS (Primordial Titan)',
+      faction: 'Player',
+      avatar: '🗿🌋',
+      coord: magmaCoord,
+      isBoss: true,
+      stats: {
+        maxHp: titanHp,
+        currentHp: titanHp,
+        maxAp: titanAp,
+        currentAp: titanAp,
+        moveCostPerTile: 1,
+        elementalAffinity: 'Fire',
+      },
+      abilities: [
+        {
+          id: 'magma_colossus_slam',
+          name: is10x ? '10x Molten Magma Slam' : 'Molten Magma Slam',
+          element: 'Fire',
+          icon: '🌋',
+          apCost: 2,
+          cooldown: 1,
+          currentCooldown: 0,
+          range: 4,
+          aoeRadius: 0,
+          targeting: 'SingleUnit',
+          baseDamage: slamDmg,
+          appliesStatus: 'Burning',
+          statusDuration: 3,
+          createsHazard: 'LavaPool',
+          hazardDuration: 3,
+          description: 'Shatters the ground with primeval magma, inflicting catastrophic burn.',
+          level: is10x ? 25 : 15,
+        },
+        {
+          id: 'magma_volcanic_eruption',
+          name: is10x ? '10x Volcanic Cataclysm' : 'Primeval Volcanic Eruption',
+          element: 'Fire',
+          icon: '🔥',
+          apCost: 3,
+          cooldown: 2,
+          currentCooldown: 0,
+          range: 6,
+          aoeRadius: 1,
+          targeting: 'SingleUnit',
+          baseDamage: eruptionDmg,
+          createsHazard: 'LavaPool',
+          hazardDuration: 3,
+          description: 'Hurls cataclysmic lava bursts across the void arena.',
+          level: is10x ? 25 : 15,
+        },
+      ],
+      statusEffects: [],
+      isDead: false,
+    };
+
+    const voidLeviathan: Unit = {
+      id: is10x ? 'ally_void_leviathan_r5000' : 'ally_void_leviathan_r1000',
+      name: is10x ? 'VOID LEVIATHAN (10x Ascended Titan)' : 'VOID LEVIATHAN (Primordial Titan)',
+      faction: 'Player',
+      avatar: '🌌⚡',
+      coord: leviathanCoord,
+      isBoss: true,
+      stats: {
+        maxHp: titanHp,
+        currentHp: titanHp,
+        maxAp: titanAp,
+        currentAp: titanAp,
+        moveCostPerTile: 1,
+        elementalAffinity: 'Void',
+      },
+      abilities: [
+        {
+          id: 'void_leviathan_maw',
+          name: is10x ? '10x Abyssal Singularity Maw' : 'Abyssal Singularity Maw',
+          element: 'Void',
+          icon: '🌌',
+          apCost: 2,
+          cooldown: 1,
+          currentCooldown: 0,
+          range: 4,
+          aoeRadius: 0,
+          targeting: 'SingleUnit',
+          baseDamage: mawDmg,
+          appliesStatus: 'Shocked',
+          statusDuration: 3,
+          createsHazard: 'VoidRift',
+          hazardDuration: 3,
+          description: 'Bites into the Void Overlord with crushing gravitational fury.',
+          level: is10x ? 25 : 15,
+        },
+        {
+          id: 'void_leviathan_supernova',
+          name: is10x ? '10x Cosmic Supernova Lance' : 'Cosmic Supernova Lance',
+          element: 'Void',
+          icon: '⚡',
+          apCost: 3,
+          cooldown: 2,
+          currentCooldown: 0,
+          range: 6,
+          aoeRadius: 1,
+          targeting: 'SingleUnit',
+          baseDamage: supernovaDmg,
+          createsHazard: 'VoidRift',
+          hazardDuration: 3,
+          description: 'Fires an apocalyptic beam of primal starlight into the boss.',
+          level: is10x ? 25 : 15,
+        },
+      ],
+      statusEffects: [],
+      isDead: false,
+    };
+
+    this.combatEngine.allies.push(magmaColossus, voidLeviathan);
+
+    const mPos = this.renderer.gridToScreen(magmaCoord);
+    const lPos = this.renderer.gridToScreen(leviathanCoord);
+
+    this.renderer.particleEngine.emit(mPos.x, mPos.y, '#f97316', 45, 5, 'spark');
+    this.renderer.particleEngine.emit(lPos.x, lPos.y, '#a855f7', 45, 5, 'spark');
+
+    this.renderer.particleEngine.addFloatingText(
+      is10x ? '🌋 "THE 10X OVERLORD SHALL BE CRUSHED TO ASH!"' : '🌋 "MORTAL, WE WILL CRUSH THIS ABYSS TOGETHER!"',
+      mPos.x,
+      mPos.y - 32,
+      '#f97316',
+      24
+    );
+    this.renderer.particleEngine.addFloatingText(
+      is10x ? '🌌 "THE 10X OMNIVERSE CORE SHATTERS TODAY!"' : '🌌 "THE VOID REBELS AGAINST ITS OVERLORD!"',
+      lPos.x,
+      lPos.y - 32,
+      '#c084fc',
+      24
+    );
+
+    this.updateHUD();
+    await delay(750);
+  }
+
+  public executeAdminCommand(input: string, options?: { fromNetwork?: boolean; senderPlayer?: 1 | 2 }): { success: boolean; message: string } {
     const raw = input.trim();
     if (!raw) return { success: false, message: 'Command is empty.' };
     const cmd = raw.toLowerCase();
 
-    // Check admin permissions
-    if (!this.adminManager.canUseAdminCommands(this.isHotseatMode, this.hotseatCurrentPlayer)) {
+    // Check admin permissions (bypass if sent from authorized network peer)
+    if (!options?.fromNetwork && !this.adminManager.canUseAdminCommands(this.isHotseatMode, this.hotseatCurrentPlayer)) {
       this.openAdminPanel();
       return { success: false, message: '🔒 Admin Console locked. Please authenticate first.' };
+    }
+
+    // Broadcast over WebRTC if in active network co-op session and not from network
+    if (!options?.fromNetwork && this.networkManager && this.networkManager.isConnected()) {
+      this.networkManager.send({
+        type: 'ADMIN_COMMAND',
+        command: input,
+        senderPlayer: this.coopLocalPlayer || 1,
+        timestamp: Date.now(),
+      });
     }
 
     // 0a. Make Me Admin / Grant Admin
@@ -5157,13 +5431,15 @@ export class GameApp {
       cmd === 'admin' ||
       cmd === 'grant admin' ||
       cmd === 'unlock all' ||
-      cmd === 'unlock all powers'
+      cmd === 'unlock all powers' ||
+      cmd === 'admin all' ||
+      cmd === 'admin everyone'
     ) {
       this.adminManager.grantAdmin();
       this.unlockManager.unlockAllElements(true);
       this.grantAllAdminPowers();
       this.updateAdminUI();
-      return { success: true, message: '👑 You are now an Admin! All elements & admin powers unlocked!' };
+      return { success: true, message: '👑 All players are now Admins! All elements & admin powers unlocked for everyone playing!' };
     }
 
     // 0b. Create New Admin Power: "create admin power <name> [damage] [range] [aoe]"
@@ -5287,6 +5563,22 @@ export class GameApp {
       return this.goToVoidOverlord();
     }
 
+    // 1bb. 10x Void Overlord / Round 5000 Command
+    if (
+      cmd === 'round 5000' ||
+      cmd === 'go to round 5000' ||
+      cmd === 'goto round 5000' ||
+      cmd === 'level 5000' ||
+      cmd === 'go to level 5000' ||
+      cmd === '10x void overlord' ||
+      cmd === '10x overlord' ||
+      cmd === 'round 5000 void overlord' ||
+      cmd === 'boss 5000' ||
+      cmd === 'god void overlord'
+    ) {
+      return this.goToVoidOverlord5000();
+    }
+
     // 1c. Round 30 / Celestial Essence Fusion Crucible Command
     if (
       cmd === 'round 30' ||
@@ -5363,30 +5655,96 @@ export class GameApp {
       this.enemies.forEach((e) => {
         e.stats.currentHp = 0;
         e.isDead = true;
+        this.deadUnitIds.add(e.id);
+        this.renderer?.triggerDeathAnimation(e, 'Light');
       });
-      this.combatEngine.addLog('system', '👑 ADMIN COMMAND: Smote all enemies on the battlefield!');
+      this.renderer?.particleEngine?.triggerScreenShake(20, 600);
+      this.combatEngine.addLog('system', '👑 ADMIN COMMAND: Smote all enemies on the battlefield for everyone!');
+      this.updateHUD();
       this.checkCombatState();
       return { success: true, message: 'All enemies eliminated!' };
     }
 
-    // 4. Heal / God HP
-    if (cmd === 'heal' || cmd === 'full heal' || cmd === 'god hp' || cmd === 'hp') {
-      this.hero.stats.maxHp = 9999;
-      this.hero.stats.currentHp = 9999;
-      this.hero.isDead = false;
-      this.combatEngine.addLog('system', '👑 ADMIN COMMAND: Granted 9999 God HP!');
+    // 4. Heal / God HP (Affects ALL players & allies)
+    if (
+      cmd === 'heal' ||
+      cmd === 'full heal' ||
+      cmd === 'god hp' ||
+      cmd === 'hp' ||
+      cmd === 'heal all' ||
+      cmd === 'heal everyone' ||
+      cmd === 'full heal all'
+    ) {
+      const targets = [...this.getAllActivePlayers(), ...this.getAllPlayerAllies()];
+      targets.forEach((p) => {
+        p.stats.maxHp = 9999;
+        p.stats.currentHp = 9999;
+        p.isDead = false;
+        this.deadUnitIds.delete(p.id);
+        if (this.renderer && p.coord) {
+          const pos = this.renderer.gridToScreen(p.coord);
+          this.renderer.particleEngine.addFloatingText('💖 9999 HP GOD MODE!', pos.x, pos.y - 30, '#4ade80', 26);
+        }
+      });
+      this.renderer?.particleEngine?.triggerScreenShake(8, 250);
+      this.combatEngine.addLog('system', `👑 ADMIN COMMAND: Granted 9999 God HP to EVERYONE playing (${targets.length} players & allies)!`);
       this.updateHUD();
-      return { success: true, message: 'HP set to 9,999 God Health!' };
+      return { success: true, message: `HP set to 9,999 God Health for all ${targets.length} players and allies!` };
     }
 
-    // 5. AP / God AP
-    if (cmd === 'ap' || cmd === 'refill ap' || cmd === 'max ap' || cmd === '99 ap') {
-      this.hero.stats.maxAp = 99;
-      this.hero.stats.currentAp = 99;
-      this.combatEngine.addLog('system', '👑 ADMIN COMMAND: Granted 99 Action Points!');
+    // 5. AP / God AP (Affects ALL players & allies)
+    if (
+      cmd === 'ap' ||
+      cmd === 'refill ap' ||
+      cmd === 'max ap' ||
+      cmd === '99 ap' ||
+      cmd === 'ap all' ||
+      cmd === 'ap everyone' ||
+      cmd === 'refill all ap'
+    ) {
+      const targets = [...this.getAllActivePlayers(), ...this.getAllPlayerAllies()];
+      targets.forEach((p) => {
+        p.stats.maxAp = 99;
+        p.stats.currentAp = 99;
+        if (this.renderer && p.coord) {
+          const pos = this.renderer.gridToScreen(p.coord);
+          this.renderer.particleEngine.addFloatingText('⚡ 99 AP GOD POWER!', pos.x, pos.y - 30, '#fde68a', 26);
+        }
+      });
+      this.renderer?.particleEngine?.triggerScreenShake(8, 250);
+      this.combatEngine.addLog('system', `👑 ADMIN COMMAND: Granted 99 Action Points to EVERYONE playing (${targets.length} players & allies)!`);
       this.updateReachableTiles();
       this.updateHUD();
-      return { success: true, message: 'AP refilled to 99!' };
+      return { success: true, message: `AP refilled to 99 for all ${targets.length} players and allies!` };
+    }
+
+    // 5b. God Mode (9999 HP + 99 AP for ALL players & allies)
+    if (
+      cmd === 'god mode' ||
+      cmd === 'god' ||
+      cmd === 'god mode all' ||
+      cmd === 'invincible' ||
+      cmd === 'god all' ||
+      cmd === 'god everyone'
+    ) {
+      const targets = [...this.getAllActivePlayers(), ...this.getAllPlayerAllies()];
+      targets.forEach((p) => {
+        p.stats.maxHp = 9999;
+        p.stats.currentHp = 9999;
+        p.stats.maxAp = 99;
+        p.stats.currentAp = 99;
+        p.isDead = false;
+        this.deadUnitIds.delete(p.id);
+        if (this.renderer && p.coord) {
+          const pos = this.renderer.gridToScreen(p.coord);
+          this.renderer.particleEngine.addFloatingText('👑 GOD MODE (ALL)!', pos.x, pos.y - 35, '#f59e0b', 28);
+        }
+      });
+      this.renderer?.particleEngine?.triggerScreenShake(12, 400);
+      this.combatEngine.addLog('system', `👑 ADMIN COMMAND: Complete God Mode (9999 HP & 99 AP) activated for ALL ${targets.length} players & allies!`);
+      this.updateReachableTiles();
+      this.updateHUD();
+      return { success: true, message: `👑 Complete God Mode (9999 HP & 99 AP) active for all ${targets.length} players & allies!` };
     }
 
     // 6. Cleanse
@@ -5399,7 +5757,7 @@ export class GameApp {
           }
         }
       }
-      this.combatEngine.addLog('system', '👑 ADMIN COMMAND: Cleansed all environmental hazards!');
+      this.combatEngine.addLog('system', '👑 ADMIN COMMAND: Cleansed all environmental hazards for everyone!');
       return { success: true, message: 'All hazards cleansed!' };
     }
 
@@ -5423,36 +5781,54 @@ export class GameApp {
       return { success: true, message: 'Entered Sandbox Mode with all elements unlocked!' };
     }
 
-    // 8. Essence & Level Up Commands
-    if (cmd === 'level up' || cmd === 'lvl up') {
+    // 8. Essence & Level Up Commands (Affects ALL players)
+    if (cmd === 'level up' || cmd === 'lvl up' || cmd === 'level up all' || cmd === 'level all') {
+      const players = this.getAllActivePlayers();
       const currentLvl = this.hero.level || this.upgradeManager.getLevelFromEssence(this.totalEssence);
       const nextReq = this.upgradeManager.getEssenceRequiredForLevel(currentLvl + 1);
       const diff = Math.max(50, nextReq - this.totalEssence);
       this.addEssence(diff);
+      players.forEach((p) => {
+        p.level = (p.level || currentLvl) + 1;
+        if (this.renderer && p.coord) {
+          const pos = this.renderer.gridToScreen(p.coord);
+          this.renderer.particleEngine.addFloatingText(`⭐ LEVEL ${p.level}!`, pos.x, pos.y - 30, '#fbbf24', 26);
+        }
+      });
+      this.soundEngine?.playLevelUp();
       return {
         success: true,
-        message: `⭐ Leveled up to Level ${this.hero.level} (${this.upgradeManager.getLevelTitle(this.hero.level || 0)})!`,
+        message: `⭐ Leveled up ALL ${players.length} players to Level ${this.hero.level} (${this.upgradeManager.getLevelTitle(this.hero.level || 0)})!`,
       };
     }
 
-    const addEssenceMatch = cmd.match(/^(?:add\s+essence|essence|add\s+esense)\s+(\d+)$/i);
+    const addEssenceMatch = cmd.match(/^(?:add\s+essence|essence|add\s+esense|essence\s+all)\s+(\d+)$/i);
     if (addEssenceMatch) {
       const amt = parseInt(addEssenceMatch[1], 10);
       if (!isNaN(amt) && amt > 0) {
         this.addEssence(amt);
-        return { success: true, message: `🔮 Added +${amt} Essence! Total: ${this.totalEssence}` };
+        this.combatEngine?.addLog('system', `👑 ADMIN COMMAND: Granted +${amt} Essence for everyone playing! (Total: ${this.totalEssence})`);
+        return { success: true, message: `🔮 Added +${amt} Essence for everyone! Total: ${this.totalEssence}` };
       }
     }
 
-    const setLevelMatch = cmd.match(/^(?:set\s+level|set\s+lvl)\s+(\d+)$/i);
+    const setLevelMatch = cmd.match(/^(?:set\s+level|set\s+lvl|set\s+level\s+all|level\s+all)\s+(\d+)$/i);
     if (setLevelMatch) {
       const targetLvl = parseInt(setLevelMatch[1], 10);
       if (!isNaN(targetLvl) && targetLvl >= 0) {
         const needed = this.upgradeManager.getEssenceRequiredForLevel(targetLvl);
         this.totalEssence = needed;
+        const players = this.getAllActivePlayers();
+        players.forEach((p) => {
+          p.level = targetLvl;
+          if (this.renderer && p.coord) {
+            const pos = this.renderer.gridToScreen(p.coord);
+            this.renderer.particleEngine.addFloatingText(`⭐ LEVEL ${targetLvl}!`, pos.x, pos.y - 30, '#fbbf24', 26);
+          }
+        });
         this.checkHeroLevelUp(true);
         this.updateHUD();
-        return { success: true, message: `⭐ Set Hero Level to ${targetLvl}!` };
+        return { success: true, message: `⭐ Set Hero Level to ${targetLvl} for all ${players.length} players!` };
       }
     }
 
@@ -5461,7 +5837,7 @@ export class GameApp {
       return {
         success: true,
         message:
-          'Commands: "go to last level", "round <N>", "smite", "heal", "ap", "cleanse", "level up", "add essence <N>", "sandbox"',
+          'Commands: "go to last level", "round <N>", "smite", "heal (all)", "ap (all)", "god mode", "cleanse", "level up (all)", "add essence <N>", "grant all powers", "sandbox"',
       };
     }
 
@@ -5475,6 +5851,7 @@ export class GameApp {
     this.cancelAutoTurnCountdown();
     this.upgradeModal.classList.add('hidden');
     this.currentRound += 1;
+    this.r1000TitansSummoned = false;
 
     // Reset round state
     this.combatEngine.resetRoundState();
@@ -5506,31 +5883,65 @@ export class GameApp {
       this.combatEngine.coopHero.abilities = this.combatEngine.coopHero.abilities.slice(0, 10);
     }
 
-    // At Round 1000, trigger cinematic cutscene of going to the dark clouds and transform map!
-    if (this.currentRound === 1000) {
+    // At Round 1000 or Round 5000, trigger cinematic cutscene of going to the dark clouds and transform map!
+    if (this.currentRound === 5000) {
       this.playDarkCloudsCutscene();
       this.triggerDarkCloudsWhirl();
-      if (this.hero.stats.maxHp < 5000) {
-        this.hero.stats.maxHp = 5000;
-        this.hero.stats.currentHp = 5000;
+      this.setDarkCloudsTheme(true);
+      const allPlayers = this.getAllActivePlayers();
+      for (const p of allPlayers) {
+        if (p.stats.maxHp < 50000) {
+          p.stats.maxHp = 50000;
+          p.stats.currentHp = 50000;
+        }
+        if (p.stats.maxAp < 10) {
+          p.stats.maxAp = 10;
+          p.stats.currentAp = 10;
+        }
+        if (!p.level || p.level < 100) {
+          p.level = 100;
+        }
+        for (const ab of p.abilities) {
+          ab.level = Math.max(ab.level || 1, 50);
+          ab.baseDamage = Math.max(ab.baseDamage, 3500);
+        }
       }
-      if (this.hero.stats.maxAp < 8) {
-        this.hero.stats.maxAp = 8;
-        this.hero.stats.currentAp = 8;
-      }
-      if (!this.hero.level || this.hero.level < 50) {
-        this.hero.level = 50;
-      }
-      this.totalEssence = Math.max(this.totalEssence, 50000);
+      this.totalEssence = Math.max(this.totalEssence, 500000);
       this.unlockManager.unlockAllElements(true);
-      for (const ab of this.hero.abilities) {
-        ab.level = Math.max(ab.level || 1, 15);
-        ab.baseDamage = Math.max(ab.baseDamage, 350);
-      }
       this.combatEngine.addLog(
         'system',
-        '✨ [ARCH-WIZARD BLESSING] The Grand Arch-Wizard channels the 50-element cascade into your spirit (5,000 HP, 8 AP, Level 15 Spells) to vanquish The Void Overlord!'
+        '✨ [COSMIC ASCENDANCE BLESSING] The universe bestows upon ALL PLAYERS 50,000 HP, 10 AP, and 10x godlike spells to defeat the 10x Ascended Void Overlord on Round 5,000!'
       );
+    } else if (this.currentRound >= 1000) {
+      this.setDarkCloudsTheme(true);
+      if (this.currentRound === 1000) {
+        this.playDarkCloudsCutscene();
+        this.triggerDarkCloudsWhirl();
+        const allPlayers = this.getAllActivePlayers();
+        for (const p of allPlayers) {
+          if (p.stats.maxHp < 5000) {
+            p.stats.maxHp = 5000;
+            p.stats.currentHp = 5000;
+          }
+          if (p.stats.maxAp < 8) {
+            p.stats.maxAp = 8;
+            p.stats.currentAp = 8;
+          }
+          if (!p.level || p.level < 50) {
+            p.level = 50;
+          }
+          for (const ab of p.abilities) {
+            ab.level = Math.max(ab.level || 1, 15);
+            ab.baseDamage = Math.max(ab.baseDamage, 350);
+          }
+        }
+        this.totalEssence = Math.max(this.totalEssence, 50000);
+        this.unlockManager.unlockAllElements(true);
+        this.combatEngine.addLog(
+          'system',
+          '✨ [ARCH-WIZARD BLESSING] The Grand Arch-Wizard channels the 50-element cascade into ALL PLAYERS (5,000 HP, 8 AP, Level 15 Spells) to vanquish The Void Overlord!'
+        );
+      }
     } else if (this.currentRound < 1000) {
       this.setDarkCloudsTheme(false);
     }
@@ -5538,6 +5949,28 @@ export class GameApp {
     // Generate new enemies for this round
     this.enemies = this.escalationManager.generateRoundEnemies(this.currentRound);
     this.combatEngine.enemies = this.enemies;
+    this.combatEngine.currentRound = this.currentRound;
+
+    // Enforce Void Overlord dominion: on Round 100 / 1000, no zombies can be on your side!
+    if (this.combatEngine.isVoidOverlordZombieUsurpationActive()) {
+      const usurped = this.combatEngine.usurpPlayerZombiesForVoidOverlord();
+      if (this.currentRound === 100) {
+        this.combatEngine.addLog(
+          'reaction',
+          '😈 [VOID OVERLORD DOMINION] On Round 100, no zombies may fight for you! The Void Overlord claims all undead!'
+        );
+      } else if (this.currentRound === 1000) {
+        this.combatEngine.addLog(
+          'reaction',
+          '😈 [VOID OVERLORD DOMINION] On Round 1000, no zombies may fight for you! The Void Overlord claims all undead!'
+        );
+      }
+      if (usurped > 0) {
+        this.soundEngine.playDarkSiphon();
+        this.soundEngine.playZombieScream();
+        this.renderer.particleEngine.triggerScreenShake(12, 500);
+      }
+    }
 
     // Update round indicator
     const roundBadge = document.getElementById('round-indicator');
@@ -5584,15 +6017,28 @@ export class GameApp {
     this.updateHomeResumeTile();
     this.soundEngine.playVictoryFanfare();
     this.turnManager.setPhase('VICTORY');
-    if (this.currentRound >= 1000) {
+    if (this.currentRound >= 5000) {
+      this.outcomeTitle.textContent = '👑 10X VOID OVERLORD VANQUISHED!';
+      this.outcomeSubtitle.textContent = `You conquered all 5,000 rounds, destroyed the 10x Ascended Void Overlord in his final form, and saved reality!`;
+      this.totalEssence += 500000;
+      this.totalXp += 500000;
+      this.unlockManager.unlockAllElements(true);
+      this.combatEngine.addLog(
+        'system',
+        '👑 TRUE COSMIC VICTORY: THE 10X VOID OVERLORD HAS BEEN VANQUISHED ON ROUND 5,000! (+500,000 Essence)!'
+      );
+      if (this.renderer) {
+        this.renderer.particleEngine.triggerScreenShake(25, 1000);
+      }
+    } else if (this.currentRound >= 1000) {
       this.outcomeTitle.textContent = '👑 VOID OVERLORD VANQUISHED!';
-      this.outcomeSubtitle.textContent = `You have conquered all 1,000 rounds, defeated the Void Overlord, and reclaimed all 50 elemental powers!`;
+      this.outcomeSubtitle.textContent = `You have defeated the Void Overlord on Round 1,000! His astral core fled to Round 5,000 where he awaits 10x stronger!`;
       this.totalEssence += 50000;
       this.totalXp += 50000;
       this.unlockManager.unlockAllElements(true);
       this.combatEngine.addLog(
         'system',
-        '👑 LORE MISSION COMPLETE: THE VOID OVERLORD HAS BEEN VANQUISHED! All stolen godlike elemental magic has been reclaimed (+50,000 Essence)!'
+        '👑 [ASCEND TO ROUND 5,000] The Void Overlord has fled into the deep cosmos! Ascend to Round 5,000 to confront his 10x form!'
       );
       if (this.renderer) {
         this.renderer.particleEngine.triggerScreenShake(20, 600);
@@ -7057,6 +7503,8 @@ window.addEventListener('DOMContentLoaded', () => {
   const game = new GameApp();
   (window as any).game = game;
   (window as any).goToLastLevel = (round?: number) => game.goToLastLevel(round ?? 15, true);
+  (window as any).goToRound1000 = () => game.goToVoidOverlord(true);
+  (window as any).goToRound5000 = () => game.goToVoidOverlord5000(true);
   (window as any).executeAdminCommand = (cmd: string) => game.executeAdminCommand(cmd);
   (window as any).adminCommand = (cmd: string) => game.executeAdminCommand(cmd);
   (window as any).massResurrection = () => game.invokeAdminMassResurrection();

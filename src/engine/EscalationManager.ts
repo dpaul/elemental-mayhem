@@ -1870,80 +1870,84 @@ export class EscalationManager {
           isBoss: true,
         });
 
-        // Two Void Rift Colossi escorts
+        // Round 1000 has NO minions - The Void Overlord fights alone
+        break;
+
+      case 5000:
+        // Round 5000: THE VOID OVERLORD (10x Ascended God - 10 Times More Powerful!)
         enemies.push({
-          id: 'enemy_r1000_escort_1',
-          name: 'Void Rift Colossus',
+          id: 'boss_void_overlord_r5000',
+          name: 'THE VOID OVERLORD (10x Ascended God)',
           faction: 'Enemy',
-          avatar: '👹🌌',
-          coord: { x: 7, y: 2 },
+          avatar: '😈🌌👑💥',
+          coord: { x: 8, y: 5 },
           stats: {
-            maxHp: 3500,
-            currentHp: 3500,
-            maxAp: 4,
-            currentAp: 4,
+            maxHp: 250000, // 10x 25,000 HP
+            currentHp: 250000,
+            maxAp: 8,
+            currentAp: 8,
             moveCostPerTile: 1,
             elementalAffinity: 'Void',
           },
           abilities: [
             {
-              id: 'colossus_rift_strike_1',
-              name: 'Dimensional Rift Cleave',
+              id: 'overlord_10x_siphon_stolen_magic',
+              name: '10x Siphon of Annihilation',
               element: 'Void',
-              icon: '⚡',
+              icon: '😈',
               apCost: 2,
               cooldown: 1,
               currentCooldown: 0,
-              range: 3,
-              aoeRadius: 0,
+              range: 6,
+              aoeRadius: 1,
               targeting: 'SingleUnit',
-              baseDamage: 45,
+              baseDamage: 1200, // 10x 120
+              appliesStatus: 'Burning',
+              statusDuration: 3,
               createsHazard: 'VoidRift',
-              hazardDuration: 2,
-              description: 'Cleaves reality open with dimensional energy.',
-              level: 8,
+              hazardDuration: 3,
+              description: 'Channels catastrophic 10x augmented stolen cosmic magic.',
+              level: 25,
+            },
+            {
+              id: 'overlord_10x_singularity_crush',
+              name: '10x Supermassive Singularity',
+              element: 'Void',
+              icon: '🌌',
+              apCost: 3,
+              cooldown: 2,
+              currentCooldown: 0,
+              range: 5,
+              aoeRadius: 1,
+              targeting: 'SingleUnit',
+              baseDamage: 1500, // 10x 150
+              createsHazard: 'VoidRift',
+              hazardDuration: 3,
+              description: 'Tears a supermassive black hole with 10x crushing void pressure.',
+              level: 25,
+            },
+            {
+              id: 'overlord_10x_void_cataclysm',
+              name: '10x Omniversal Cataclysm',
+              element: 'Void',
+              icon: '👑',
+              apCost: 3,
+              cooldown: 3,
+              currentCooldown: 0,
+              range: 6,
+              aoeRadius: 2,
+              targeting: 'SingleUnit',
+              baseDamage: 1800, // 10x 180
+              description: 'The supreme universe-obliterating 10x finishing cataclysm of the Ascended Void Overlord.',
+              level: 25,
             },
           ],
           statusEffects: [],
           isDead: false,
+          isBoss: true,
         });
 
-        enemies.push({
-          id: 'enemy_r1000_escort_2',
-          name: 'Void Rift Colossus',
-          faction: 'Enemy',
-          avatar: '👹🌌',
-          coord: { x: 7, y: 8 },
-          stats: {
-            maxHp: 3500,
-            currentHp: 3500,
-            maxAp: 4,
-            currentAp: 4,
-            moveCostPerTile: 1,
-            elementalAffinity: 'Void',
-          },
-          abilities: [
-            {
-              id: 'colossus_rift_strike_2',
-              name: 'Dimensional Rift Cleave',
-              element: 'Void',
-              icon: '⚡',
-              apCost: 2,
-              cooldown: 1,
-              currentCooldown: 0,
-              range: 3,
-              aoeRadius: 0,
-              targeting: 'SingleUnit',
-              baseDamage: 45,
-              createsHazard: 'VoidRift',
-              hazardDuration: 2,
-              description: 'Cleaves reality open with dimensional energy.',
-              level: 8,
-            },
-          ],
-          statusEffects: [],
-          isDead: false,
-        });
+        // Round 5000 has NO minions - The 10x Void Overlord fights alone
         break;
 
       case 30:
@@ -2127,11 +2131,12 @@ export class EscalationManager {
             Math.floor(round / 5) % 6
           ] as ElementType;
 
+          const isR100Overlord = round === 100;
           enemies.push({
-            id: `procedural_boss_r${round}`,
-            name: `PRIMORDIAL OVERLORD (Tier ${Math.floor(round / 5)} Boss)`,
+            id: isR100Overlord ? 'boss_void_overlord_r100' : `procedural_boss_r${round}`,
+            name: isR100Overlord ? 'THE VOID OVERLORD (Tier 20 Boss)' : `PRIMORDIAL OVERLORD (Tier ${Math.floor(round / 5)} Boss)`,
             faction: 'Enemy',
-            avatar: '👑',
+            avatar: isR100Overlord ? '😈🌌👑' : '👑',
             coord: { x: 8, y: 5 },
             stats: {
               maxHp: bossHp,

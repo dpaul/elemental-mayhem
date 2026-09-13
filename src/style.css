@@ -102,9 +102,12 @@ body::-webkit-scrollbar {
   flex-direction: column;
   width: 100vw;
   height: 100vh;
-  max-width: 1440px;
-  padding: 16px;
-  gap: 16px;
+  height: 100dvh;
+  max-width: 100%;
+  margin: 0;
+  padding: 10px 16px;
+  gap: 10px;
+  box-sizing: border-box;
   overflow: hidden !important;
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -121,8 +124,10 @@ body::-webkit-scrollbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 24px;
+  padding: 8px 16px;
   border-radius: var(--radius-md);
+  flex-shrink: 0;
+  gap: 12px;
 }
 
 .header-left {
@@ -196,19 +201,30 @@ body::-webkit-scrollbar {
 
 .header-right {
   display: flex;
-  gap: 12px;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.header-right .btn-primary,
+.header-right .header-nav-btn {
+  padding: 5px 9px;
+  font-size: 0.78rem;
+  white-space: nowrap;
 }
 
 .currency-pill {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
+  gap: 5px;
+  padding: 4px 8px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--border-subtle);
   border-radius: 9999px;
   font-family: var(--font-mono);
-  font-size: 0.9rem;
+  font-size: 0.78rem;
+  white-space: nowrap;
 }
 
 #hero-level-pill {
@@ -269,17 +285,20 @@ body::-webkit-scrollbar {
   overflow: hidden;
   border-radius: var(--radius-md);
   background: #0d1117;
+  min-height: 0;
+  min-width: 0;
 }
 
 #battlefield-canvas {
-  width: 100%;
-  height: 100%;
-  max-width: 800px;
-  max-height: 800px;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
   aspect-ratio: 1 / 1;
   cursor: crosshair;
   position: relative;
   z-index: 2;
+  object-fit: contain;
 }
 
 /* ==========================================================================
@@ -564,10 +583,12 @@ body::-webkit-scrollbar {
 
 /* Sidebar */
 .sidebar-panel {
-  width: 340px;
+  width: clamp(260px, 20vw, 340px);
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
+  flex-shrink: 0;
 }
 
 .inspector-card, .combat-log-card {
@@ -654,29 +675,46 @@ body::-webkit-scrollbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 24px;
+  padding: 8px 16px;
   border-radius: var(--radius-md);
-  gap: 24px;
+  gap: 16px;
+  min-height: 76px;
+  flex-shrink: 0;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .hero-status {
   display: flex;
   align-items: center;
-  gap: 16px;
-  min-width: 260px;
+  gap: 12px;
+  min-width: 200px;
+  flex-shrink: 0;
 }
 
 .hero-avatar {
-  font-size: 2rem;
-  width: 52px;
-  height: 52px;
+  font-size: 1.8rem;
+  width: 48px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-md);
+  border-radius: 50%;
   background: rgba(56, 189, 248, 0.1);
-  border: 1px solid var(--border-highlight);
+  border: 2px solid var(--border-highlight);
+  flex-shrink: 0;
+  overflow: hidden;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.35);
+  padding: 0;
 }
+
+.hero-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 
 .hero-meters {
   flex: 1;
@@ -789,17 +827,61 @@ body::-webkit-scrollbar {
   white-space: nowrap;
 }
 
+.action-bar-scroll-container {
+  display: flex;
+  align-items: center;
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  gap: 4px;
+}
+
+.action-bar-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 52px;
+  border-radius: var(--radius-sm);
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid var(--border-highlight);
+  color: var(--text-highlight);
+  font-size: 0.85rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: var(--transition-fast);
+  z-index: 5;
+  user-select: none;
+}
+
+.action-bar-nav-btn:hover:not(:disabled) {
+  background: rgba(56, 189, 248, 0.25);
+  border-color: var(--elem-water);
+  color: #fff;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+  transform: scale(1.05);
+}
+
+.action-bar-nav-btn:disabled,
+.action-bar-nav-btn.hidden {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
+
 .action-bar {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   flex: 1;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
   overflow-x: auto;
   overflow-y: hidden;
   padding: 4px 6px;
   scrollbar-width: none;
   -ms-overflow-style: none;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
 }
 
 .action-bar::-webkit-scrollbar {
@@ -817,12 +899,14 @@ body::-webkit-scrollbar {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 10px 14px;
-  min-width: 110px;
+  padding: 6px 8px;
+  min-width: 82px;
+  max-width: 96px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   cursor: pointer;
+  flex-shrink: 0;
   transition: var(--transition-normal);
 }
 
@@ -846,33 +930,37 @@ body::-webkit-scrollbar {
 
 .ability-hotkey {
   position: absolute;
-  top: 4px;
-  left: 6px;
+  top: 3px;
+  left: 5px;
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   color: var(--text-muted);
 }
 
 .ability-ap {
   position: absolute;
-  top: 4px;
-  right: 6px;
+  top: 3px;
+  right: 5px;
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 700;
   color: var(--elem-lightning);
 }
 
 .ability-icon {
-  font-size: 1.5rem;
-  margin: 6px 0 4px;
+  font-size: 1.35rem;
+  margin: 4px 0 2px;
 }
 
 .ability-name {
   font-family: var(--font-display);
-  font-size: 0.85rem;
+  font-size: 0.78rem;
   font-weight: 600;
   text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 /* End Turn Button */

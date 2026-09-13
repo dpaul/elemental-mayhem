@@ -54,11 +54,13 @@ export class CombatEngine {
   public hero: Unit;
   public coopHero?: Unit;
   public enemies: Unit[];
+  public allies: Unit[] = [];
   public zombies: Unit[] = [];
   public lifeBeings: Unit[] = [];
   public pendingReanimations: PendingReanimation[] = [];
   public logs: CombatLogEntry[];
   public performance: PerformanceStats;
+  public currentRound: number = 1;
   public onZombieSpawn?: (zombie: Unit) => void;
   public onEssenceEarned?: (amount: number, coord: GridCoord) => void;
   public onElementalEssenceEarned?: (element: ElementType, amount: number, coord: GridCoord) => void;
@@ -73,6 +75,7 @@ export class CombatEngine {
     this.hero = hero;
     this.coopHero = coopHero;
     this.enemies = enemies;
+    this.allies = [];
     this.zombies = [];
     this.lifeBeings = [];
     this.pendingReanimations = [];
@@ -89,12 +92,45 @@ export class CombatEngine {
     };
   }
 
+  public isVoidOverlordZombieUsurpationActive(): boolean {
+    if (this.currentRound === 100 || this.currentRound === 1000 || this.currentRound === 5000) {
+      return true;
+    }
+    return this.enemies.some(
+      (e) => !e.isDead && (e.id.toLowerCase().includes('void_overlord') || e.name.toLowerCase().includes('void overlord'))
+    );
+  }
+
+  public usurpPlayerZombiesForVoidOverlord(): number {
+    if (!this.isVoidOverlordZombieUsurpationActive()) return 0;
+    let count = 0;
+    for (const z of this.zombies) {
+      if (!z.isDead && z.faction === 'Player') {
+        z.faction = 'Enemy';
+        z.isVoidUsurped = true;
+        count++;
+      }
+    }
+    if (count > 0) {
+      this.addLog(
+        'reaction',
+        `🌌 [VOID DOMINION] The Void Overlord commands death! All ${count} zombie(s) on your side have been turned into loyal minions of the Void Overlord!`
+      );
+    }
+    return count;
+  }
+
   public getUnitAt(coord: GridCoord): Unit | null {
     if (!this.hero.isDead && this.hero.coord.x === coord.x && this.hero.coord.y === coord.y) {
       return this.hero;
     }
     if (this.coopHero && !this.coopHero.isDead && this.coopHero.coord.x === coord.x && this.coopHero.coord.y === coord.y) {
       return this.coopHero;
+    }
+    for (const ally of this.allies) {
+      if (!ally.isDead && ally.coord.x === coord.x && ally.coord.y === coord.y) {
+        return ally;
+      }
     }
     for (const zombie of this.zombies) {
       if (!zombie.isDead && zombie.coord.x === coord.x && zombie.coord.y === coord.y) {
@@ -115,10 +151,12 @@ export class CombatEngine {
   }
 
   public getAllAllies(): Unit[] {
+    const isUsurped = this.isVoidOverlordZombieUsurpationActive();
     return [
       this.hero,
       ...(this.coopHero && !this.coopHero.isDead ? [this.coopHero] : []),
-      ...this.zombies.filter((z) => !z.isDead && z.faction === 'Player'),
+      ...this.allies.filter((a) => !a.isDead && a.faction === 'Player'),
+      ...(isUsurped ? [] : this.zombies.filter((z) => !z.isDead && z.faction === 'Player')),
       ...this.lifeBeings.filter((b) => !b.isDead && b.faction === 'Player'),
     ];
   }
@@ -131,6 +169,13 @@ export class CombatEngine {
     forcedClass?: ZombieClass,
     forceOverride: boolean = false
   ): Unit {
+    let effectiveFaction = faction;
+    let wasUsurped = false;
+    if (effectiveFaction === 'Player' && this.isVoidOverlordZombieUsurpationActive()) {
+      effectiveFaction = 'Enemy';
+      wasUsurped = true;
+    }
+
     const tile = this.grid.getTile(coord);
     const hazardType: TileHazardType = tile ? tile.hazard.type : 'None';
 
@@ -615,7 +660,7 @@ export class CombatEngine {
     const zombie: Unit = {
       id: `zombie_${Date.now()}_${Math.random()}`,
       name,
-      faction,
+      faction: effectiveFaction,
       avatar,
       coord: { ...coord },
       stats: {
@@ -632,6 +677,7 @@ export class CombatEngine {
       isZombie: true,
       zombieClass: zClass,
       zombieLifetime: 4,
+      isVoidUsurped: wasUsurped,
     };
 
     if (zClass === 'Frostbite') {
@@ -656,6 +702,13 @@ export class CombatEngine {
       this.addLog('system', `😱 A shrieking Screamer Zombie resonated and rose from the crystal spikes on the floor!`);
     } else {
       this.addLog('system', `🧟 A standard Reanimated Zombie rose from the ground!`);
+    }
+
+    if (wasUsurped) {
+      this.addLog(
+        'reaction',
+        `🌌 [VOID DOMINION] The Void Overlord usurped this zombie instantly! It refuses your command and joins the Void Overlord's ranks!`
+      );
     }
 
     this.zombies.push(zombie);
@@ -1365,7 +1418,8 @@ export class CombatEngine {
     // 4. Clear all hazards from the battlefield
     this.hazardManager?.clearAllHazards();
 
-    // 5. Clear summons and pending reanimations
+    // 5. Clear summons, allies, and pending reanimations
+    this.allies = [];
     this.zombies = [];
     this.lifeBeings = [];
     this.pendingReanimations = [];

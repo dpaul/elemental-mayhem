@@ -29,6 +29,8 @@ export class HUDManager {
   private searchInput: HTMLInputElement | null = null;
   private elementFilter: HTMLSelectElement | null = null;
   private countBadge: HTMLElement | null = null;
+  private actionBarPrevBtn: HTMLButtonElement | null = null;
+  private actionBarNextBtn: HTMLButtonElement | null = null;
   private visibleAbilities: Ability[] = [];
   private searchQuery: string = '';
   private filterElement: string = 'All';
@@ -66,6 +68,26 @@ export class HUDManager {
     this.searchInput = document.getElementById('ability-search-input') as HTMLInputElement | null;
     this.elementFilter = document.getElementById('ability-element-filter') as HTMLSelectElement | null;
     this.countBadge = document.getElementById('ability-count-badge');
+    this.actionBarPrevBtn = document.getElementById('action-bar-prev-btn') as HTMLButtonElement | null;
+    this.actionBarNextBtn = document.getElementById('action-bar-next-btn') as HTMLButtonElement | null;
+
+    if (this.actionBarPrevBtn) {
+      this.actionBarPrevBtn.addEventListener('click', () => {
+        if (this.actionBar) {
+          this.actionBar.scrollBy({ left: -240, behavior: 'smooth' });
+          setTimeout(() => this.updateScrollNavButtons(), 250);
+        }
+      });
+    }
+
+    if (this.actionBarNextBtn) {
+      this.actionBarNextBtn.addEventListener('click', () => {
+        if (this.actionBar) {
+          this.actionBar.scrollBy({ left: 240, behavior: 'smooth' });
+          setTimeout(() => this.updateScrollNavButtons(), 250);
+        }
+      });
+    }
 
     // Horizontal wheel scrolling for action bar
     if (this.actionBar) {
@@ -73,8 +95,17 @@ export class HUDManager {
         if (e.deltaY !== 0) {
           e.preventDefault();
           this.actionBar.scrollLeft += e.deltaY;
+          this.updateScrollNavButtons();
         }
       }, { passive: false });
+
+      this.actionBar.addEventListener('scroll', () => {
+        this.updateScrollNavButtons();
+      });
+
+      window.addEventListener('resize', () => {
+        this.updateScrollNavButtons();
+      });
     }
 
     // Search and filter input handlers
@@ -91,7 +122,7 @@ export class HUDManager {
 
   public updateHeroStatus(hero: Unit): void {
     if (this.heroAvatar) {
-      this.heroAvatar.textContent = hero.avatar;
+      this.heroAvatar.innerHTML = `<img src="./portraits/hero_bust.jpg" alt="${hero.name}" class="hud-hero-cutscene-img" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;" onerror="this.replaceWith('${hero.avatar}')">`;
     }
     const hpPct = Math.max(0, (hero.stats.currentHp / hero.stats.maxHp) * 100);
     this.heroHpFill.style.width = `${hpPct}%`;
@@ -254,6 +285,36 @@ export class HUDManager {
 
       this.actionBar.appendChild(card);
     });
+
+    requestAnimationFrame(() => {
+      this.updateScrollNavButtons();
+    });
+  }
+
+  public updateScrollNavButtons(): void {
+    if (!this.actionBar) return;
+    const { scrollLeft, scrollWidth, clientWidth } = this.actionBar;
+    const canScroll = scrollWidth > clientWidth + 4;
+
+    if (this.actionBarPrevBtn) {
+      if (canScroll && scrollLeft > 6) {
+        this.actionBarPrevBtn.classList.remove('hidden');
+        this.actionBarPrevBtn.disabled = false;
+      } else {
+        this.actionBarPrevBtn.classList.add('hidden');
+        this.actionBarPrevBtn.disabled = true;
+      }
+    }
+
+    if (this.actionBarNextBtn) {
+      if (canScroll && scrollLeft + clientWidth < scrollWidth - 6) {
+        this.actionBarNextBtn.classList.remove('hidden');
+        this.actionBarNextBtn.disabled = false;
+      } else {
+        this.actionBarNextBtn.classList.add('hidden');
+        this.actionBarNextBtn.disabled = true;
+      }
+    }
   }
 
   public updatePhaseBanner(phase: string): void {
@@ -364,8 +425,17 @@ export class HUDManager {
       ? unit.statusEffects.map((s) => `<span class="element-badge" style="background:rgba(254,240,138,0.2);color:#fef08a">${s.type} (${s.duration}t)</span>`).join(' ')
       : '<span class="placeholder-text">None</span>';
 
+    const archetypeLabel = unit.isZombie
+      ? `🧟 Undead Human Champion (${unit.zombieClass || 'Walker'})`
+      : unit.isLifeBeing
+      ? `🧚 Divine Human Seraph of Life`
+      : unit.isBoss
+      ? `👑 Ascended Human Nemesis (${unit.name})`
+      : `👤 Human Elemental Champion (${unit.stats.elementalAffinity})`;
+
     this.targetDetails.innerHTML = `
       <div style="display:flex; flex-direction:column; gap:6px; font-size:0.85rem;">
+        <div><strong>Archetype:</strong> ${archetypeLabel}</div>
         <div><strong>HP:</strong> ${unit.stats.currentHp} / ${unit.stats.maxHp}</div>
         <div><strong>AP:</strong> ${unit.stats.currentAp} / ${unit.stats.maxAp}</div>
         <div><strong>Faction:</strong> ${unit.faction}</div>
@@ -414,8 +484,14 @@ export class HUDManager {
     }
     allyContainer.style.display = 'flex';
     const hpPct = Math.max(0, Math.round((ally.stats.currentHp / ally.stats.maxHp) * 100));
+    const nameLower = (ally.name || '').toLowerCase();
+    const portraitSrc = nameLower.includes('magma colossus')
+      ? './portraits/magma_colossus.jpg'
+      : nameLower.includes('void leviathan')
+        ? './portraits/void_leviathan.jpg'
+        : './portraits/hero_bust.jpg';
     allyContainer.innerHTML = `
-      <div class="ally-avatar">${ally.avatar}</div>
+      <div class="ally-avatar" style="width: 38px; height: 38px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center;"><img src="${portraitSrc}" alt="${ally.name}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.replaceWith('${ally.avatar}')"></div>
       <div class="ally-info">
         <div class="ally-name">${ally.name} ${ally.isDead ? '💀 (FALLEN)' : ''}</div>
         <div class="ally-bars">

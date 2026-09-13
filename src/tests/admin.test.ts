@@ -171,10 +171,10 @@ describe('Admin Mass Resurrection Power', () => {
 });
 
 describe('Round 1000 Void Overlord Encounter', () => {
-  it('should generate THE VOID OVERLORD (Ultimate Boss) on Round 1000', () => {
+  it('should generate THE VOID OVERLORD (Ultimate Boss) on Round 1000 with no minions', () => {
     const escalation = new EscalationManager();
     const enemies = escalation.generateRoundEnemies(1000);
-    expect(enemies.length).toBe(3); // Overlord + 2 Colossi
+    expect(enemies.length).toBe(1); // Overlord stands alone with NO minions
 
     const overlord = enemies.find((e) => e.id === 'boss_void_overlord_r1000');
     expect(overlord).toBeDefined();
@@ -188,9 +188,9 @@ describe('Round 1000 Void Overlord Encounter', () => {
     expect(overlord?.abilities.some((a) => a.id === 'overlord_singularity_crush')).toBe(true);
     expect(overlord?.abilities.some((a) => a.id === 'overlord_void_cataclysm')).toBe(true);
 
-    // Escorts
+    // No minions/escorts
     const colossi = enemies.filter((e) => e.name.includes('Void Rift Colossus'));
-    expect(colossi.length).toBe(2);
+    expect(colossi.length).toBe(0);
   });
 });
 

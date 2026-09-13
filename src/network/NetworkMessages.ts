@@ -103,6 +103,13 @@ export interface EventGameOverMessage {
   reason: string;
 }
 
+export interface AdminCommandMessage {
+  type: 'ADMIN_COMMAND';
+  command: string;
+  senderPlayer: 1 | 2;
+  timestamp?: number;
+}
+
 export type NetworkMessage =
   | LobbyUpdateMessage
   | StartMatchMessage
@@ -118,4 +125,6 @@ export type NetworkMessage =
   | TacticalPingMessage
   | QuickChatMessage
   | EventRoundVictoryMessage
-  | EventGameOverMessage;
+  | EventGameOverMessage
+  | AdminCommandMessage;
+

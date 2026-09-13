@@ -188,6 +188,7 @@ export interface Unit {
   zombieLifetime?: number; // 4 turns max
   infectedByZombie?: boolean;
   isLifeBeing?: boolean;
+  isVoidUsurped?: boolean;
 }
 
 export type ZombieClass =

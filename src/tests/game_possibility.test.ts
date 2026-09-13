@@ -35,7 +35,7 @@ describe('Game Balance & Possibility Verification', () => {
 
   it('should verify Round 1000 Void Overlord has proper tactical configuration', () => {
     const r1000 = escalation.generateRoundEnemies(1000);
-    expect(r1000.length).toBe(3);
+    expect(r1000.length).toBe(1);
 
     const overlord = r1000.find((e) => e.id === 'boss_void_overlord_r1000');
     expect(overlord).toBeDefined();
