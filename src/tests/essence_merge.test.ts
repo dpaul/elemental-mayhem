@@ -32,51 +32,33 @@ describe('EssenceMergeManager', () => {
     expect(mergeManager.getAllOwnedEssences().length).toBe(3);
   });
 
-  it('should identify when 2 matching essences exist for merging', () => {
-    mergeManager.addEssence('Fire', 1);
+  it('should verify merging is disabled: canMerge returns false and getMergeableEssences is empty', () => {
+    mergeManager.addEssence('Fire', 2);
     expect(mergeManager.canMerge('Fire')).toBe(false);
-
-    mergeManager.addEssence('Fire', 1);
-    expect(mergeManager.canMerge('Fire')).toBe(true);
-    expect(mergeManager.getMergeableEssences()).toContain('Fire');
+    expect(mergeManager.getMergeableEssences().length).toBe(0);
   });
 
-  it('should prevent merging when having fewer than 2 essences', () => {
-    mergeManager.addEssence('Lightning', 1);
-    const result = mergeManager.mergeEssences('Lightning');
-
-    expect(result.success).toBe(false);
-    expect(result.remainingCount).toBe(1);
-    expect(result.message).toContain('Need 2 Lightning Essences');
-  });
-
-  it('should merge 2 matching essences to permanently unlock a locked element', () => {
+  it('should directly unlock a locked element upon acquiring its essence without merging', () => {
     // Nature is initially locked for a new run
     expect(unlockManager.isElementUnlocked('Nature')).toBe(false);
 
-    mergeManager.addEssence('Nature', 2);
-    expect(mergeManager.canMerge('Nature')).toBe(true);
-
-    const result = mergeManager.mergeEssences('Nature');
-    expect(result.success).toBe(true);
-    expect(result.newlyUnlocked).toBe(true);
-    expect(result.remainingCount).toBe(0);
+    // Acquiring 1 essence directly awakens the element immediately!
+    mergeManager.addEssence('Nature', 1);
     expect(unlockManager.isElementUnlocked('Nature')).toBe(true);
-    expect(result.message).toContain('🎉 ELEMENT AWAKENED!');
+    expect(mergeManager.getEssenceCount('Nature')).toBe(1);
   });
 
-  it('should empower an already unlocked element when merging 2 essences', () => {
+  it('should empower an element directly and grant mastery resonance', () => {
     // Fire is a starter element and already unlocked
     expect(unlockManager.isElementUnlocked('Fire')).toBe(true);
 
-    mergeManager.addEssence('Fire', 2);
+    mergeManager.addEssence('Fire', 1);
     const result = mergeManager.mergeEssences('Fire');
 
     expect(result.success).toBe(true);
     expect(result.alreadyHadElement).toBe(true);
     expect(result.masteryBonus).toBe(35);
     expect(result.message).toContain('⚡ ELEMENT EMPOWERED!');
-    expect(result.remainingCount).toBe(0);
   });
 
   it('should allow attuning +1 essence at the sanctuary well', () => {
@@ -86,7 +68,6 @@ describe('EssenceMergeManager', () => {
 
     mergeManager.attuneEssence('Time');
     expect(mergeManager.getEssenceCount('Time')).toBe(2);
-    expect(mergeManager.canMerge('Time')).toBe(true);
   });
 
   it('should export and import state correctly for game saves', () => {

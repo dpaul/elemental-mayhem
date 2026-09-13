@@ -1,5 +1,5 @@
-// Elemental Mayhem - Elemental Essence Collection & Merge Engine
-// Allows collecting elemental essences of any type and merging 2 matching essences on Round 30 to awaken elements
+// Elemental Mayhem - Elemental Essence Collection Engine
+// Directly awakens locked elements upon collecting their essence, with no merging required
 import { ElementType, ElementData } from '../types';
 import { CORE_ELEMENTS } from '../constants/elements';
 import { UnlockManager } from './UnlockManager';
@@ -82,6 +82,11 @@ export class EssenceMergeManager {
     this.essences.set(element, updated);
     this.saveToStorage();
 
+    // Directly awaken element if locked (no merging required)
+    if (!this.unlockManager.isElementUnlocked(element)) {
+      this.unlockManager.unlockElement(element);
+    }
+
     if (this.onEssenceAddedCallback) {
       this.onEssenceAddedCallback(element, amount, updated);
     }
@@ -97,18 +102,15 @@ export class EssenceMergeManager {
     this.saveToStorage();
   }
 
-  public canMerge(element: ElementType): boolean {
-    return this.getEssenceCount(element) >= 2;
+  /**
+   * Merging has been removed. Essences awaken elements directly.
+   */
+  public canMerge(_element: ElementType): boolean {
+    return false;
   }
 
   public getMergeableEssences(): ElementType[] {
-    const list: ElementType[] = [];
-    this.essences.forEach((count, element) => {
-      if (count >= 2) {
-        list.push(element);
-      }
-    });
-    return list;
+    return [];
   }
 
   public getAllOwnedEssences(): EssenceInventoryItem[] {
@@ -119,42 +121,23 @@ export class EssenceMergeManager {
           element,
           count,
           data: CORE_ELEMENTS[element],
-          canMerge: count >= 2,
+          canMerge: false,
         });
       }
     });
 
-    // Sort: ready-to-merge first, then by count descending, then alphabetically
     return items.sort((a, b) => {
-      if (a.canMerge !== b.canMerge) return a.canMerge ? -1 : 1;
       if (b.count !== a.count) return b.count - a.count;
       return a.element.localeCompare(b.element);
     });
   }
 
   /**
-   * Merges 2 matching essences of the specified element to unlock or empower it
+   * Directly awakens or empowers an element (merging removed)
    */
   public mergeEssences(element: ElementType): MergeResult {
     const currentCount = this.getEssenceCount(element);
     const data = CORE_ELEMENTS[element];
-
-    if (currentCount < 2) {
-      return {
-        success: false,
-        element,
-        newlyUnlocked: false,
-        alreadyHadElement: this.unlockManager.isElementUnlocked(element),
-        remainingCount: currentCount,
-        message: `Need 2 ${element} Essences to merge! Currently have ${currentCount}.`,
-        elementData: data,
-      };
-    }
-
-    // Consume 2 essences
-    const remaining = currentCount - 2;
-    this.setEssenceCount(element, remaining);
-
     const alreadyHad = this.unlockManager.isElementUnlocked(element);
     const unlocked = this.unlockManager.unlockElement(element);
 
@@ -162,10 +145,10 @@ export class EssenceMergeManager {
     let masteryBonus: number | undefined;
 
     if (!alreadyHad && unlocked) {
-      message = `🎉 ELEMENT AWAKENED! Merged 2 ${element} Essences and permanently unlocked the ${element} element!`;
+      message = `🎉 ELEMENT AWAKENED! Channeled ${element} Essence and permanently unlocked the ${element} element!`;
     } else {
       masteryBonus = 35; // +35% Mastery damage empowerment
-      message = `⚡ ELEMENT EMPOWERED! Merged 2 ${element} Essences! ${element} spells gain +35% Mastery Resonance!`;
+      message = `⚡ ELEMENT EMPOWERED! ${element} spells gain +35% Mastery Resonance!`;
     }
 
     const result: MergeResult = {
@@ -173,7 +156,7 @@ export class EssenceMergeManager {
       element,
       newlyUnlocked: !alreadyHad && unlocked,
       alreadyHadElement: alreadyHad,
-      remainingCount: remaining,
+      remainingCount: currentCount,
       message,
       elementData: data,
       masteryBonus,

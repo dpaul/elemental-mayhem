@@ -18,7 +18,6 @@ import { PlacementManager } from './engine/PlacementManager';
 import { OriginCutsceneManager } from './engine/OriginCutscene';
 import { DarkCloudsCutsceneManager } from './engine/DarkCloudsCutscene';
 import { EssenceMergeManager } from './engine/EssenceMergeManager';
-import { EssenceFusionModal } from './ui/EssenceFusionModal';
 import { ElementType, Unit, Ability, GridCoord, ZombieClass, TileHazardType, PlacementItem, PlacementCategory } from './types';
 import { CORE_ELEMENTS } from './constants/elements';
 import { HERO_CLASSES, createHeroForElement, createSandboxHero, registerAdminAbility, createAdminPower, onAdminAbilityRegistered, populateAdminAbilities, auditAndPromoteOverpoweredAbilities, isOverpoweredAbility } from './constants/classes';
@@ -246,8 +245,7 @@ export class GameApp {
   public originCutscene: OriginCutsceneManager;
   public darkCloudsCutscene: DarkCloudsCutsceneManager;
   public essenceMergeManager: EssenceMergeManager;
-  public essenceFusionModal: EssenceFusionModal;
-  private navFusionBtn: HTMLElement | null = null;
+
   private isCoopMode: boolean = false;
   private coopLocalPlayer: 1 | 2 = 1;
   private coopP1Element: ElementType = 'Fire';
@@ -502,22 +500,6 @@ export class GameApp {
       this.updateReachableTiles();
     };
 
-    this.essenceFusionModal = new EssenceFusionModal(this.essenceMergeManager, this.soundEngine);
-    this.essenceFusionModal.onMergeSuccess = (result) => {
-      this.combatEngine?.addLog('system', result.message);
-      if (this.hero && this.hero.coord && this.renderer) {
-        const heroPos = this.renderer.gridToScreen(this.hero.coord);
-        this.renderer.particleEngine.addFloatingText(`✨ FORGED: ${result.element}!`, heroPos.x, heroPos.y - 45, '#facc15', 26);
-      }
-      this.updateHUD();
-    };
-
-    this.navFusionBtn = document.getElementById('nav-fusion-btn');
-    this.navFusionBtn?.addEventListener('click', () => {
-      this.soundEngine.playClick();
-      this.essenceFusionModal.open();
-    });
-
     document.getElementById('admin-btn-round-30')?.addEventListener('click', () => {
       this.soundEngine.playClick();
       this.closeAdminPanel();
@@ -530,17 +512,11 @@ export class GameApp {
       this.playDarkCloudsCutscene();
     });
 
-    document.getElementById('admin-btn-grant-essence-pairs')?.addEventListener('click', () => {
-      this.soundEngine.playUnlock();
-      this.executeAdminCommand('give pairs');
-    });
-
     if (typeof window !== 'undefined') {
       (window as any).goToVoidOverlord = () => this.goToVoidOverlord(true);
       (window as any).goToRound1000 = () => this.goToVoidOverlord(true);
       (window as any).goToRound5000 = () => this.goToVoidOverlord5000(true);
       (window as any).goToRound30 = () => this.goToRound30(true);
-      (window as any).openFusionArea = () => this.essenceFusionModal.open();
       (window as any).triggerDarkCloudsWhirl = () => this.triggerDarkCloudsWhirl();
       (window as any).setDarkCloudsTheme = (enabled: boolean) => this.setDarkCloudsTheme(enabled);
       (window as any).playDarkCloudsCutscene = () => this.playDarkCloudsCutscene();
@@ -4846,12 +4822,9 @@ export class GameApp {
     if (this.currentRound === 30) {
       this.combatEngine.addLog(
         'system',
-        '🌟 ROUND 30 CRUCIBLE CONQUERED! The Celestial Fusion Altar awaits your elemental essences!'
+        '🌟 ROUND 30 CRUCIBLE CONQUERED! The Celestial Sanctuary bestows ancient elemental blessings!'
       );
       this.soundEngine.playVictoryFanfare();
-      setTimeout(() => {
-        this.essenceFusionModal.open();
-      }, 350);
     }
 
     if (this.currentRound === 1000) {
@@ -4951,16 +4924,22 @@ export class GameApp {
 
   public addElementalEssence(element: ElementType, amount: number = 1, coord?: GridCoord): void {
     const total = this.essenceMergeManager.addEssence(element, amount);
-    if (coord && this.renderer) {
-      const pos = this.renderer.gridToScreen(coord);
-      this.renderer.particleEngine.addFloatingText(`+${amount}x ${element} Essence (${total}/2)!`, pos.x, pos.y - 45, '#facc15', 24);
+    const wasUnlocked = this.unlockManager.isElementUnlocked(element);
+    if (!wasUnlocked) {
+      this.unlockManager.unlockElement(element);
+      this.combatEngine?.addLog('system', `🎉 ELEMENT AWAKENED! Acquired ${element} Essence and permanently unlocked ${element}!`);
+      if (coord && this.renderer) {
+        const pos = this.renderer.gridToScreen(coord);
+        this.renderer.particleEngine.addFloatingText(`✨ ${element.toUpperCase()} AWAKENED!`, pos.x, pos.y - 45, '#facc15', 26);
+      }
+    } else {
+      if (coord && this.renderer) {
+        const pos = this.renderer.gridToScreen(coord);
+        this.renderer.particleEngine.addFloatingText(`+${amount}x ${element} Essence!`, pos.x, pos.y - 45, '#facc15', 24);
+      }
+      this.combatEngine?.addLog('system', `⚡ ${element} Essence collected! Total: ${total}`);
     }
-    if (total >= 2) {
-      this.combatEngine?.addLog('system', `✨ Ready to Merge: You have ${total}x ${element} Essences! Visit the Round 30 Fusion Area to awaken this element!`);
-    }
-    if (this.essenceFusionModal.isOpen()) {
-      this.essenceFusionModal.render();
-    }
+    this.updateHUD();
   }
 
   public addEssence(amount: number, coord?: GridCoord): void {
@@ -5031,13 +5010,7 @@ export class GameApp {
   }
 
   public goToRound30(bypassAuth: boolean = false): { success: boolean; message: string } {
-    const res = this.goToLastLevel(30, bypassAuth);
-    if (res.success) {
-      setTimeout(() => {
-        this.essenceFusionModal.open();
-      }, 400);
-    }
-    return res;
+    return this.goToLastLevel(30, bypassAuth);
   }
 
   public goToLastLevel(round: number = 15, bypassAuth: boolean = false): { success: boolean; message: string } {
@@ -5077,7 +5050,7 @@ export class GameApp {
         : isR100Overlord
         ? `👑 ROUND 100: THE VOID OVERLORD!`
         : isCrucible
-        ? `🌟 ROUND 30: THE CELESTIAL FUSION CRUCIBLE!`
+        ? `🌟 ROUND 30: THE CELESTIAL SANCTUARY!`
         : `👑 LAST LEVEL: ROUND ${this.currentRound}!`,
       pos.x,
       pos.y - 35,
@@ -5099,7 +5072,7 @@ export class GameApp {
         : isR100Overlord
         ? `👑 ADMIN COMMAND: Warped to Round 100! Facing THE VOID OVERLORD (Tier 20 Boss)!`
         : isCrucible
-        ? `🌟 ADMIN COMMAND: Warped to Round 30! Entered THE CELESTIAL FUSION CRUCIBLE (Merge 2 Matching Essences)!`
+        ? `🌟 ADMIN COMMAND: Warped to Round 30! Entered THE CELESTIAL SANCTUARY (Ancient Elemental Blessings)!`
         : `👑 ADMIN COMMAND: Warped to Last Level (Round ${this.currentRound})! Facing THE VOID ARCHON (Supreme Boss)!`
     );
     this.updateHUD();
@@ -5579,7 +5552,7 @@ export class GameApp {
       return this.goToVoidOverlord5000();
     }
 
-    // 1c. Round 30 / Celestial Essence Fusion Crucible Command
+    // 1c. Round 30 / Celestial Sanctuary Command
     if (
       cmd === 'round 30' ||
       cmd === 'go to round 30' ||
@@ -5594,10 +5567,10 @@ export class GameApp {
       cmd === 'merge essences'
     ) {
       this.goToRound30(true);
-      return { success: true, message: '🌟 Warped to Round 30: Celestial Essence Fusion Crucible!' };
+      return { success: true, message: '🌟 Warped to Round 30: Celestial Sanctuary!' };
     }
 
-    // 1d. Grant Essence Pairs for Merging
+    // 1d. Grant Elemental Essences Command
     if (
       cmd === 'give pairs' ||
       cmd === 'give essence' ||
@@ -5608,11 +5581,10 @@ export class GameApp {
       cmd === 'grant pairs'
     ) {
       const elementsToGrant: ElementType[] = ['Fire', 'Water', 'Lightning', 'Void', 'Ice', 'Nature', 'Chaos', 'Life', 'Light', 'Darkness'];
-      elementsToGrant.forEach((e) => this.essenceMergeManager.addEssence(e, 2));
-      this.combatEngine?.addLog('system', '👑 ADMIN COMMAND: Granted 2x of Fire, Water, Lightning, Void, Ice, Nature, Chaos, Life, Light & Darkness Essences for merging!');
+      elementsToGrant.forEach((e) => this.addElementalEssence(e, 1));
+      this.combatEngine?.addLog('system', '👑 ADMIN COMMAND: Granted elemental essences for Fire, Water, Lightning, Void, Ice, Nature, Chaos, Life, Light & Darkness!');
       this.soundEngine.playUnlock();
-      this.essenceFusionModal.open();
-      return { success: true, message: '✨ Granted 2x essence pairs for all major disciplines!' };
+      return { success: true, message: '✨ Granted elemental essences for all major disciplines!' };
     }
 
     // 1e. Map Whirl / Dark Clouds Command
@@ -6001,13 +5973,8 @@ export class GameApp {
       this.soundEngine.playLevelUp();
       this.combatEngine.addLog(
         'system',
-        '🌌 [ROUND 30] You have entered the CELESTIAL FUSION CRUCIBLE SANCTUARY! Dual essences can be merged here to unlock or empower elements!'
+        '🌌 [ROUND 30] You have entered the CELESTIAL SANCTUARY! Ancient elemental energies resonate throughout the arena!'
       );
-      setTimeout(() => {
-        if (this.currentRound === 30 && this.essenceFusionModal) {
-          this.essenceFusionModal.open();
-        }
-      }, 700);
     }
   }
 
