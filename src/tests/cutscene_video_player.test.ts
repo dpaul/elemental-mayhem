@@ -291,12 +291,12 @@ describe('Cinematic Video Player & Voice Acting System', () => {
     // Now trigger voiceover dialogue completion for Chapter 0
     cutsceneManager.voiceManager.onChapterDialogueComplete?.(0);
 
-    // Within the 1.8s post-dialogue savor period, it remains on Chapter 0
-    vi.advanceTimersByTime(1000);
+    // Within the 2.2s post-dialogue savor period, it remains on Chapter 0
+    vi.advanceTimersByTime(1500);
     expect(cutsceneManager.getCurrentChapterIndex()).toBe(0);
 
-    // After the 1.8s savor buffer elapses, it advances to Chapter 1!
-    vi.advanceTimersByTime(850);
+    // After the 2.2s savor buffer elapses, it advances to Chapter 1!
+    vi.advanceTimersByTime(800);
     expect(cutsceneManager.getCurrentChapterIndex()).toBe(1);
 
     vi.useRealTimers();

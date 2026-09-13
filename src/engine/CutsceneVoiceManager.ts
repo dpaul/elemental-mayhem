@@ -123,19 +123,19 @@ export const CHAPTER_DIALOGUES: Record<number, CutsceneDialogueLine[]> = {
       id: 'ch1_line1',
       speakerId: 'narrator',
       text: 'Long before the arenas were forged, two primeval giants collided in a war that shattered reality!',
-      durationEstimateMs: 6000,
+      durationEstimateMs: 7500,
     },
     {
       id: 'ch1_line2',
       speakerId: 'titan_magma',
       text: 'I am the eternal flame! I will scorch this entire cosmos into ash!',
-      durationEstimateMs: 4800,
+      durationEstimateMs: 6500,
     },
     {
       id: 'ch1_line3',
       speakerId: 'titan_void',
       text: 'The void swallows all light! Submit to the infinite abyss!',
-      durationEstimateMs: 4600,
+      durationEstimateMs: 6200,
     },
   ],
 
@@ -145,13 +145,13 @@ export const CHAPTER_DIALOGUES: Record<number, CutsceneDialogueLine[]> = {
       id: 'ch2_line1',
       speakerId: 'narrator',
       text: "The titans' clash tore open a colossal dimensional rift in the fabric of spacetime!",
-      durationEstimateMs: 5200,
+      durationEstimateMs: 6800,
     },
     {
       id: 'ch2_line2',
       speakerId: 'titan_void',
       text: 'Fall... into the dimensional singularity...',
-      durationEstimateMs: 3800,
+      durationEstimateMs: 5500,
     },
   ],
 
@@ -161,13 +161,13 @@ export const CHAPTER_DIALOGUES: Record<number, CutsceneDialogueLine[]> = {
       id: 'ch3_line1',
       speakerId: 'seeker',
       text: "I'm falling! The rift's gravity is tearing me across hyperspace!",
-      durationEstimateMs: 4200,
+      durationEstimateMs: 5800,
     },
     {
       id: 'ch3_line2',
       speakerId: 'narrator',
       text: 'You crash-land upon the mystical miniature world of the Arena!',
-      durationEstimateMs: 4200,
+      durationEstimateMs: 5800,
     },
   ],
 
@@ -177,19 +177,19 @@ export const CHAPTER_DIALOGUES: Record<number, CutsceneDialogueLine[]> = {
       id: 'ch4_line1',
       speakerId: 'narrator',
       text: 'An ancient Grand Arch-Wizard channeled godlike elemental magic into your soul!',
-      durationEstimateMs: 5000,
+      durationEstimateMs: 6800,
     },
     {
       id: 'ch4_line2',
       speakerId: 'wizard',
       text: 'Rise, young wanderer! Take my power... all fifty elements are now yours!',
-      durationEstimateMs: 4800,
+      durationEstimateMs: 6500,
     },
     {
       id: 'ch4_line3',
       speakerId: 'seeker',
       text: 'By the stars... I can feel the godlike magic surging through my hands!',
-      durationEstimateMs: 4400,
+      durationEstimateMs: 6000,
     },
   ],
 
@@ -199,25 +199,25 @@ export const CHAPTER_DIALOGUES: Record<number, CutsceneDialogueLine[]> = {
       id: 'ch5_line1',
       speakerId: 'narrator',
       text: 'Suddenly, the sky turned black as the sinister Void Overlord struck from the dark!',
-      durationEstimateMs: 5200,
+      durationEstimateMs: 6800,
     },
     {
       id: 'ch5_line2',
       speakerId: 'void_overlord',
       text: 'Foolish old wizard! That godlike power belongs to the Void! IT IS MINE!',
-      durationEstimateMs: 5000,
+      durationEstimateMs: 6500,
     },
     {
       id: 'ch5_line3',
       speakerId: 'wizard',
       text: 'No! Protect the starter embers!',
-      durationEstimateMs: 2500,
+      durationEstimateMs: 3800,
     },
     {
       id: 'ch5_line4',
       speakerId: 'seeker',
       text: 'My magic... he violently ripped it away! Only three starter embers remain!',
-      durationEstimateMs: 4800,
+      durationEstimateMs: 6500,
     },
   ],
 
@@ -227,25 +227,25 @@ export const CHAPTER_DIALOGUES: Record<number, CutsceneDialogueLine[]> = {
       id: 'ch6_line1',
       speakerId: 'void_overlord',
       text: 'From the dark clouds, I rule the cosmos! Face me on Round 1000 if you dare!',
-      durationEstimateMs: 5200,
+      durationEstimateMs: 6800,
     },
     {
       id: 'ch6_line2',
       speakerId: 'wizard',
       text: 'Do not despair! Defeat the Overlord in the dark clouds on Round 1000 to reclaim your power!',
-      durationEstimateMs: 5600,
+      durationEstimateMs: 7500,
     },
     {
       id: 'ch6_line3',
       speakerId: 'seeker',
       text: 'I will conquer every arena and defeat the Void Overlord in the dark clouds on Round 1000!',
-      durationEstimateMs: 5400,
+      durationEstimateMs: 7200,
     },
     {
       id: 'ch6_line4',
       speakerId: 'narrator',
       text: 'Your mission begins now! Ascend through the arenas and reclaim your destiny!',
-      durationEstimateMs: 4800,
+      durationEstimateMs: 6500,
     },
   ],
 };
@@ -264,6 +264,7 @@ export class CutsceneVoiceManager {
   private isQueueActive: boolean = false;
   private safetyTimer: any = null;
   private keepAliveTimer: any = null;
+  private activeUtterance: SpeechSynthesisUtterance | null = null;
 
   // Cached system voices
   private availableVoices: SpeechSynthesisVoice[] = [];
@@ -431,10 +432,10 @@ export class CutsceneVoiceManager {
     this.speakLine(line, () => {
       if (!this.isQueueActive) return;
       this.currentQueueIndex++;
-      // Natural 350ms pause between character voices
+      // Natural 450ms breath pause between character voices so words never clip
       const nextTimer = setTimeout(() => {
         this.processQueue();
-      }, 350);
+      }, 450);
       this.scheduledTimers.push(nextTimer);
     });
   }
@@ -455,7 +456,7 @@ export class CutsceneVoiceManager {
     this.soundEngine.playCharacterVocalTone(line.speakerId);
 
     // Calculate speech duration
-    const speechDurationMs = line.durationEstimateMs || Math.max(3200, line.text.length * 65);
+    const speechDurationMs = line.durationEstimateMs || Math.max(3500, line.text.length * 75);
 
     // Play procedural character speech babble for audible voice chatter
     if (!this.isVoiceMuted) {
@@ -477,6 +478,10 @@ export class CutsceneVoiceManager {
       if (this.activeBabbleHandle) {
         this.activeBabbleHandle.stop();
         this.activeBabbleHandle = null;
+      }
+      this.activeUtterance = null;
+      if (typeof window !== 'undefined') {
+        (window as any).__activeCutsceneUtterance = null;
       }
       this.setSpeakingState(false);
       this.onDialogueLineEnd?.(line);
@@ -503,14 +508,16 @@ export class CutsceneVoiceManager {
     const lineStartTime = Date.now();
 
     try {
-      if (window.speechSynthesis.speaking) {
-        window.speechSynthesis.cancel();
-      }
-
       const utterance = new SpeechSynthesisUtterance(line.text);
       utterance.pitch = profile.pitch;
       utterance.rate = profile.rate;
       utterance.volume = profile.volume;
+
+      // Keep strong reference so V8 GC never collects utterance in the middle of speaking
+      this.activeUtterance = utterance;
+      if (typeof window !== 'undefined') {
+        (window as any).__activeCutsceneUtterance = utterance;
+      }
 
       // Match best system voice
       const selectedVoice = this.pickBestVoiceForSpeaker(profile);
@@ -523,6 +530,14 @@ export class CutsceneVoiceManager {
       let hasFinished = false;
       const safeFinish = () => {
         if (hasFinished) return;
+
+        // Ensure browser SpeechSynthesis has actually finished outputting audio before ending
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window && window.speechSynthesis.speaking) {
+          const pollTimer = setTimeout(safeFinish, 200);
+          this.scheduledTimers.push(pollTimer);
+          return;
+        }
+
         hasFinished = true;
 
         // Ensure the line stays active for at least the full spoken/reading duration
@@ -540,8 +555,6 @@ export class CutsceneVoiceManager {
 
       utterance.onend = safeFinish;
       utterance.onerror = () => {
-        // When speech synthesis errors or drops, safeFinish guarantees
-        // the procedural voice babble and dialogue remain active for the full speech duration!
         safeFinish();
       };
 
@@ -555,9 +568,17 @@ export class CutsceneVoiceManager {
         }
       }, 4500);
 
-      // Safety timeout in case browser event drops
-      const maxEstimatedTime = Math.max(5000, line.text.length * 140 + 3500);
-      this.safetyTimer = setTimeout(safeFinish, maxEstimatedTime);
+      // Safety timeout in case browser event drops - never cut off while speaking is true!
+      const checkSafety = () => {
+        if (hasFinished) return;
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window && window.speechSynthesis.speaking) {
+          this.safetyTimer = setTimeout(checkSafety, 2000);
+          return;
+        }
+        safeFinish();
+      };
+      const maxEstimatedTime = Math.max(9000, line.text.length * 150 + 6000);
+      this.safetyTimer = setTimeout(checkSafety, maxEstimatedTime);
 
       // Resume speech synthesis to prevent browser autoplay block
       try {
@@ -566,7 +587,20 @@ export class CutsceneVoiceManager {
         // ignore
       }
 
-      window.speechSynthesis.speak(utterance);
+      const doSpeak = () => {
+        try {
+          window.speechSynthesis.speak(utterance);
+        } catch (err) {
+          console.warn('Cutscene speech synthesis speak error:', err);
+          safeFinish();
+        }
+      };
+
+      if (window.speechSynthesis.speaking) {
+        setTimeout(doSpeak, 120);
+      } else {
+        doSpeak();
+      }
     } catch {
       const elapsed = Date.now() - lineStartTime;
       const remaining = Math.max(0, speechDurationMs - elapsed);
@@ -702,6 +736,11 @@ export class CutsceneVoiceManager {
       this.activeBabbleHandle = null;
     }
 
+    this.activeUtterance = null;
+    if (typeof window !== 'undefined') {
+      (window as any).__activeCutsceneUtterance = null;
+    }
+
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       try {
         window.speechSynthesis.cancel();
@@ -789,6 +828,10 @@ export class CutsceneVoiceManager {
 
   public getCurrentLine(): CutsceneDialogueLine | null {
     return this.currentLine;
+  }
+
+  public getActiveUtterance(): SpeechSynthesisUtterance | null {
+    return this.activeUtterance;
   }
 
   public getChapterLines(chapterIndex: number): CutsceneDialogueLine[] {

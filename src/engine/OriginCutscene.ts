@@ -127,16 +127,21 @@ export class OriginCutsceneManager {
     this.voiceManager.onChapterDialogueComplete = (chapterIdx) => {
       if (this.isPlaying && chapterIdx === this.currentChapterIndex) {
         if (this.autoAdvanceTimer) clearTimeout(this.autoAdvanceTimer);
-        // Savor the completed scene for 1.8s after audio finishes before moving to next chapter
+        // Savor the completed scene for 2.2s after all audio finishes before moving to next chapter
         this.autoAdvanceTimer = setTimeout(() => {
           if (this.isPlaying && chapterIdx === this.currentChapterIndex) {
+            // Confirm speech is not still trailing or speaking before advancing
+            if (typeof window !== 'undefined' && 'speechSynthesis' in window && window.speechSynthesis.speaking) {
+              this.voiceManager.onChapterDialogueComplete?.(chapterIdx);
+              return;
+            }
             if (this.currentChapterIndex < CUTSCENE_CHAPTERS.length - 1) {
               this.nextChapter();
             } else {
               this.pause();
             }
           }
-        }, 1800);
+        }, 2200);
       }
     };
 
@@ -775,10 +780,18 @@ export class OriginCutsceneManager {
     // This timer acts as a reliable safety net failsafe in case browser SpeechSynthesis
     // drops completion events or speech synthesis is muted/blocked.
     const chapterDuration = this.getChapterDurationMs(this.currentChapterIndex);
-    const failsafeMs = chapterDuration + 6000;
+    const failsafeMs = chapterDuration + 8000;
 
     this.autoAdvanceTimer = setTimeout(() => {
       if (this.isPlaying) {
+        // NEVER advance while speech is still active or speaking!
+        if (
+          this.voiceManager.isDialogueActive() ||
+          (typeof window !== 'undefined' && 'speechSynthesis' in window && window.speechSynthesis.speaking)
+        ) {
+          this.scheduleNext();
+          return;
+        }
         if (this.currentChapterIndex < CUTSCENE_CHAPTERS.length - 1) {
           this.nextChapter();
         } else {

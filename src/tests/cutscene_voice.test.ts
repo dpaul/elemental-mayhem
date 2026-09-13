@@ -229,7 +229,7 @@ describe('CutsceneVoiceManager & Spoken Dialogue System', () => {
     };
 
     const doneSpy = vi.fn();
-    const line = CHAPTER_DIALOGUES[0][0]; // 6000ms durationEstimate
+    const line = CHAPTER_DIALOGUES[0][0]; // 7500ms durationEstimate
     voiceManager.speakLine(line, doneSpy);
 
     // Speech synthesis immediately fires an error or early onend at 50ms
@@ -243,8 +243,51 @@ describe('CutsceneVoiceManager & Spoken Dialogue System', () => {
     vi.advanceTimersByTime(3000);
     expect(doneSpy).not.toHaveBeenCalled();
 
-    // At 6000ms (full speech duration), line completes!
-    vi.advanceTimersByTime(1100);
+    // At 7500ms (full speech duration), line completes!
+    vi.advanceTimersByTime(2600);
+    expect(doneSpy).toHaveBeenCalledTimes(1);
+
+    vi.useRealTimers();
+  });
+
+  it('keeps speech line active and does not finish if window.speechSynthesis is still speaking', () => {
+    vi.useFakeTimers();
+
+    let spokenUtterance: any = null;
+    let isSpeaking = false;
+    (globalThis as any).window = {
+      speechSynthesis: {
+        get speaking() {
+          return isSpeaking;
+        },
+        speak: (utterance: any) => {
+          spokenUtterance = utterance;
+        },
+        getVoices: vi.fn().mockReturnValue([]),
+        cancel: vi.fn(),
+        pause: vi.fn(),
+        resume: vi.fn(),
+      },
+    };
+
+    const doneSpy = vi.fn();
+    const line = CHAPTER_DIALOGUES[0][0]; // 7500ms
+    voiceManager.speakLine(line, doneSpy);
+
+    // Browser audio playback starts and is ongoing
+    isSpeaking = true;
+
+    // Utterance onend fires early while browser audio is still active
+    spokenUtterance?.onend?.();
+
+    // Advance past the 7500ms duration
+    vi.advanceTimersByTime(8000);
+    // Since speaking is still true, doneSpy MUST NOT have been called
+    expect(doneSpy).not.toHaveBeenCalled();
+
+    // Now synthesis finally completes audio output
+    isSpeaking = false;
+    vi.advanceTimersByTime(300);
     expect(doneSpy).toHaveBeenCalledTimes(1);
 
     vi.useRealTimers();
