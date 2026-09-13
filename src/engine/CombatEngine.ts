@@ -120,6 +120,32 @@ export class CombatEngine {
     return count;
   }
 
+  /**
+   * Kills all Primordial Titans on Round 1000
+   */
+  public killRound1000Titans(reason: string = 'The Void Overlord unleashed a catastrophic Titan Execution'): Unit[] {
+    const killedTitans: Unit[] = [];
+    for (const ally of this.allies) {
+      if (
+        !ally.isDead &&
+        (ally.id.includes('colossus') ||
+          ally.id.includes('leviathan') ||
+          ally.name.toLowerCase().includes('titan') ||
+          ally.name.toLowerCase().includes('colossus') ||
+          ally.name.toLowerCase().includes('leviathan'))
+      ) {
+        ally.stats.currentHp = 0;
+        ally.isDead = true;
+        killedTitans.push(ally);
+        this.addLog(
+          'system',
+          `💀 [TITAN KILLED ON ROUND 1000] ${ally.name} was crushed and killed by ${reason}!`
+        );
+      }
+    }
+    return killedTitans;
+  }
+
   public getUnitAt(coord: GridCoord): Unit | null {
     if (!this.hero.isDead && this.hero.coord.x === coord.x && this.hero.coord.y === coord.y) {
       return this.hero;

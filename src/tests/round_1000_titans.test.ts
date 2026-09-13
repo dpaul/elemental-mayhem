@@ -195,4 +195,73 @@ describe('Round 1000 Void Overlord & Primordial Titan Allies', () => {
     expect(overlord.stats.currentHp).toBeLessThan(initialHp);
     expect(initialHp - overlord.stats.currentHp).toBeGreaterThan(250);
   });
+
+  it('kills both Primordial Titans on Round 1000 with killRound1000Titans', () => {
+    const enemies = escalation.generateRoundEnemies(1000);
+    const combatEngine = new CombatEngine(grid, hazardManager, hero, enemies);
+
+    const magmaColossus: Unit = {
+      id: 'ally_magma_colossus_r1000',
+      name: 'MAGMA COLOSSUS (Primordial Titan)',
+      faction: 'Player',
+      avatar: '🗿🌋',
+      coord: { x: 3, y: 2 },
+      isBoss: true,
+      stats: {
+        maxHp: 15000,
+        currentHp: 15000,
+        maxAp: 6,
+        currentAp: 6,
+        moveCostPerTile: 1,
+        elementalAffinity: 'Fire',
+      },
+      abilities: [],
+      statusEffects: [],
+      isDead: false,
+    };
+
+    const voidLeviathan: Unit = {
+      id: 'ally_void_leviathan_r1000',
+      name: 'VOID LEVIATHAN (Primordial Titan)',
+      faction: 'Player',
+      avatar: '🌌⚡',
+      coord: { x: 3, y: 7 },
+      isBoss: true,
+      stats: {
+        maxHp: 15000,
+        currentHp: 15000,
+        maxAp: 6,
+        currentAp: 6,
+        moveCostPerTile: 1,
+        elementalAffinity: 'Void',
+      },
+      abilities: [],
+      statusEffects: [],
+      isDead: false,
+    };
+
+    combatEngine.allies.push(magmaColossus, voidLeviathan);
+    expect(combatEngine.getAllAllies().length).toBe(3); // Hero + 2 Titans
+
+    // Execute killRound1000Titans
+    const killed = combatEngine.killRound1000Titans('The Void Overlord Titan Slayer');
+    expect(killed.length).toBe(2);
+    expect(killed).toContain(magmaColossus);
+    expect(killed).toContain(voidLeviathan);
+
+    // Both titans must be dead with 0 HP
+    expect(magmaColossus.isDead).toBe(true);
+    expect(magmaColossus.stats.currentHp).toBe(0);
+    expect(voidLeviathan.isDead).toBe(true);
+    expect(voidLeviathan.stats.currentHp).toBe(0);
+
+    // Hero stands alone now
+    const remainingAllies = combatEngine.getAllAllies();
+    expect(remainingAllies.length).toBe(1);
+    expect(remainingAllies[0]).toBe(hero);
+
+    // Dead titans no longer occupy tiles
+    expect(combatEngine.getUnitAt({ x: 3, y: 2 })).toBeNull();
+    expect(combatEngine.getUnitAt({ x: 3, y: 7 })).toBeNull();
+  });
 });

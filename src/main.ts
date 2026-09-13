@@ -521,6 +521,7 @@ export class GameApp {
       (window as any).setDarkCloudsTheme = (enabled: boolean) => this.setDarkCloudsTheme(enabled);
       (window as any).playDarkCloudsCutscene = () => this.playDarkCloudsCutscene();
       (window as any).playVoidOverlordCutscene = () => this.playDarkCloudsCutscene();
+      (window as any).killTitans = () => this.killRound1000Titans();
     }
     this.attachCombatEngineHooks(this.combatEngine);
     this.enemyAI = new EnemyAI(this.combatEngine);
@@ -2397,6 +2398,10 @@ export class GameApp {
       if ((this.currentRound === 1000 || this.currentRound === 5000) && !this.r1000TitansSummoned && (enemy.id.includes('void_overlord') || enemy.isBoss)) {
         this.r1000TitansSummoned = true;
         await this.summonRound1000Titans(enemy);
+        if (this.currentRound === 1000) {
+          await delay(1200);
+          await this.killRound1000Titans(enemy);
+        }
       }
 
       enemy.stats.currentAp = enemy.stats.maxAp;
@@ -4541,6 +4546,10 @@ export class GameApp {
         if ((this.currentRound === 1000 || this.currentRound === 5000) && !this.r1000TitansSummoned && (enemy.id.includes('void_overlord') || enemy.isBoss)) {
           this.r1000TitansSummoned = true;
           await this.summonRound1000Titans(enemy);
+          if (this.currentRound === 1000) {
+            await delay(1200);
+            await this.killRound1000Titans(enemy);
+          }
         }
 
         this.focusedUnitId = enemy.id;
@@ -4828,12 +4837,13 @@ export class GameApp {
     }
 
     if (this.currentRound === 1000) {
+      void this.killRound1000Titans();
       this.totalEssence += 50000;
       this.totalXp += 50000;
       this.unlockManager.unlockAllElements(true);
       this.combatEngine.addLog(
         'system',
-        '👑 [THE VOID OVERLORD RETREATS!] The Void Overlord was defeated, but his dark astral core fled into the deep cosmos! You must now journey to Round 5,000 to confront him in his 10X MORE POWERFUL ascended form!'
+        '👑 [THE VOID OVERLORD RETREATS!] The Void Overlord was defeated, but his dark astral core fled into the deep cosmos! The Primordial Titans have perished, and you must now journey to Round 5,000 to confront him in his 10X MORE POWERFUL ascended form!'
       );
       this.soundEngine.playVictoryFanfare();
       this.soundEngine.playBossWarhorn();
@@ -5377,6 +5387,63 @@ export class GameApp {
     await delay(750);
   }
 
+  public async killRound1000Titans(bossUnit?: Unit): Promise<void> {
+    const titans = this.combatEngine.allies.filter(
+      (a) =>
+        !a.isDead &&
+        (a.id.includes('colossus') ||
+          a.id.includes('leviathan') ||
+          a.name.toLowerCase().includes('titan') ||
+          a.name.toLowerCase().includes('colossus') ||
+          a.name.toLowerCase().includes('leviathan'))
+    );
+    if (titans.length === 0) return;
+
+    const bossName = bossUnit?.name || 'The Void Overlord';
+    this.hud.updatePhaseBanner('💀 THE PRIMORDIAL TITANS HAVE FALLEN!');
+    this.soundEngine.playCosmicSingularity();
+    this.soundEngine.playExplosion();
+    if (this.renderer) {
+      this.renderer.particleEngine.triggerScreenShake(32, 1200);
+    }
+
+    this.combatEngine.addLog(
+      'reaction',
+      `😈 [OVERLORD TITAN EXECUTION] ${bossName} roars: "Insolent giants! Your primordial bones shall feed the void!"`
+    );
+
+    for (const titan of titans) {
+      titan.stats.currentHp = 0;
+      titan.isDead = true;
+      this.deadUnitIds.add(titan.id);
+
+      if (this.renderer) {
+        const pos = this.renderer.gridToScreen(titan.coord);
+        this.renderer.particleEngine.emit(pos.x, pos.y, '#9333ea', 60, 6, 'skull');
+        this.renderer.particleEngine.emit(pos.x, pos.y, '#ef4444', 40, 5, 'spark');
+        this.renderer.particleEngine.addFloatingText(
+          `💀 ${titan.name.toUpperCase()} KILLED!`,
+          pos.x,
+          pos.y - 45,
+          '#ef4444',
+          26
+        );
+      }
+      this.combatEngine.addLog(
+        'system',
+        `💀 [TITAN KILLED ON ROUND 1000] ${titan.name} was slaughtered by ${bossName}'s catastrophic void strike!`
+      );
+    }
+
+    this.combatEngine.addLog(
+      'reaction',
+      '⚠️ THE TITANS HAVE BEEN KILLED! You stand alone to finish Round 1000 and avenge them!'
+    );
+
+    this.updateHUD();
+    await delay(1000);
+  }
+
   public executeAdminCommand(input: string, options?: { fromNetwork?: boolean; senderPlayer?: 1 | 2 }): { success: boolean; message: string } {
     const raw = input.trim();
     if (!raw) return { success: false, message: 'Command is empty.' };
@@ -5610,6 +5677,12 @@ export class GameApp {
     ) {
       this.playDarkCloudsCutscene();
       return { success: true, message: '🌩️ Playing "Ascent to the Dark Clouds" Cutscene!' };
+    }
+
+    // 1g. Kill Titans Command
+    if (cmd === 'kill titans' || cmd === 'kill titan' || cmd === 'titans dead' || cmd === 'slay titans') {
+      this.killRound1000Titans();
+      return { success: true, message: '💀 Primordial Titans have been killed!' };
     }
 
     // 2. Specific round jump: "round 15", "level 10", "goto 12", "go to round 5"
