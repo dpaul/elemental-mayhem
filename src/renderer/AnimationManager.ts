@@ -11,6 +11,18 @@ export interface MovementAnimation {
   onComplete?: () => void;
 }
 
+export interface WalkCycleState {
+  isMoving: boolean;
+  walkPhase: number;
+  bobOffset: number;
+  leftStride: number;
+  rightStride: number;
+  leftLift: number;
+  rightLift: number;
+  armSwing: number;
+  torsoSway: number;
+}
+
 export class AnimationManager {
   private activeMovements: Map<string, MovementAnimation> = new Map();
 
@@ -56,6 +68,62 @@ export class AnimationManager {
     return {
       x: from.x + (to.x - from.x) * t,
       y: from.y + (to.y - from.y) * t,
+    };
+  }
+
+  /**
+   * Computes the current walking cycle animation state (stepping legs, arm swing, gait bounce, torso tilt)
+   */
+  public getUnitWalkState(unitId: string, currentTimeMs: number = 0): WalkCycleState {
+    const anim = this.activeMovements.get(unitId);
+    if (anim) {
+      // 2 complete steps (left and right) per tile traversal
+      const totalSteps = (anim.currentSegmentIndex + anim.segmentProgress) * 2;
+      const walkPhase = totalSteps * Math.PI;
+
+      // Vertical bipedal gait bounce (peaks at mid-stride)
+      const bobOffset = -Math.abs(Math.sin(walkPhase)) * 5.5;
+
+      // Stride distance forward/back
+      const strideDist = 8;
+      const leftStride = (Math.sin(walkPhase) * strideDist) || 0;
+      const rightStride = (-Math.sin(walkPhase) * strideDist) || 0;
+
+      // Foot vertical lift during forward step swing
+      const leftLift = Math.max(0, -Math.cos(walkPhase)) * 5;
+      const rightLift = Math.max(0, Math.cos(walkPhase)) * 5;
+
+      // Arm swing in natural counter-motion to legs
+      const armSwing = Math.sin(walkPhase) * 0.4;
+
+      // Rhythmic torso sway with walking cadence
+      const torsoSway = Math.sin(walkPhase) * 0.08;
+
+      return {
+        isMoving: true,
+        walkPhase,
+        bobOffset,
+        leftStride,
+        rightStride,
+        leftLift,
+        rightLift,
+        armSwing,
+        torsoSway,
+      };
+    }
+
+    // Idle stance - subtle breathing and alert presence
+    const idlePhase = currentTimeMs * 0.003;
+    return {
+      isMoving: false,
+      walkPhase: 0,
+      bobOffset: Math.sin(idlePhase) * 1.5,
+      leftStride: 0,
+      rightStride: 0,
+      leftLift: 0,
+      rightLift: 0,
+      armSwing: Math.sin(idlePhase * 0.6) * 0.04,
+      torsoSway: Math.sin(idlePhase * 0.4) * 0.02,
     };
   }
 

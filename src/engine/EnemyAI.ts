@@ -17,10 +17,29 @@ export class EnemyAI {
    * Evaluates the tactical priority of an ability against a target.
    * Higher score = higher priority to cast.
    */
-  private scoreAbility(ability: Ability, target: Unit): number {
+  private scoreAbility(
+    ability: Ability,
+    target: Unit,
+    caster?: Unit,
+    simulatedShielded: boolean = false
+  ): number {
+    // 1. Self-targeted abilities (e.g. Shields & Defensive Wards)
+    if (ability.targeting === 'Self') {
+      if (ability.appliesStatus === 'Shielded') {
+        if (simulatedShielded || (caster && caster.statusEffects.some((s) => s.type === 'Shielded'))) {
+          return 0; // Already shielded, avoid wasteful recast
+        }
+        const hpMissing = caster ? caster.stats.maxHp - caster.stats.currentHp : 0;
+        const maxHp = caster ? caster.stats.maxHp : 100;
+        // Prioritize shields when damaged or to absorb incoming player punishment
+        return 35 + (hpMissing / maxHp) * 45;
+      }
+      return 25;
+    }
+
     let score = ability.baseDamage;
 
-    // 1. Check if this ability triggers an elemental reaction with player's active status
+    // 2. Check if this ability triggers an elemental reaction with player's active status
     const targetStatus = target.statusEffects.length > 0 ? target.statusEffects[0].type : null;
     if (targetStatus) {
       const reaction = this.combatEngine.reactionEngine.evaluateUnitReaction(ability.element, targetStatus);
@@ -29,17 +48,17 @@ export class EnemyAI {
       }
     }
 
-    // 2. Bonus for applying debilitating status effects if target has no active status
+    // 3. Bonus for applying debilitating status effects if target has no active status
     if (ability.appliesStatus && target.statusEffects.length === 0) {
       score += 15;
     }
 
-    // 3. Bonus for AoE spells
+    // 4. Bonus for AoE spells
     if (ability.aoeRadius > 0) {
       score += 10;
     }
 
-    // 4. Multiplier if enemy has elemental affinity advantage
+    // 5. Multiplier if enemy has elemental affinity advantage
     const multiplier = this.combatEngine.matrix.getAffinityMultiplier(
       ability.element,
       target.stats.elementalAffinity
@@ -69,29 +88,54 @@ export class EnemyAI {
 
     let simulatedAp = enemy.stats.currentAp;
     let simulatedCoord = { ...enemy.coord };
+    const usedAbilitiesInTurn = new Set<string>();
+    let simulatedShielded = enemy.statusEffects.some((s) => s.type === 'Shielded');
 
     let attempts = 0;
-    while (simulatedAp > 0 && attempts < 6) {
+    while (simulatedAp > 0 && attempts < 12) {
       attempts++;
       const dist = this.combatEngine.grid.manhattanDistance(simulatedCoord, effectiveTarget.coord);
 
       // Find all usable abilities right now
-      const usableAbilities = enemy.abilities.filter(
-        (a) => a.apCost <= simulatedAp && a.currentCooldown === 0 && dist <= a.range
-      );
+      const usableAbilities = enemy.abilities.filter((a) => {
+        if (a.apCost > simulatedAp) return false;
+        if (a.currentCooldown > 0) return false;
+        if (a.cooldown > 0 && usedAbilitiesInTurn.has(a.id)) return false;
 
-      if (usableAbilities.length > 0 && this.combatEngine.grid.hasLineOfSight(simulatedCoord, effectiveTarget.coord)) {
+        if (a.targeting === 'Self') {
+          if (a.appliesStatus === 'Shielded' && simulatedShielded) return false;
+          return true;
+        }
+
+        return dist <= a.range && this.combatEngine.grid.hasLineOfSight(simulatedCoord, effectiveTarget.coord);
+      });
+
+      if (usableAbilities.length > 0) {
         // Pick best ability based on tactical score
         usableAbilities.sort((a, b) => {
-          return this.scoreAbility(b, effectiveTarget) - this.scoreAbility(a, effectiveTarget);
+          return (
+            this.scoreAbility(b, effectiveTarget, enemy, simulatedShielded) -
+            this.scoreAbility(a, effectiveTarget, enemy, simulatedShielded)
+          );
         });
 
         const chosenAbility = usableAbilities[0];
+        const isSelf = chosenAbility.targeting === 'Self';
+        const targetCoord = isSelf ? { ...simulatedCoord } : { ...effectiveTarget.coord };
+
+        if (isSelf && chosenAbility.appliesStatus === 'Shielded') {
+          simulatedShielded = true;
+        }
+
+        if (chosenAbility.cooldown > 0) {
+          usedAbilitiesInTurn.add(chosenAbility.id);
+        }
+
         steps.push({
           type: 'cast',
           unit: enemy,
           ability: chosenAbility,
-          targetCoord: { ...effectiveTarget.coord },
+          targetCoord,
         });
         simulatedAp -= chosenAbility.apCost;
       } else {
@@ -102,8 +146,18 @@ export class EnemyAI {
 
         // Find best ability we would LIKE to cast if we get in range
         const potentialAbilities = enemy.abilities
-          .filter((a) => a.currentCooldown === 0 && a.apCost <= simulatedAp)
-          .sort((a, b) => this.scoreAbility(b, effectiveTarget) - this.scoreAbility(a, effectiveTarget));
+          .filter(
+            (a) =>
+              a.currentCooldown === 0 &&
+              !usedAbilitiesInTurn.has(a.id) &&
+              a.apCost <= simulatedAp &&
+              a.targeting !== 'Self'
+          )
+          .sort(
+            (a, b) =>
+              this.scoreAbility(b, effectiveTarget, enemy, simulatedShielded) -
+              this.scoreAbility(a, effectiveTarget, enemy, simulatedShielded)
+          );
 
         const targetAbility = potentialAbilities[0];
 

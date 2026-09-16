@@ -1,5 +1,6 @@
 // Elemental Mayhem - Multi-Tier Escalation & Boss Gauntlet Engine
 import { Unit, Ability, PassiveRelic, ElementType } from '../types';
+import { upgradeToCPUChampion } from '../constants/classes';
 
 export class EscalationManager {
   public generateRoundEnemies(round: number): Unit[] {
@@ -2285,7 +2286,7 @@ export class EscalationManager {
         break;
     }
 
-    return enemies;
+    return enemies.map((enemy) => upgradeToCPUChampion(enemy, round));
   }
 
   public getAvailableUpgrades(): {

@@ -18,9 +18,11 @@ import { PlacementManager } from './engine/PlacementManager';
 import { OriginCutsceneManager } from './engine/OriginCutscene';
 import { DarkCloudsCutsceneManager } from './engine/DarkCloudsCutscene';
 import { EssenceMergeManager } from './engine/EssenceMergeManager';
+import { CrystalGardenManager } from './engine/CrystalManager';
+import { CrystalGardenUI } from './ui/CrystalGardenUI';
 import { ElementType, Unit, Ability, GridCoord, ZombieClass, TileHazardType, PlacementItem, PlacementCategory } from './types';
 import { CORE_ELEMENTS } from './constants/elements';
-import { HERO_CLASSES, createHeroForElement, createSandboxHero, registerAdminAbility, createAdminPower, onAdminAbilityRegistered, populateAdminAbilities, auditAndPromoteOverpoweredAbilities, isOverpoweredAbility } from './constants/classes';
+import { HERO_CLASSES, createHeroForElement, createSandboxHero, upgradeToCPUChampion, registerAdminAbility, createAdminPower, onAdminAbilityRegistered, populateAdminAbilities, auditAndPromoteOverpoweredAbilities, isOverpoweredAbility } from './constants/classes';
 import { NetworkManager } from './network/NetworkManager';
 import { NetworkMessage } from './network/NetworkMessages';
 
@@ -245,6 +247,8 @@ export class GameApp {
   public originCutscene: OriginCutsceneManager;
   public darkCloudsCutscene: DarkCloudsCutsceneManager;
   public essenceMergeManager: EssenceMergeManager;
+  public crystalGardenManager: CrystalGardenManager;
+  public crystalGardenUI: CrystalGardenUI;
 
   private isCoopMode: boolean = false;
   private coopLocalPlayer: 1 | 2 = 1;
@@ -498,6 +502,56 @@ export class GameApp {
       );
       this.updateHUD();
       this.updateReachableTiles();
+    };
+
+    this.crystalGardenManager = new CrystalGardenManager();
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        const savedGarden = window.localStorage.getItem('ELEMENTAL_MAYHEM_GARDEN_STATE');
+        if (savedGarden) {
+          this.crystalGardenManager.loadState(JSON.parse(savedGarden));
+        }
+      } catch (e) {
+        console.warn('Failed to load garden state from localStorage:', e);
+      }
+    }
+    if (this.hero) {
+      this.crystalGardenManager.applyCraftedRelicsToHero(this.hero);
+    }
+
+    this.crystalGardenUI = new CrystalGardenUI(
+      this.crystalGardenManager,
+      this.soundEngine,
+      {
+        getEssence: () => this.totalEssence,
+        deductEssence: (amt) => {
+          if (this.totalEssence >= amt) {
+            this.totalEssence -= amt;
+            this.updateHUD();
+            this.autoSaveGame();
+            return true;
+          }
+          return false;
+        },
+        addEssence: (amt) => {
+          this.totalEssence += amt;
+          this.updateHUD();
+          this.autoSaveGame();
+        },
+        getHero: () => this.hero,
+      }
+    );
+
+    this.crystalGardenUI.onStateChanged = () => {
+      this.updateHUD();
+      if (typeof window !== 'undefined' && window.localStorage) {
+        try {
+          window.localStorage.setItem('ELEMENTAL_MAYHEM_GARDEN_STATE', JSON.stringify(this.crystalGardenManager.serialize()));
+        } catch (e) {
+          console.warn('Failed to persist garden state:', e);
+        }
+      }
+      this.autoSaveGame();
     };
 
     document.getElementById('admin-btn-round-30')?.addEventListener('click', () => {
@@ -1606,7 +1660,11 @@ export class GameApp {
   }
 
   private createHero(element: ElementType = this.selectedElement): Unit {
-    return createHeroForElement(element);
+    const hero = createHeroForElement(element);
+    if (this.crystalGardenManager) {
+      this.crystalGardenManager.applyCraftedRelicsToHero(hero);
+    }
+    return hero;
   }
 
   private renderCharacterSelectModal(): void {
@@ -2675,6 +2733,22 @@ export class GameApp {
       this.hideHomeScreen();
       this.renderCharacterSelectModal();
       this.characterSelectModal.classList.remove('hidden');
+    });
+
+    // Crystal Garden & Shop Listeners
+    document.getElementById('nav-garden-btn')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      this.crystalGardenUI.open('plots');
+    });
+
+    document.getElementById('nav-shop-btn')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      this.crystalGardenUI.open('shop');
+    });
+
+    document.getElementById('home-btn-garden')?.addEventListener('click', () => {
+      this.soundEngine.playClick();
+      this.crystalGardenUI.open('plots');
     });
 
     // Elemental Sandbox Listeners
@@ -6137,6 +6211,18 @@ export class GameApp {
     this.currentRound += 1;
     this.r1000TitansSummoned = false;
 
+    // Advance Crystal Garden growth
+    if (this.crystalGardenManager) {
+      const matured = this.crystalGardenManager.advanceGrowth();
+      if (matured.maturedPlotIds.length > 0) {
+        this.combatEngine.addLog(
+          'system',
+          `🌱 [CRYSTAL GARDEN] ${matured.maturedPlotIds.length} crop(s) fully matured! Open the Garden to harvest rare gems.`
+        );
+      }
+      this.crystalGardenUI?.render();
+    }
+
     // Reset round state
     this.combatEngine.resetRoundState();
     this.hero.coord = { x: 1, y: 1 };
@@ -6494,6 +6580,15 @@ export class GameApp {
       this.essenceMergeManager.importState(saveData.elementalEssences);
     }
 
+    // Restore crystal garden state if saved
+    if (saveData.gardenState && this.crystalGardenManager) {
+      this.crystalGardenManager.loadState(saveData.gardenState);
+      if (this.hero) {
+        this.crystalGardenManager.applyCraftedRelicsToHero(this.hero);
+      }
+      this.crystalGardenUI?.render();
+    }
+
     // Restore logs
     if (saveData.logs && saveData.logs.length > 0) {
       this.combatEngine.logs = saveData.logs;
@@ -6555,6 +6650,7 @@ export class GameApp {
       hazards: savedHazards,
       totalEssence: this.totalEssence,
       elementalEssences: this.essenceMergeManager ? this.essenceMergeManager.exportState() : {},
+      gardenState: this.crystalGardenManager ? this.crystalGardenManager.serialize() : undefined,
       totalXp: this.totalXp,
       turnPhase: this.turnManager.getPhase(),
       logs: this.combatEngine.logs.slice(-20),
@@ -6664,7 +6760,7 @@ export class GameApp {
       {
         id: 'sandbox_dummy_1',
         name: 'Water Dummy',
-        faction: 'Enemy',
+        faction: 'Enemy' as const,
         avatar: '💧',
         coord: { x: 7, y: 3 },
         stats: {
@@ -6673,7 +6769,7 @@ export class GameApp {
           maxAp: 4,
           currentAp: 4,
           moveCostPerTile: 1,
-          elementalAffinity: 'Water',
+          elementalAffinity: 'Water' as ElementType,
         },
         abilities: HERO_CLASSES.Water?.abilities ? [HERO_CLASSES.Water.abilities[0]] : [],
         statusEffects: [],
@@ -6682,7 +6778,7 @@ export class GameApp {
       {
         id: 'sandbox_dummy_2',
         name: 'Ice Dummy',
-        faction: 'Enemy',
+        faction: 'Enemy' as const,
         avatar: '❄️',
         coord: { x: 7, y: 6 },
         stats: {
@@ -6691,13 +6787,13 @@ export class GameApp {
           maxAp: 4,
           currentAp: 4,
           moveCostPerTile: 1,
-          elementalAffinity: 'Ice',
+          elementalAffinity: 'Ice' as ElementType,
         },
         abilities: HERO_CLASSES.Ice?.abilities ? [HERO_CLASSES.Ice.abilities[0]] : [],
         statusEffects: [],
         isDead: false,
       },
-    ];
+    ].map((e) => upgradeToCPUChampion(e));
 
     this.combatEngine = new CombatEngine(this.grid, this.hazardManager, this.hero, this.enemies);
     this.attachCombatEngineHooks(this.combatEngine);

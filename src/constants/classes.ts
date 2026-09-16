@@ -1,5 +1,5 @@
 // Elemental Mayhem - Playable Elemental Classes & Dedicated Ability Kits (10 Spells Each + Shield)
-import { Unit, Ability, ElementType } from '../types';
+import { Unit, Ability, ElementType, GridCoord } from '../types';
 
 export interface HeroClassConfig {
   element: ElementType;
@@ -8811,4 +8811,124 @@ export function createSandboxHero(element: ElementType = 'Fire'): Unit {
     isDead: false,
   };
 }
+
+export function createCPUChampion(
+  element: ElementType,
+  options?: {
+    id?: string;
+    name?: string;
+    coord?: GridCoord;
+    level?: number;
+    hpMultiplier?: number;
+    baseHp?: number;
+    maxAp?: number;
+    isBoss?: boolean;
+    additionalAbilities?: Ability[];
+  }
+): Unit {
+  const config = HERO_CLASSES[element] || HERO_CLASSES.Fire;
+  const maxHp = options?.baseHp
+    ? options.baseHp
+    : Math.round((config.bonusStats?.maxHp || 100) * (options?.hpMultiplier || 1));
+  const maxAp = options?.maxAp || config.bonusStats?.maxAp || 10;
+
+  // 10 standard class abilities
+  const abilities: Ability[] = config.abilities.slice(0, 10).map((ab) => ({
+    ...ab,
+    currentCooldown: 0,
+  }));
+
+  // Merge any additional custom abilities (e.g. boss abilities)
+  if (options?.additionalAbilities) {
+    for (const ab of options.additionalAbilities) {
+      if (!abilities.some((a) => a.id === ab.id)) {
+        abilities.unshift({ ...ab, currentCooldown: 0 });
+      }
+    }
+  }
+
+  const name = options?.name || `CPU ${config.className}`;
+
+  return {
+    id: options?.id || `cpu_${Math.floor(Math.random() * 100000)}`,
+    name,
+    faction: 'Enemy',
+    avatar: config.avatar,
+    coord: options?.coord || { x: 8, y: 5 },
+    level: options?.level || 1,
+    isCPU: true,
+    championClass: config.className,
+    isBoss: options?.isBoss || false,
+    stats: {
+      maxHp,
+      currentHp: maxHp,
+      maxAp,
+      currentAp: maxAp,
+      moveCostPerTile: 1,
+      elementalAffinity: config.element,
+    },
+    abilities,
+    statusEffects: [],
+    isDead: false,
+  };
+}
+
+export function upgradeToCPUChampion(enemy: Unit, round: number = 1): Unit {
+  const element = enemy.stats?.elementalAffinity || 'Fire';
+  const config = HERO_CLASSES[element] || HERO_CLASSES.Fire;
+
+  // Preserve existing abilities and merge full 10 player class abilities
+  const classAbilities = config.abilities.slice(0, 10).map((ab) => ({
+    ...ab,
+    currentCooldown: 0,
+  }));
+
+  const mergedAbilities: Ability[] = [...(enemy.abilities || [])];
+  for (const cab of classAbilities) {
+    if (!mergedAbilities.some((a) => a.id === cab.id)) {
+      mergedAbilities.push({ ...cab, currentCooldown: 0 });
+    }
+  }
+
+  // Ensure all CPU abilities have baseDamage >= 1 (e.g. converting 0-damage defensive shields to 1)
+  const normalizedAbilities = mergedAbilities.map((a) => ({
+    ...a,
+    baseDamage: Math.max(1, a.baseDamage),
+  }));
+
+  // Real player AP: 10 AP per turn like any human player
+  const maxAp = Math.max(10, enemy.stats?.maxAp || 10);
+  // Real player HP: 100 HP minimum, scaling if higher round/boss
+  const maxHp = Math.max(100, enemy.stats?.maxHp || 100);
+
+  enemy.isCPU = true;
+  enemy.championClass = config.className;
+  if (!enemy.level) {
+    enemy.level = Math.max(1, Math.floor(round));
+  }
+
+  enemy.stats = {
+    ...enemy.stats,
+    maxHp,
+    currentHp: Math.max(maxHp, enemy.stats?.currentHp || maxHp),
+    maxAp,
+    currentAp: maxAp,
+    moveCostPerTile: 1,
+    elementalAffinity: element,
+  };
+
+  enemy.abilities = normalizedAbilities;
+
+  // Retain original names for lore and tests, but cleanly decorate with CPU Champion indicator
+  if (!enemy.name.includes('CPU') && !enemy.name.includes('Player 2')) {
+    if (enemy.isBoss) {
+      enemy.name = `${enemy.name} [CPU ${config.className}]`;
+    } else {
+      enemy.name = `CPU ${config.className} (${enemy.name})`;
+    }
+  }
+
+  return enemy;
+}
+
 

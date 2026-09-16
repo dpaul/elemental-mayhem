@@ -46,6 +46,45 @@ describe('AnimationManager (TDD Red -> Green)', () => {
     expect(animManager.isUnitMoving('hero')).toBe(false);
     expect(animManager.hasActiveAnimations()).toBe(false);
   });
+
+  it('should compute walk cycle state with opposing strides, gait bounce, and arm swings when moving', () => {
+    const path: GridCoord[] = [
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+    ];
+    animManager.animateMovement('mage', path, 200);
+
+    // Initial step
+    let state = animManager.getUnitWalkState('mage', 0);
+    expect(state.isMoving).toBe(true);
+    expect(state.walkPhase).toBe(0);
+    expect(state.leftStride).toBeCloseTo(0, 5);
+    expect(state.rightStride).toBeCloseTo(0, 5);
+
+    // Advance 50ms (quarter of tile)
+    animManager.update(50);
+    state = animManager.getUnitWalkState('mage', 50);
+    expect(state.isMoving).toBe(true);
+    expect(state.walkPhase).toBeGreaterThan(0);
+    // Left stride and right stride must be in opposition
+    expect(state.leftStride).toBeCloseTo(-state.rightStride, 5);
+    // Bob offset should bounce downward
+    expect(state.bobOffset).toBeLessThan(0);
+    // Arm swing should be non-zero
+    expect(Math.abs(state.armSwing)).toBeGreaterThan(0);
+  });
+
+  it('should compute subtle breathing idle stance when not moving', () => {
+    const idleState1 = animManager.getUnitWalkState('idle-hero', 0);
+    expect(idleState1.isMoving).toBe(false);
+    expect(idleState1.leftStride).toBe(0);
+    expect(idleState1.rightStride).toBe(0);
+
+    const idleState2 = animManager.getUnitWalkState('idle-hero', 500);
+    expect(idleState2.isMoving).toBe(false);
+    // Subtle breathing bob
+    expect(idleState2.bobOffset).not.toBe(idleState1.bobOffset);
+  });
 });
 
 describe('ParticleEngine & Visual FX (TDD Red -> Green)', () => {

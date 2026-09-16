@@ -1,7 +1,7 @@
 // Elemental Mayhem - Canvas Battlefield Renderer & Visual FX Engine
 import { CombatEngine } from '../engine/CombatEngine';
 import { ParticleEngine } from './ParticleEngine';
-import { AnimationManager } from './AnimationManager';
+import { AnimationManager, WalkCycleState } from './AnimationManager';
 import { ProjectileManager } from './ProjectileManager';
 import { GridCoord, TileHazardType, ElementType, Unit } from '../types';
 import { CORE_ELEMENTS } from '../constants/elements';
@@ -59,14 +59,8 @@ export class BattlefieldRenderer {
     if (nameLower.includes('overlord') || (isBoss && elem === 'void')) {
       return './portraits/void_overlord.jpg';
     }
-    if (nameLower.includes('wizard') || nameLower.includes('arch-wizard') || nameLower.includes('mage') || nameLower.includes('sorcerer')) {
-      return './portraits/wizard_cutscene.jpg';
-    }
-    if (nameLower.includes('seeker') || nameLower.includes('wanderer') || nameLower.includes('apprentice')) {
-      return './portraits/seeker_cutscene.jpg';
-    }
     if (isPlayerHero) {
-      // The authentic cutscene human hero standing on the cliff in Chapter 6!
+      // The authentic high-resolution front-facing hero looking directly forward
       return './portraits/hero_bust.jpg';
     }
     return `./portraits/human_${elem}.jpg`;
@@ -1631,12 +1625,9 @@ export class BattlefieldRenderer {
         ? this.renderCoordToScreen(animCoord)
         : this.gridToScreen(unit.coord);
 
-      // Subtle organic breathing float offset
-      const floatOffset = animCoord
-        ? 0
-        : Math.sin(this.elapsedTotalTimeMs * 0.003 + unit.coord.x * 2) * 3;
-
-      const screenPos = { x: rawPos.x, y: rawPos.y + floatOffset };
+      // Walk animation cycle state (stepping boots, arm swing, gait bounce, torso sway)
+      const walkState = this.animManager.getUnitWalkState(unit.id, this.elapsedTotalTimeMs);
+      const screenPos = { x: rawPos.x, y: rawPos.y + walkState.bobOffset };
 
       const isPlayerHero = unit.faction === 'Player' && !unit.isZombie && !unit.isLifeBeing;
       const isZombie = !!unit.isZombie;
@@ -1761,7 +1752,8 @@ export class BattlefieldRenderer {
         isZombie,
         isLifeBeing,
         isFocused,
-        elemData
+        elemData,
+        walkState
       );
 
       // Health Bar above Unit
@@ -1786,7 +1778,7 @@ export class BattlefieldRenderer {
         : '#ef4444';
       ctx.fillRect(hpX, hpY, hpWidth * hpPct, hpHeight);
 
-        if (isBoss) {
+      if (isBoss) {
         ctx.strokeStyle = '#fbbf24';
         ctx.lineWidth = 1.5;
         ctx.strokeRect(hpX, hpY, hpWidth, hpHeight);
@@ -1794,6 +1786,22 @@ export class BattlefieldRenderer {
         // Boss Crown indicator
         ctx.font = '12px sans-serif';
         ctx.fillText('👑', screenPos.x, hpY - 8);
+      }
+
+      // AP Pips beneath HP bar (Visualizing 10 Action Points like real players)
+      const maxAp = Math.min(10, Math.max(1, unit.stats.maxAp || 10));
+      const curAp = Math.max(0, Math.min(maxAp, unit.stats.currentAp || 0));
+      const pipGap = 1.5;
+      const pipWidth = (hpWidth - (maxAp - 1) * pipGap) / maxAp;
+      const pipHeight = 3;
+      const apY = hpY + hpHeight + 1.5;
+
+      for (let i = 0; i < maxAp; i++) {
+        const px = hpX + i * (pipWidth + pipGap);
+        ctx.fillStyle = i < curAp
+          ? (isPlayerHero ? '#38bdf8' : isBoss ? '#fbbf24' : '#f97316')
+          : 'rgba(255, 255, 255, 0.15)';
+        ctx.fillRect(px, apY, pipWidth, pipHeight);
       }
 
       // Co-op P1 / P2 Indicator
@@ -1807,6 +1815,11 @@ export class BattlefieldRenderer {
           ctx.fillStyle = '#c084fc';
           ctx.fillText('P2 🧙', screenPos.x, hpY - 7);
         }
+      } else if (!isBoss && (unit.isCPU || (unit.faction === 'Enemy' && !unit.isZombie && !unit.isLifeBeing))) {
+        ctx.font = 'bold 9.5px "Fira Code", monospace';
+        ctx.fillStyle = '#f87171';
+        const label = `CPU ⚔️ ${unit.championClass || unit.stats.elementalAffinity}`;
+        ctx.fillText(label, screenPos.x, hpY - 7);
       }
 
       // Status indicator on top of HP bar (Rooted or Zombie Class & Lifetime)
@@ -1885,9 +1898,11 @@ export class BattlefieldRenderer {
   }
 
   /**
-   * High-Fidelity Human Champion Token Renderer
-   * Renders realistic illustrated human elemental champion portraits directly on canvas.
-   * Elements are represented by distinct human warriors, sorceresses, paladins, and mages.
+   * High-Fidelity Human Champion Token & Character Renderer
+   * Renders realistic illustrated human elemental champion characters directly on canvas.
+   * - Fully front-facing (symmetrical front perspective, dual forward eyes, centered facial features)
+   * - Distinct human appearances per element (tailored hair colors, styles, skin tones, robes, and armors)
+   * - Animated walking cycle (stepping legs and boots, counter-swinging arms with elemental magic, rhythmic gait bounce)
    */
   private renderHumanChampionToken(
     ctx: CanvasRenderingContext2D,
@@ -1899,19 +1914,137 @@ export class BattlefieldRenderer {
     isZombie: boolean,
     isLifeBeing: boolean,
     isFocused: boolean,
-    elemData: any
+    elemData: any,
+    walkState?: WalkCycleState
   ): void {
     const elem = unit.stats.elementalAffinity || 'Fire';
 
-    // 1. Realistic Soft Drop Shadow under Token
+    // 1. Realistic Dynamic Ground Shadow (Squashes and stretches with walk cadence)
+    const shadowScaleX = 1.0 + Math.sin(walkState?.walkPhase || 0) * 0.12;
     ctx.save();
     ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
     ctx.beginPath();
-    ctx.ellipse(screenPos.x, screenPos.y + radius * 0.92, radius * 0.82, radius * 0.32, 0, 0, Math.PI * 2);
+    ctx.ellipse(
+      screenPos.x,
+      screenPos.y + radius * 0.94,
+      radius * 0.84 * shadowScaleX,
+      radius * 0.28,
+      0,
+      0,
+      Math.PI * 2
+    );
     ctx.fill();
     ctx.restore();
 
-    // 2. Beveled Metallic Medallion Outer Base
+    // 2. Animated Stepping Combat Boots & Legs (Visible beneath torso)
+    const leftStride = walkState?.leftStride || 0;
+    const rightStride = walkState?.rightStride || 0;
+    const leftLift = walkState?.leftLift || 0;
+    const rightLift = walkState?.rightLift || 0;
+
+    const leftBootX = screenPos.x - radius * 0.32;
+    const leftBootY = screenPos.y + radius * 0.66 + leftStride - leftLift;
+    const rightBootX = screenPos.x + radius * 0.32;
+    const rightBootY = screenPos.y + radius * 0.66 + rightStride - rightLift;
+
+    const drawBoot = (bx: number, by: number, _isStepping: boolean) => {
+      ctx.save();
+      // Trouser fold / calf
+      ctx.fillStyle = '#1c1917';
+      if (typeof ctx.fillRect === 'function') {
+        ctx.fillRect(bx - radius * 0.13, by - radius * 0.18, radius * 0.26, radius * 0.2);
+      }
+
+      // Boot shaft and foot facing forward
+      const bootGrad = ctx.createLinearGradient(bx - radius * 0.15, by, bx + radius * 0.15, by + radius * 0.24);
+      bootGrad.addColorStop(0, isBoss ? '#b45309' : '#334155');
+      bootGrad.addColorStop(1, '#0f172a');
+      ctx.fillStyle = bootGrad;
+      if (typeof ctx.fillRect === 'function') {
+        ctx.fillRect(bx - radius * 0.15, by, radius * 0.3, radius * 0.24);
+      }
+
+      // Front steel toe-cap
+      ctx.fillStyle = isBoss ? '#fbbf24' : elemData?.color || '#94a3b8';
+      ctx.beginPath();
+      ctx.ellipse(bx, by + radius * 0.2, radius * 0.14, radius * 0.08, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Sole tread
+      ctx.fillStyle = '#09090b';
+      ctx.fillRect(bx - radius * 0.16, by + radius * 0.22, radius * 0.32, radius * 0.05);
+      ctx.restore();
+    };
+
+    drawBoot(leftBootX, leftBootY, leftLift > 1);
+    drawBoot(rightBootX, rightBootY, rightLift > 1);
+
+    // 3. Animated Swinging Arms at Sides with Elemental Magic
+    const armSwing = walkState?.armSwing || 0;
+    const drawArm = (isLeft: boolean) => {
+      ctx.save();
+      const side = isLeft ? -1 : 1;
+      const shoulderX = screenPos.x + side * (radius * 0.65);
+      const shoulderY = screenPos.y + radius * 0.32;
+      const swingAngle = isLeft ? -armSwing : armSwing;
+
+      if (typeof ctx.translate === 'function') {
+        ctx.translate(shoulderX, shoulderY);
+      }
+      if (typeof ctx.rotate === 'function') {
+        ctx.rotate(swingAngle);
+      }
+
+      // Arm / sleeve
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = radius * 0.22;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(side * radius * 0.1, radius * 0.44);
+      ctx.stroke();
+
+      // Metallic Bracer / Gauntlet
+      ctx.strokeStyle = elemData?.color || '#94a3b8';
+      ctx.lineWidth = radius * 0.24;
+      ctx.beginPath();
+      ctx.moveTo(side * radius * 0.05, radius * 0.22);
+      ctx.lineTo(side * radius * 0.1, radius * 0.44);
+      ctx.stroke();
+
+      // Front-Facing Hand
+      const handX = side * radius * 0.1;
+      const handY = radius * 0.48;
+      ctx.fillStyle = '#fed7aa';
+      ctx.beginPath();
+      ctx.arc(handX, handY, radius * 0.08, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Elemental magic glow sphere in palm
+      const glowRad = ctx.createRadialGradient(handX, handY, 1, handX, handY, radius * 0.26);
+      glowRad.addColorStop(0, '#ffffff');
+      glowRad.addColorStop(0.5, elemData?.color || '#38bdf8');
+      glowRad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = glowRad;
+      ctx.beginPath();
+      ctx.arc(handX, handY, radius * 0.26, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    };
+
+    drawArm(true);
+    drawArm(false);
+
+    // 4. Torso with walking stride sway
+    ctx.save();
+    if (walkState?.torsoSway && typeof ctx.translate === 'function' && typeof ctx.rotate === 'function') {
+      ctx.translate(screenPos.x, screenPos.y);
+      ctx.rotate(walkState.torsoSway);
+      ctx.translate(-screenPos.x, -screenPos.y);
+    }
+
+    // Beveled Metallic Medallion Outer Base
     const rimGrad = ctx.createLinearGradient(
       screenPos.x - radius,
       screenPos.y - radius,
@@ -1947,7 +2080,7 @@ export class BattlefieldRenderer {
     ctx.arc(screenPos.x, screenPos.y, radius, 0, Math.PI * 2);
     ctx.stroke();
 
-    // 3. Clipping Disc for High-Resolution Human Portrait
+    // Clipping Disc for High-Resolution Human Portrait
     ctx.beginPath();
     ctx.arc(screenPos.x, screenPos.y, radius, 0, Math.PI * 2);
     if (typeof ctx.clip === 'function') {
@@ -1958,7 +2091,7 @@ export class BattlefieldRenderer {
     const portraitImg = this.getPortraitImage(portraitSrc);
 
     if (portraitImg && portraitImg.complete && portraitImg.naturalWidth > 0 && typeof ctx.drawImage === 'function') {
-      // Direct rendering of authentic high-resolution cutscene portrait
+      // Direct rendering of authentic high-resolution front-facing cutscene portrait
       ctx.drawImage(portraitImg, screenPos.x - radius, screenPos.y - radius, radius * 2, radius * 2);
 
       // Subtle atmospheric radial vignette to blend into medallion rim
@@ -1968,7 +2101,7 @@ export class BattlefieldRenderer {
       ctx.fillStyle = edgeVignette;
       ctx.fillRect(screenPos.x - radius, screenPos.y - radius, radius * 2, radius * 2);
     } else {
-      // 4. Atmospheric Elemental Background Nebula
+      // Procedural Front-Facing Human Champion (Tailored per element)
       const bgRad = ctx.createRadialGradient(
         screenPos.x - radius * 0.25,
         screenPos.y - radius * 0.25,
@@ -1994,15 +2127,15 @@ export class BattlefieldRenderer {
         ctx.fill();
       }
 
-      // 5. HUMAN ELEMENTAL CHAMPION ANATOMY & ILLUSTRATION (Matching Cutscene Hero)
+      // DISTINCT HUMAN DESIGNS PER ELEMENT (Strictly Facing Forward)
       let skinBase = '#fcd34d';
       let skinShadow = '#b45309';
-      let hairColor = '#451a03'; // Natural chestnut/dark brown hair matching the cutscene hero
+      let hairColor = '#451a03';
       let hairHighlight = '#78350f';
-      let robeColor = '#1c1917'; // Dark leather gambeson / tunic
-      let robeTrim = '#94a3b8';  // Silver steel armor trim
+      let robeColor = '#1c1917';
+      let robeTrim = '#94a3b8';
       let eyeColor = '#38bdf8';
-      let hairStyle: 'flame' | 'waves' | 'spikes' | 'braid' | 'windswept' | 'crown' | 'hood' = 'windswept';
+      let hairStyle: 'flame' | 'waves' | 'spikes' | 'braids' | 'crown' | 'hood' | 'frost' | 'leaf' = 'waves';
 
       if (isZombie) {
         skinBase = '#a3e635';
@@ -2021,91 +2154,91 @@ export class BattlefieldRenderer {
         robeColor = '#14532d';
         robeTrim = '#4ade80';
         eyeColor = '#22c55e';
-        hairStyle = 'crown';
+        hairStyle = 'leaf';
       } else {
         switch (elem) {
           case 'Fire':
-            skinBase = '#fed7aa';
+            skinBase = '#ffedd5';
             skinShadow = '#ea580c';
-            hairColor = '#451a03'; // Cutscene hero brown hair
-            hairHighlight = '#78350f';
-            robeColor = '#292524';
+            hairColor = '#b91c1c';
+            hairHighlight = '#f97316';
+            robeColor = '#1c1917';
             robeTrim = '#f97316';
             eyeColor = '#f97316';
-            hairStyle = 'windswept';
+            hairStyle = 'flame';
             break;
           case 'Water':
-            skinBase = '#fef08a';
-            skinShadow = '#f59e0b';
-            hairColor = '#451a03';
-            hairHighlight = '#78350f';
+            skinBase = '#f0fdf4';
+            skinShadow = '#0284c7';
+            hairColor = '#1e3a8a';
+            hairHighlight = '#38bdf8';
             robeColor = '#0c4a6e';
             robeTrim = '#7dd3fc';
-            eyeColor = '#38bdf8';
-            hairStyle = 'windswept';
+            eyeColor = '#06b6d4';
+            hairStyle = 'waves';
             break;
           case 'Earth':
-            skinBase = '#fed7aa';
-            skinShadow = '#ca8a04';
-            hairColor = '#3e2723';
-            hairHighlight = '#5d4037';
-            robeColor = '#44403c';
+            skinBase = '#d7a783';
+            skinShadow = '#854d0e';
+            hairColor = '#291b12';
+            hairHighlight = '#78350f';
+            robeColor = '#292524';
             robeTrim = '#fbbf24';
-            eyeColor = '#ca8a04';
-            hairStyle = 'windswept';
+            eyeColor = '#10b981';
+            hairStyle = 'braids';
             break;
           case 'Lightning':
-            skinBase = '#fde68a';
-            skinShadow = '#d97706';
+            skinBase = '#fef3c7';
+            skinShadow = '#b45309';
             hairColor = '#3b0764';
-            hairHighlight = '#eab308';
-            robeColor = '#312e81';
+            hairHighlight = '#facc15';
+            robeColor = '#1e1b4b';
             robeTrim = '#fde047';
             eyeColor = '#fde047';
             hairStyle = 'spikes';
             break;
           case 'Ice':
             skinBase = '#f8fafc';
-            skinShadow = '#cbd5e1';
-            hairColor = '#451a03';
-            hairHighlight = '#78350f';
-            robeColor = '#0369a1';
+            skinShadow = '#94a3b8';
+            hairColor = '#e2e8f0';
+            hairHighlight = '#38bdf8';
+            robeColor = '#0f172a';
             robeTrim = '#e0f2fe';
             eyeColor = '#67e8f9';
-            hairStyle = 'windswept';
+            hairStyle = 'frost';
             break;
           case 'Wind':
-            skinBase = '#fed7aa';
-            skinShadow = '#ea580c';
-            hairColor = '#451a03';
-            hairHighlight = '#78350f';
-            robeColor = '#0f766e';
-            robeTrim = '#a7f3d0';
-            eyeColor = '#5eead4';
-            hairStyle = 'windswept';
+            skinBase = '#fef08a';
+            skinShadow = '#d97706';
+            hairColor = '#ca8a04';
+            hairHighlight = '#fef08a';
+            robeColor = '#064e3b';
+            robeTrim = '#34d399';
+            eyeColor = '#2dd4bf';
+            hairStyle = 'waves';
             break;
           case 'Nature':
-            skinBase = '#fef3c7';
-            skinShadow = '#d97706';
-            hairColor = '#451a03';
-            hairHighlight = '#78350f';
+            skinBase = '#fed7aa';
+            skinShadow = '#9a3412';
+            hairColor = '#38220f';
+            hairHighlight = '#15803d';
             robeColor = '#14532d';
             robeTrim = '#86efac';
-            eyeColor = '#4ade80';
-            hairStyle = 'windswept';
+            eyeColor = '#22c55e';
+            hairStyle = 'leaf';
             break;
           case 'Void':
-            skinBase = '#f3e8ff';
-            skinShadow = '#a855f7';
-            hairColor = '#1e1035';
-            hairHighlight = '#9333ea';
+            skinBase = '#e9d5ff';
+            skinShadow = '#6b21a8';
+            hairColor = '#0f051d';
+            hairHighlight = '#c084fc';
             robeColor = '#0f051d';
             robeTrim = '#c084fc';
-            eyeColor = '#c084fc';
-            hairStyle = 'crown';
+            eyeColor = '#e879f9';
+            hairStyle = 'hood';
             break;
           case 'Admin':
-            skinBase = '#fef3c7';
+            skinBase = '#fffbeb';
             skinShadow = '#f59e0b';
             hairColor = '#fef08a';
             hairHighlight = '#ffffff';
@@ -2122,12 +2255,12 @@ export class BattlefieldRenderer {
             robeColor = '#1e293b';
             robeTrim = primaryColor;
             eyeColor = primaryColor;
-            hairStyle = 'windswept';
+            hairStyle = 'waves';
             break;
         }
       }
 
-      // A. Human Shoulders and Layered Steel Pauldron / Tunic
+      // Symmetrical Front-Facing Shoulders & Armor
       const shoulderGrad = ctx.createLinearGradient(
         screenPos.x - radius * 0.8,
         screenPos.y + radius * 0.3,
@@ -2140,97 +2273,58 @@ export class BattlefieldRenderer {
       ctx.fillStyle = shoulderGrad;
       ctx.beginPath();
       ctx.moveTo(screenPos.x - radius * 0.82, screenPos.y + radius);
-      ctx.quadraticCurveTo(
-        screenPos.x - radius * 0.45,
-        screenPos.y + radius * 0.36,
-        screenPos.x - radius * 0.22,
-        screenPos.y + radius * 0.38
-      );
+      ctx.quadraticCurveTo(screenPos.x - radius * 0.45, screenPos.y + radius * 0.36, screenPos.x - radius * 0.22, screenPos.y + radius * 0.38);
       ctx.lineTo(screenPos.x + radius * 0.22, screenPos.y + radius * 0.38);
-      ctx.quadraticCurveTo(
-        screenPos.x + radius * 0.45,
-        screenPos.y + radius * 0.36,
-        screenPos.x + radius * 0.82,
-        screenPos.y + radius
-      );
+      ctx.quadraticCurveTo(screenPos.x + radius * 0.45, screenPos.y + radius * 0.36, screenPos.x + radius * 0.82, screenPos.y + radius);
       ctx.closePath();
       ctx.fill();
 
-      // Layered Steel Pauldron (Segmented metallic shoulder plates matching Scene 4 & 6)
-      const steelGrad = ctx.createLinearGradient(
-        screenPos.x - radius * 0.7,
-        screenPos.y + radius * 0.3,
-        screenPos.x - radius * 0.2,
-        screenPos.y + radius * 0.8
-      );
-      steelGrad.addColorStop(0, '#e2e8f0');
-      steelGrad.addColorStop(0.5, '#64748b');
-      steelGrad.addColorStop(1, '#1e293b');
+      // Symmetrical Left & Right Steel Pauldrons
+      const drawPauldron = (px: number) => {
+        const pGrad = ctx.createLinearGradient(px - radius * 0.2, screenPos.y + radius * 0.3, px + radius * 0.2, screenPos.y + radius * 0.7);
+        pGrad.addColorStop(0, '#e2e8f0');
+        pGrad.addColorStop(0.5, '#64748b');
+        pGrad.addColorStop(1, '#1e293b');
+        ctx.fillStyle = pGrad;
+        ctx.beginPath();
+        ctx.arc(px, screenPos.y + radius * 0.52, radius * 0.24, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = robeTrim;
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+      };
+      drawPauldron(screenPos.x - radius * 0.55);
+      drawPauldron(screenPos.x + radius * 0.55);
 
-      ctx.fillStyle = steelGrad;
+      // Centered Front Chestplate Sigil
+      ctx.fillStyle = robeTrim;
       ctx.beginPath();
-      ctx.arc(screenPos.x - radius * 0.45, screenPos.y + radius * 0.55, radius * 0.28, Math.PI * 0.8, Math.PI * 1.8);
-      ctx.fill();
-      ctx.strokeStyle = '#f8fafc';
-      ctx.lineWidth = 1.6;
-      ctx.stroke();
-
-      // Rivets on pauldron
-      ctx.fillStyle = '#f8fafc';
-      ctx.beginPath();
-      ctx.arc(screenPos.x - radius * 0.52, screenPos.y + radius * 0.42, 1.5, 0, Math.PI * 2);
-      ctx.arc(screenPos.x - radius * 0.38, screenPos.y + radius * 0.38, 1.5, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Flowing Traveler's Cape / Mantle over right shoulder (Ivory/Stone tone from cutscene)
-      const capeGrad = ctx.createLinearGradient(
-        screenPos.x + radius * 0.1,
-        screenPos.y + radius * 0.3,
-        screenPos.x + radius * 0.85,
-        screenPos.y + radius * 0.9
-      );
-      capeGrad.addColorStop(0, '#e7e5e4');
-      capeGrad.addColorStop(0.6, '#a8a29e');
-      capeGrad.addColorStop(1, '#44403c');
-      ctx.fillStyle = capeGrad;
-      ctx.beginPath();
-      ctx.moveTo(screenPos.x - radius * 0.1, screenPos.y + radius * 0.38);
-      ctx.quadraticCurveTo(screenPos.x + radius * 0.3, screenPos.y + radius * 0.32, screenPos.x + radius * 0.82, screenPos.y + radius * 0.65);
-      ctx.lineTo(screenPos.x + radius * 0.82, screenPos.y + radius);
-      ctx.lineTo(screenPos.x + radius * 0.2, screenPos.y + radius);
+      ctx.moveTo(screenPos.x, screenPos.y + radius * 0.48);
+      ctx.lineTo(screenPos.x + radius * 0.14, screenPos.y + radius * 0.65);
+      ctx.lineTo(screenPos.x, screenPos.y + radius * 0.82);
+      ctx.lineTo(screenPos.x - radius * 0.14, screenPos.y + radius * 0.65);
       ctx.closePath();
       ctx.fill();
 
-      // Leather Chest Harness & Buckle
-      ctx.strokeStyle = '#78350f';
-      ctx.lineWidth = 2.4;
-      ctx.beginPath();
-      ctx.moveTo(screenPos.x - radius * 0.4, screenPos.y + radius * 0.45);
-      ctx.lineTo(screenPos.x + radius * 0.25, screenPos.y + radius * 0.95);
-      ctx.stroke();
-
-      ctx.fillStyle = '#fbbf24';
-      ctx.fillRect(screenPos.x - radius * 0.08, screenPos.y + radius * 0.66, radius * 0.15, radius * 0.1);
-
-      // B. Human Neck
+      // Neck
       ctx.fillStyle = skinShadow;
       ctx.beginPath();
-      ctx.moveTo(screenPos.x - radius * 0.16, screenPos.y + radius * 0.38);
-      ctx.lineTo(screenPos.x + radius * 0.16, screenPos.y + radius * 0.38);
+      ctx.moveTo(screenPos.x - radius * 0.15, screenPos.y + radius * 0.38);
+      ctx.lineTo(screenPos.x + radius * 0.15, screenPos.y + radius * 0.38);
       ctx.lineTo(screenPos.x + radius * 0.13, screenPos.y + radius * 0.12);
       ctx.lineTo(screenPos.x - radius * 0.13, screenPos.y + radius * 0.12);
       ctx.closePath();
       ctx.fill();
 
-      // C. Human Face & Head (3D Directional Gradient)
+      // Front-Facing Face Oval
       const headX = screenPos.x;
       const headY = screenPos.y - radius * 0.05;
       const headRadX = radius * 0.34;
       const headRadY = radius * 0.4;
 
       const faceGrad = ctx.createRadialGradient(
-        headX - headRadX * 0.3,
-        headY - headRadY * 0.4,
+        headX,
+        headY - headRadY * 0.2,
         headRadX * 0.1,
         headX,
         headY,
@@ -2250,7 +2344,7 @@ export class BattlefieldRenderer {
       ctx.closePath();
       ctx.fill();
 
-      // Human Facial Features: Eyes with Glowing Elemental Irises
+      // Dual Front-Facing Eyes Looking Straight Forward
       const eyeSpacing = radius * 0.14;
       const eyeY = headY - radius * 0.04;
 
@@ -2264,20 +2358,26 @@ export class BattlefieldRenderer {
       ctx.lineTo(headX + eyeSpacing + radius * 0.08, eyeY - radius * 0.07);
       ctx.stroke();
 
-      // Eye Whites & Glowing Irises
+      // Symmetrical Front-Facing Eyes
       const drawEye = (ex: number) => {
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
         ctx.ellipse(ex, eyeY, radius * 0.075, radius * 0.048, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // Elemental Iris
+        // Elemental Iris centered looking directly forward
         ctx.fillStyle = eyeColor;
         ctx.beginPath();
         ctx.arc(ex, eyeY, radius * 0.04, 0, Math.PI * 2);
         ctx.fill();
 
-        // White Specular Eye Reflection
+        // Pupil centered
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath();
+        ctx.arc(ex, eyeY, radius * 0.02, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Specular Catchlight
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
         ctx.arc(ex - 1, eyeY - 1, radius * 0.015, 0, Math.PI * 2);
@@ -2286,12 +2386,12 @@ export class BattlefieldRenderer {
       drawEye(headX - eyeSpacing);
       drawEye(headX + eyeSpacing);
 
-      // Subtle Nose contour & Lip line
+      // Centered Nose & Lips
       ctx.strokeStyle = skinShadow;
       ctx.lineWidth = 1.0;
       ctx.beginPath();
       ctx.moveTo(headX, eyeY + radius * 0.03);
-      ctx.lineTo(headX + 1, eyeY + radius * 0.12);
+      ctx.lineTo(headX, eyeY + radius * 0.12);
       ctx.stroke();
 
       ctx.strokeStyle = skinShadow;
@@ -2301,70 +2401,101 @@ export class BattlefieldRenderer {
       ctx.lineTo(headX + radius * 0.07, eyeY + radius * 0.22);
       ctx.stroke();
 
-      // D. Human Hair & Wind-Swept Locks (Matching Cutscene Hero's wavy brown hair)
+      // Front-Facing Hair Framing Both Sides
       ctx.fillStyle = hairColor;
-      if (hairStyle === 'windswept') {
-        // Wind-swept hair blowing back in cosmic wind
+      if (hairStyle === 'spikes') {
+        // Lightning Spikes flaring outward symmetrically
         ctx.beginPath();
-        ctx.moveTo(headX - headRadX * 1.15, headY + radius * 0.15);
-        ctx.quadraticCurveTo(headX - headRadX * 1.25, headY - headRadY * 1.15, headX - headRadX * 0.2, headY - headRadY * 1.2);
-        ctx.quadraticCurveTo(headX + headRadX * 0.6, headY - headRadY * 1.45, headX + headRadX * 1.4, headY - headRadY * 0.85);
-        ctx.quadraticCurveTo(headX + headRadX * 1.1, headY - headRadY * 0.35, headX + headRadX * 1.35, headY - headRadY * 0.1);
-        ctx.quadraticCurveTo(headX + headRadX * 0.8, headY + radius * 0.1, headX + headRadX * 0.7, headY - headRadY * 0.4);
-        ctx.quadraticCurveTo(headX, headY - headRadY * 0.6, headX - headRadX * 0.8, headY - headRadY * 0.3);
+        ctx.moveTo(headX - headRadX * 1.1, headY + radius * 0.1);
+        ctx.lineTo(headX - headRadX * 1.3, headY - headRadY * 0.8);
+        ctx.lineTo(headX - headRadX * 0.7, headY - headRadY * 0.6);
+        ctx.lineTo(headX - headRadX * 0.8, headY - headRadY * 1.3);
+        ctx.lineTo(headX - headRadX * 0.3, headY - headRadY * 0.9);
+        ctx.lineTo(headX, headY - headRadY * 1.4);
+        ctx.lineTo(headX + headRadX * 0.3, headY - headRadY * 0.9);
+        ctx.lineTo(headX + headRadX * 0.8, headY - headRadY * 1.3);
+        ctx.lineTo(headX + headRadX * 0.7, headY - headRadY * 0.6);
+        ctx.lineTo(headX + headRadX * 1.3, headY - headRadY * 0.8);
+        ctx.lineTo(headX + headRadX * 1.1, headY + radius * 0.1);
+        ctx.closePath();
+        ctx.fill();
+      } else if (hairStyle === 'flame' || hairStyle === 'braids') {
+        // Twin Braids / Locks framing the face on left and right
+        ctx.beginPath();
+        ctx.arc(headX, headY - headRadY * 0.4, headRadX * 1.08, Math.PI, 0);
+        ctx.fill();
+
+        // Left lock
+        ctx.beginPath();
+        ctx.moveTo(headX - headRadX * 0.95, headY - headRadY * 0.2);
+        ctx.quadraticCurveTo(headX - headRadX * 1.1, headY + radius * 0.3, headX - headRadX * 0.7, headY + radius * 0.6);
+        ctx.lineTo(headX - headRadX * 0.5, headY + radius * 0.55);
+        ctx.quadraticCurveTo(headX - headRadX * 0.8, headY + radius * 0.2, headX - headRadX * 0.7, headY - headRadY * 0.2);
         ctx.closePath();
         ctx.fill();
 
-        // Hair Strand Highlights
-        ctx.strokeStyle = hairHighlight;
-        ctx.lineWidth = 1.5;
+        // Right lock
         ctx.beginPath();
-        ctx.moveTo(headX - headRadX * 0.6, headY - headRadY * 0.9);
-        ctx.quadraticCurveTo(headX, headY - headRadY * 1.1, headX + headRadX * 1.1, headY - headRadY * 0.7);
-        ctx.moveTo(headX - headRadX * 0.4, headY - headRadY * 0.65);
-        ctx.quadraticCurveTo(headX + headRadX * 0.3, headY - headRadY * 0.9, headX + headRadX * 1.05, headY - headRadY * 0.45);
+        ctx.moveTo(headX + headRadX * 0.95, headY - headRadY * 0.2);
+        ctx.quadraticCurveTo(headX + headRadX * 1.1, headY + radius * 0.3, headX + headRadX * 0.7, headY + radius * 0.6);
+        ctx.lineTo(headX + headRadX * 0.5, headY + radius * 0.55);
+        ctx.quadraticCurveTo(headX + headRadX * 0.8, headY + radius * 0.2, headX + headRadX * 0.7, headY - headRadY * 0.2);
+        ctx.closePath();
+        ctx.fill();
+      } else if (hairStyle === 'hood') {
+        // Cowl Hood framing face
+        ctx.fillStyle = robeColor;
+        ctx.beginPath();
+        ctx.moveTo(headX, headY - headRadY * 1.35);
+        ctx.quadraticCurveTo(headX + headRadX * 1.35, headY - headRadY * 0.5, headX + headRadX * 1.15, headY + radius * 0.4);
+        ctx.lineTo(headX + headRadX * 0.7, headY + radius * 0.3);
+        ctx.quadraticCurveTo(headX + headRadX * 0.85, headY - headRadY * 0.4, headX, headY - headRadY * 0.8);
+        ctx.quadraticCurveTo(headX - headRadX * 0.85, headY - headRadY * 0.4, headX - headRadX * 0.7, headY + radius * 0.3);
+        ctx.lineTo(headX - headRadX * 1.15, headY + radius * 0.4);
+        ctx.quadraticCurveTo(headX - headRadX * 1.35, headY - headRadY * 0.5, headX, headY - headRadY * 1.35);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = robeTrim;
+        ctx.lineWidth = 1.8;
         ctx.stroke();
       } else {
-        // Crown or Circlet
+        // Flowing hair framing both sides symmetrically
         ctx.beginPath();
-        ctx.arc(headX, headY - headRadY * 0.5, headRadX * 1.05, Math.PI, 0);
+        ctx.arc(headX, headY - headRadY * 0.4, headRadX * 1.12, Math.PI * 0.85, Math.PI * 2.15);
+        ctx.quadraticCurveTo(headX + headRadX * 1.15, headY + radius * 0.35, headX + headRadX * 0.6, headY + radius * 0.55);
+        ctx.quadraticCurveTo(headX + headRadX * 0.8, headY + radius * 0.1, headX + headRadX * 0.6, headY - headRadY * 0.3);
+        ctx.quadraticCurveTo(headX, headY - headRadY * 0.7, headX - headRadX * 0.6, headY - headRadY * 0.3);
+        ctx.quadraticCurveTo(headX - headRadX * 0.8, headY + radius * 0.1, headX - headRadX * 0.6, headY + radius * 0.55);
+        ctx.quadraticCurveTo(headX - headRadX * 1.15, headY + radius * 0.35, headX - headRadX * 1.12, headY - headRadY * 0.4);
+        ctx.closePath();
         ctx.fill();
 
+        // Symmetrical Hair Strand Highlights
+        ctx.strokeStyle = hairHighlight;
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(headX - headRadX * 0.4, headY - headRadY * 0.5);
+        ctx.quadraticCurveTo(headX, headY - headRadY * 0.7, headX + headRadX * 0.4, headY - headRadY * 0.5);
+        ctx.stroke();
+      }
+
+      // Circlet / Tiara / Crown
+      if (hairStyle === 'crown' || isBoss || elem === 'Admin') {
         ctx.fillStyle = isBoss || elem === 'Admin' ? '#fbbf24' : robeTrim;
         ctx.beginPath();
         ctx.moveTo(headX - headRadX * 0.8, headY - headRadY * 0.45);
-        ctx.lineTo(headX - headRadX * 0.6, headY - headRadY * 1.1);
+        ctx.lineTo(headX - headRadX * 0.6, headY - headRadY * 1.05);
         ctx.lineTo(headX - headRadX * 0.3, headY - headRadY * 0.7);
-        ctx.lineTo(headX, headY - headRadY * 1.25);
+        ctx.lineTo(headX, headY - headRadY * 1.2);
         ctx.lineTo(headX + headRadX * 0.3, headY - headRadY * 0.7);
-        ctx.lineTo(headX + headRadX * 0.6, headY - headRadY * 1.1);
+        ctx.lineTo(headX + headRadX * 0.6, headY - headRadY * 1.05);
         ctx.lineTo(headX + headRadX * 0.8, headY - headRadY * 0.45);
         ctx.closePath();
         ctx.fill();
       }
-
-      // E. Dual Elemental Hand / Gauntlet Glows (Fire on right, Water on left like Scene 6)
-      const fireGlow = ctx.createRadialGradient(screenPos.x - radius * 0.65, screenPos.y + radius * 0.65, 1, screenPos.x - radius * 0.65, screenPos.y + radius * 0.65, radius * 0.28);
-      fireGlow.addColorStop(0, '#fef08a');
-      fireGlow.addColorStop(0.5, '#f97316');
-      fireGlow.addColorStop(1, 'rgba(239, 68, 68, 0)');
-      ctx.fillStyle = fireGlow;
-      ctx.beginPath();
-      ctx.arc(screenPos.x - radius * 0.65, screenPos.y + radius * 0.65, radius * 0.28, 0, Math.PI * 2);
-      ctx.fill();
-
-      const waterGlow = ctx.createRadialGradient(screenPos.x + radius * 0.65, screenPos.y + radius * 0.65, 1, screenPos.x + radius * 0.65, screenPos.y + radius * 0.65, radius * 0.28);
-      waterGlow.addColorStop(0, '#ffffff');
-      waterGlow.addColorStop(0.5, '#06b6d4');
-      waterGlow.addColorStop(1, 'rgba(6, 182, 212, 0)');
-      ctx.fillStyle = waterGlow;
-      ctx.beginPath();
-      ctx.arc(screenPos.x + radius * 0.65, screenPos.y + radius * 0.65, radius * 0.28, 0, Math.PI * 2);
-      ctx.fill();
     }
 
-
-    // F. Polished Convex Glass Dome Highlight
+    // Convex Glass Dome Highlight
     const glintGrad = ctx.createLinearGradient(
       screenPos.x - radius,
       screenPos.y - radius,
@@ -2379,10 +2510,11 @@ export class BattlefieldRenderer {
     ctx.arc(screenPos.x, screenPos.y, radius - 1.5, 0, Math.PI * 2);
     ctx.fill();
 
-    // Exit clipping
-    ctx.restore();
+    // Exit clipping & Torso transform
+    ctx.restore(); // Exit clip
+    ctx.restore(); // Exit torso transform
 
-    // 6. Beveled Outer Runic Rim & Notches
+    // 6. Beveled Outer Runic Rim
     ctx.save();
     ctx.strokeStyle = isBoss ? '#fde047' : isFocused ? '#fef08a' : 'rgba(255, 255, 255, 0.25)';
     ctx.lineWidth = 1.0;

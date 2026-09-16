@@ -1,5 +1,5 @@
 // Elemental Mayhem - Persistent Game State & Save/Resume Manager
-import { Unit, ElementType, GridCoord, TileHazard, CombatLogEntry } from '../types';
+import { Unit, ElementType, GridCoord, TileHazard, CombatLogEntry, SerializedGardenState } from '../types';
 
 export interface SavedHazardTile {
   coord: GridCoord;
@@ -17,6 +17,7 @@ export interface GameSaveData {
   totalEssence: number;
   totalXp: number;
   elementalEssences?: Record<string, number>;
+  gardenState?: SerializedGardenState;
   turnPhase: string;
   logs: CombatLogEntry[];
   timestamp: number;

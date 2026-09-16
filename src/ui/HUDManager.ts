@@ -103,9 +103,11 @@ export class HUDManager {
         this.updateScrollNavButtons();
       });
 
-      window.addEventListener('resize', () => {
-        this.updateScrollNavButtons();
-      });
+      if (typeof window !== 'undefined') {
+        window.addEventListener('resize', () => {
+          this.updateScrollNavButtons();
+        });
+      }
     }
 
     // Search and filter input handlers
@@ -430,17 +432,35 @@ export class HUDManager {
       : unit.isLifeBeing
       ? `🧚 Divine Human Seraph of Life`
       : unit.isBoss
-      ? `👑 Ascended Human Nemesis (${unit.name})`
+      ? `👑 Ascended CPU Nemesis (${unit.name})`
+      : unit.isCPU || unit.faction === 'Enemy'
+      ? `🎮 Opposing CPU Player Champion (${unit.championClass || unit.stats.elementalAffinity})`
       : `👤 Human Elemental Champion (${unit.stats.elementalAffinity})`;
 
+    const abilitiesHtml = unit.abilities && unit.abilities.length > 0
+      ? `
+        <div style="margin-top:4px;">
+          <strong>Spell Deck (${unit.abilities.length} Powers):</strong>
+          <div style="display:flex; flex-wrap:wrap; gap:3px; margin-top:3px; max-height:85px; overflow-y:auto;">
+            ${unit.abilities.slice(0, 10).map((a) => `
+              <span class="element-badge" style="background:rgba(255,255,255,0.08); font-size:0.75rem; padding:2px 5px;" title="${a.description}">
+                ${a.icon} ${a.name} (${a.apCost} AP)
+              </span>
+            `).join('')}
+          </div>
+        </div>
+      `
+      : '';
+
     this.targetDetails.innerHTML = `
-      <div style="display:flex; flex-direction:column; gap:6px; font-size:0.85rem;">
+      <div style="display:flex; flex-direction:column; gap:5px; font-size:0.83rem;">
         <div><strong>Archetype:</strong> ${archetypeLabel}</div>
+        <div><strong>Level:</strong> ${unit.level || 1} • <strong>Faction:</strong> ${unit.faction === 'Enemy' ? 'Opposing Player (CPU)' : 'Player'}</div>
         <div><strong>HP:</strong> ${unit.stats.currentHp} / ${unit.stats.maxHp}</div>
-        <div><strong>AP:</strong> ${unit.stats.currentAp} / ${unit.stats.maxAp}</div>
-        <div><strong>Faction:</strong> ${unit.faction}</div>
+        <div><strong>AP:</strong> ${unit.stats.currentAp} / ${unit.stats.maxAp} AP</div>
         <div><strong>Status Effects:</strong> ${statusesHtml}</div>
         ${elem ? `<div><strong>Weak To:</strong> ${elem.weakAgainst.join(', ') || 'None'}</div>` : ''}
+        ${abilitiesHtml}
       </div>
     `;
   }

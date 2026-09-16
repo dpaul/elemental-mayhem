@@ -178,6 +178,8 @@ export interface Unit {
   avatar: string;
   coord: GridCoord;
   level?: number;
+  isCPU?: boolean;
+  championClass?: string;
   stats: UnitStats;
   abilities: Ability[];
   statusEffects: StatusEffect[];
@@ -311,3 +313,52 @@ export interface PlacementItem {
   hazardConfig?: PlacementHazardConfig;
   enemyFactory?: (coord: GridCoord) => Unit;
 }
+
+// ============================================================================
+// CRYSTAL GARDEN, PLOTS, SHOP & RELIC FORGE TYPES
+// ============================================================================
+
+export type CrystalType =
+  | 'Fire'
+  | 'Water'
+  | 'Earth'
+  | 'Lightning'
+  | 'Void'
+  | 'Ice'
+  | 'Nature'
+  | 'Prismatic';
+
+export type CrystalGrowthStage = 'Empty' | 'Seed' | 'Sprout' | 'Mature';
+
+export interface GardenPlot {
+  id: number;
+  unlocked: boolean;
+  seedType?: CrystalType;
+  stage: CrystalGrowthStage;
+  growthProgress: number; // 0 - 100%
+  roundsRemaining: number;
+  yieldCount: number;
+}
+
+export interface CrystalInventory {
+  seeds: Record<CrystalType, number>;
+  crystals: Record<CrystalType, number>;
+}
+
+export interface RelicCraftingRecipe {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  requiredCrystals: Partial<Record<CrystalType, number>>;
+  crafted: boolean;
+  statBonusText: string;
+  effect: (hero: Unit) => void;
+}
+
+export interface SerializedGardenState {
+  plots: GardenPlot[];
+  inventory: CrystalInventory;
+  craftedRelicIds: string[];
+}
+
