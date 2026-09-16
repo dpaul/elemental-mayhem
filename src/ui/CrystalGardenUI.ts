@@ -409,7 +409,7 @@ export class CrystalGardenUI {
     const hero = this.context.getHero ? this.context.getHero() : null;
     const unlockedMoves = this.manager.getUnlockedMoveCount();
     const heroMoves = hero?.abilities ? hero.abilities.length : unlockedMoves;
-    const heroAp = hero?.stats ? hero.stats.maxAp : 10 + (this.manager.getCraftedRelicIds().length > 0 ? 1 : 0);
+    const heroAp = hero?.stats ? hero.stats.maxAp : 30 + (this.manager.getCraftedRelicIds().length > 0 ? 1 : 0);
 
     // Moves & AP Empowerment Banner
     const banner = document.createElement('div');

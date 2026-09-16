@@ -131,9 +131,9 @@ export class HUDManager {
     this.heroHpText.textContent = `${hero.stats.currentHp} / ${hero.stats.maxHp} HP`;
     this.heroApText.textContent = `${hero.stats.currentAp} / ${hero.stats.maxAp} AP`;
 
-    // Render AP pips (capped at 20 pips for sleek high-AP display)
+    // Render AP pips (capped at 30 pips for sleek high-AP display)
     this.heroApPips.innerHTML = '';
-    const maxPips = Math.min(hero.stats.maxAp, 20);
+    const maxPips = Math.min(hero.stats.maxAp, 30);
     const filledRatio = hero.stats.maxAp > 0 ? hero.stats.currentAp / hero.stats.maxAp : 0;
     const filledCount = Math.round(filledRatio * maxPips);
     for (let i = 0; i < maxPips; i++) {

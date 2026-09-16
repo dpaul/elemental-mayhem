@@ -657,18 +657,18 @@ describe('Life Element Unzombify, Cascade Explosions & Being of Life (TDD Red ->
     expect(target.isDead).toBe(false);
   });
 
-  it('should ensure all created hero characters have 10 max AP and 10 current AP', () => {
+  it('should ensure all created hero characters have 30 max AP and 30 current AP', () => {
     const fireHero = createHeroForElement('Fire');
-    expect(fireHero.stats.maxAp).toBe(10);
-    expect(fireHero.stats.currentAp).toBe(10);
+    expect(fireHero.stats.maxAp).toBe(30);
+    expect(fireHero.stats.currentAp).toBe(30);
 
     const waterHero = createHeroForElement('Water');
-    expect(waterHero.stats.maxAp).toBe(10);
-    expect(waterHero.stats.currentAp).toBe(10);
+    expect(waterHero.stats.maxAp).toBe(30);
+    expect(waterHero.stats.currentAp).toBe(30);
 
     const timeHero = createHeroForElement('Time');
-    expect(timeHero.stats.maxAp).toBe(10);
-    expect(timeHero.stats.currentAp).toBe(10);
+    expect(timeHero.stats.maxAp).toBe(30);
+    expect(timeHero.stats.currentAp).toBe(30);
   });
 
   it('should verify every single element (all 50) has a dedicated Confusion move that applies Confused status', () => {

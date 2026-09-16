@@ -1088,7 +1088,7 @@ export const HERO_CLASSES: Record<ElementType, HeroClassConfig> = {
     description: 'Human master possessing complete cosmic authority and devastating powers from all 42 elements simultaneously.',
     category: 'Cosmic',
     isStarter: false,
-    bonusStats: {"maxHp":150,"maxAp":8},
+    bonusStats: {"maxHp":150,"maxAp":30},
     abilities: [
       {
         id: 'avatar_inferno',
@@ -8733,7 +8733,7 @@ populateAdminAbilities();
 export function createHeroForElement(element: ElementType): Unit {
   const config = HERO_CLASSES[element] || HERO_CLASSES.Fire;
   const maxHp = config.bonusStats?.maxHp || 100;
-  const maxAp = config.bonusStats?.maxAp || 10;
+  const maxAp = Math.max(30, config.bonusStats?.maxAp || 30);
 
   // Deep copy abilities to prevent state bleed
   // Normal characters can ONLY have 10 powers; ONLY the Administrator ('Admin') has all of them!
@@ -8830,7 +8830,7 @@ export function createCPUChampion(
   const maxHp = options?.baseHp
     ? options.baseHp
     : Math.round((config.bonusStats?.maxHp || 100) * (options?.hpMultiplier || 1));
-  const maxAp = options?.maxAp || config.bonusStats?.maxAp || 10;
+  const maxAp = options?.maxAp || config.bonusStats?.maxAp || 30;
 
   // 10 standard class abilities
   const abilities: Ability[] = config.abilities.slice(0, 10).map((ab) => ({
@@ -8896,8 +8896,8 @@ export function upgradeToCPUChampion(enemy: Unit, round: number = 1): Unit {
     baseDamage: Math.max(1, a.baseDamage),
   }));
 
-  // Real player AP: 10 AP per turn like any human player
-  const maxAp = Math.max(10, enemy.stats?.maxAp || 10);
+  // Real player AP: 30 AP per turn like any human player
+  const maxAp = Math.max(30, enemy.stats?.maxAp || 30);
   // Real player HP: 100 HP minimum, scaling if higher round/boss
   const maxHp = Math.max(100, enemy.stats?.maxHp || 100);
 

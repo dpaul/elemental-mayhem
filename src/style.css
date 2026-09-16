@@ -945,13 +945,15 @@ body::-webkit-scrollbar {
 
 .ap-pips {
   display: flex;
-  gap: 6px;
+  flex-wrap: wrap;
+  gap: 3px;
+  max-width: 240px;
 }
 
 .ap-pip {
-  width: 14px;
-  height: 14px;
-  border-radius: 3px;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid var(--border-subtle);
   transition: var(--transition-fast);
@@ -959,7 +961,7 @@ body::-webkit-scrollbar {
 
 .ap-pip.filled {
   background: var(--elem-lightning);
-  box-shadow: 0 0 8px var(--elem-lightning-glow);
+  box-shadow: 0 0 6px var(--elem-lightning-glow);
   border-color: #fef08a;
 }
 

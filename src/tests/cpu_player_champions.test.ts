@@ -90,7 +90,7 @@ describe('CPU Player Champions (Opposing Elemental Champions)', () => {
     expect(cpuPyromancer.isCPU).toBe(true);
     expect(cpuPyromancer.name).toBe('CPU Flame Sorcerer');
     expect(cpuPyromancer.championClass).toBe('Pyromancer');
-    expect(cpuPyromancer.stats.maxAp).toBe(10);
+    expect(cpuPyromancer.stats.maxAp).toBe(30);
     expect(cpuPyromancer.stats.maxHp).toBe(100);
     expect(cpuPyromancer.abilities.length).toBe(10);
     expect(cpuPyromancer.abilities.some((a) => a.id === 'flame_shield')).toBe(true);
