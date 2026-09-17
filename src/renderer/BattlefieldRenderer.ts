@@ -849,16 +849,21 @@ export class BattlefieldRenderer {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // 3. Floating Relic Icon
+    // 3. Floating Relic Icon (Optimized: radial gradient glow instead of slow software-rendered shadowBlur on text)
+    const iconGlow = ctx.createRadialGradient(cx, cy + bob - 3, 2, cx, cy + bob - 3, tileSize * 0.3);
+    iconGlow.addColorStop(0, `rgba(245, 158, 11, ${0.45 * pulse})`);
+    iconGlow.addColorStop(1, 'rgba(245, 158, 11, 0)');
+    ctx.fillStyle = iconGlow;
+    ctx.beginPath();
+    ctx.arc(cx, cy + bob - 3, tileSize * 0.3, 0, Math.PI * 2);
+    ctx.fill();
+
     ctx.font = `${Math.floor(tileSize * 0.42)}px "Segoe UI Emoji", sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.shadowColor = '#f59e0b';
-    ctx.shadowBlur = 14 * pulse;
     ctx.fillText(relic.icon || '💎', cx, cy + bob - 3);
 
     // 4. "RELIC" tag label
-    ctx.shadowBlur = 0;
     ctx.font = `bold ${Math.max(8, Math.floor(tileSize * 0.12))}px sans-serif`;
     ctx.fillStyle = '#fef08a';
     ctx.fillText('RELIC', cx, cy + tileSize * 0.36);

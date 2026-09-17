@@ -7175,6 +7175,14 @@ body::-webkit-scrollbar,
   gap: 16px;
 }
 
+/* Optimization: remove redundant backdrop-filter inside opaque garden modal */
+.crystal-garden-modal-content .glass-card,
+.seed-selector-content .glass-card {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: rgba(15, 23, 42, 0.88);
+}
+
 .garden-modal-header {
   display: flex;
   justify-content: space-between;
@@ -7426,6 +7434,8 @@ body::-webkit-scrollbar,
   border: 1px solid #facc15;
   box-shadow: 0 0 10px rgba(250, 204, 21, 0.4);
   animation: pulse-badge 1.8s infinite alternate;
+  will-change: transform, opacity;
+  display: inline-block;
 }
 
 @keyframes pulse-badge {
@@ -7501,11 +7511,13 @@ body::-webkit-scrollbar,
 
 .crystal-mature-pulse .crystal-stage-icon {
   animation: mature-crystal-bob 2s ease-in-out infinite alternate;
+  filter: drop-shadow(0 0 16px #facc15);
+  will-change: transform;
 }
 
 @keyframes mature-crystal-bob {
-  0% { transform: translateY(0) scale(1); filter: drop-shadow(0 0 10px #facc15); }
-  100% { transform: translateY(-6px) scale(1.1); filter: drop-shadow(0 0 25px #facc15); }
+  0% { transform: translateY(0) scale(1); }
+  100% { transform: translateY(-6px) scale(1.08); }
 }
 
 .growth-progress-box {
@@ -7575,6 +7587,7 @@ body::-webkit-scrollbar,
   color: #fcd34d;
   border: 1px solid rgba(245, 158, 11, 0.4);
   animation: pulse-badge 1.5s infinite alternate;
+  will-change: transform, opacity;
 }
 
 .care-nourished {

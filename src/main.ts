@@ -7927,6 +7927,12 @@ export class GameApp {
       this.updateAndRenderHomeParticles();
     }
 
+    // When Crystal Garden & Relic Forge modal is open, pause canvas rendering to save CPU/GPU
+    if (this.crystalGardenUI?.isOpen()) {
+      requestAnimationFrame(() => this.gameLoop());
+      return;
+    }
+
     this.renderer.update(deltaTimeMs);
     this.renderer.render(
       this.hoveredCoord,

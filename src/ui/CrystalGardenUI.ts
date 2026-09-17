@@ -116,6 +116,7 @@ export class CrystalGardenUI {
 
   public render(): void {
     if (typeof document === 'undefined') return;
+    if (!this.isOpen()) return;
 
     // 1. Update Essence, Elixir, and Plant Food counters
     const essenceEl = document.getElementById('garden-essence-counter');
