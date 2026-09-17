@@ -85,11 +85,32 @@ export class BattlefieldRenderer {
 
   public screenToGrid(clientX: number, clientY: number): GridCoord | null {
     const rect = this.canvas.getBoundingClientRect();
-    const scaleX = this.canvas.width / rect.width;
-    const scaleY = this.canvas.height / rect.height;
+    if (!rect.width || !rect.height) return null;
 
-    const canvasX = (clientX - rect.left) * scaleX;
-    const canvasY = (clientY - rect.top) * scaleY;
+    // Handle letterboxing/pillarboxing from object-fit: contain
+    const bufferAspect = this.canvas.width / this.canvas.height;
+    const rectAspect = rect.width / rect.height;
+
+    let renderedWidth = rect.width;
+    let renderedHeight = rect.height;
+    let letterboxX = 0;
+    let letterboxY = 0;
+
+    if (rectAspect > bufferAspect) {
+      // Element is wider than canvas internal aspect ratio: pillarbox (bars on left/right)
+      renderedWidth = rect.height * bufferAspect;
+      letterboxX = (rect.width - renderedWidth) / 2;
+    } else if (rectAspect < bufferAspect) {
+      // Element is taller than canvas internal aspect ratio: letterbox (bars on top/bottom)
+      renderedHeight = rect.width / bufferAspect;
+      letterboxY = (rect.height - renderedHeight) / 2;
+    }
+
+    const scaleX = this.canvas.width / renderedWidth;
+    const scaleY = this.canvas.height / renderedHeight;
+
+    const canvasX = (clientX - (rect.left + letterboxX)) * scaleX;
+    const canvasY = (clientY - (rect.top + letterboxY)) * scaleY;
 
     const gx = Math.floor((canvasX - this.gridOffsetX) / this.tileSize);
     const gy = Math.floor((canvasY - this.gridOffsetY) / this.tileSize);
@@ -166,6 +187,9 @@ export class BattlefieldRenderer {
     focusedUnitId: string | null = null
   ): void {
     const { ctx, canvas, combatEngine, tileSize, gridOffsetX, gridOffsetY } = this;
+    if (typeof ctx.setTransform === 'function') {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+    }
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Apply Screen Shake offset
@@ -2580,6 +2604,7 @@ export class BattlefieldRenderer {
     ctx.beginPath();
     ctx.arc(screenPos.x, screenPos.y, radius + 0.5, 0, Math.PI * 2);
     ctx.stroke();
+    ctx.restore();
 
     // 7. Elemental Mini-Badge (at bottom-right corner of medallion)
     const badgeRad = radius * 0.32;

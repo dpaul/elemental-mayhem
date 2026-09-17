@@ -3326,6 +3326,14 @@ export class GameApp {
       this.lastPlacedCoord = null;
     });
 
+    canvas.addEventListener('mouseleave', () => {
+      this.hoveredCoord = null;
+      if (this.renderer) {
+        this.renderer.activePlacementPreview = null;
+      }
+      this.hud.inspectUnit(null, null);
+    });
+
     canvas.addEventListener('contextmenu', (e) => {
       if (!this.isSandboxMode) return;
       e.preventDefault();
