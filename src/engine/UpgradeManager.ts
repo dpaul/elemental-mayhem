@@ -1,5 +1,6 @@
-// Elemental Mayhem - Upgrade & Armory Progression Manager
 import { Unit, Ability, PassiveRelic } from '../types';
+import { HERO_CLASSES } from '../constants/classes';
+import { getOrderedWeakestAbilities } from './CrystalManager';
 
 export interface LevelUpResult {
   leveledUp: boolean;
@@ -160,8 +161,35 @@ export class UpgradeManager {
     return true;
   }
 
-  public applyRelic(hero: Unit, relic: PassiveRelic): void {
+  public unlockNextElementalPower(hero: Unit): Ability | null {
+    if (!hero || !hero.abilities) return null;
+    if (hero.stats.elementalAffinity === 'Admin') return null;
+    if (hero.abilities.length >= 10) return null;
+
+    const config = HERO_CLASSES[hero.stats.elementalAffinity] || HERO_CLASSES.Fire;
+    const fullAbilities = config.abilities.slice(0, 10);
+    const ordered = getOrderedWeakestAbilities(fullAbilities);
+
+    const nextAbility = ordered.find((candidate) => !hero.abilities.some((a) => a.id === candidate.id));
+    if (!nextAbility) return null;
+
+    const unlocked: Ability = {
+      ...nextAbility,
+      currentCooldown: 0,
+    };
+    hero.abilities.push(unlocked);
+
+    // Enforce strict 10 powers maximum cap
+    if (hero.abilities.length > 10) {
+      hero.abilities = hero.abilities.slice(0, 10);
+    }
+
+    return unlocked;
+  }
+
+  public applyRelic(hero: Unit, relic: PassiveRelic): Ability | null {
     relic.applied = true;
     relic.effect(hero);
+    return this.unlockNextElementalPower(hero);
   }
 }

@@ -104,6 +104,7 @@ export interface TileState {
   isObstacle: boolean;
   obstacleIcon?: string;
   hazard: TileHazard;
+  relic?: PassiveRelic;
 }
 
 export type StatusEffectType =
@@ -338,11 +339,14 @@ export interface GardenPlot {
   growthProgress: number; // 0 - 100%
   roundsRemaining: number;
   yieldCount: number;
+  isWatered: boolean;
+  hasPlantFood: boolean;
 }
 
 export interface CrystalInventory {
   seeds: Record<CrystalType, number>;
   crystals: Record<CrystalType, number>;
+  plantFood: number;
 }
 
 export interface RelicCraftingRecipe {
@@ -360,5 +364,6 @@ export interface SerializedGardenState {
   plots: GardenPlot[];
   inventory: CrystalInventory;
   craftedRelicIds: string[];
+  collectedRelicIds?: string[];
 }
 

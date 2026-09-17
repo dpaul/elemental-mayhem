@@ -1,7 +1,7 @@
 // Elemental Mayhem - Main Application & Game Loop Controller
 import { Grid } from './engine/Grid';
 import { TileHazardManager } from './engine/TileHazardManager';
-import { CombatEngine } from './engine/CombatEngine';
+import { CombatEngine, BATTLE_RELIC_POOL } from './engine/CombatEngine';
 import { TurnManager } from './engine/TurnManager';
 import { TurnTimer } from './engine/TurnTimer';
 import { EnemyAI } from './engine/EnemyAI';
@@ -473,6 +473,18 @@ export class GameApp {
     this.sandboxContextMenu = document.getElementById('sandbox-board-context-menu');
     this.initSandboxUI();
 
+    this.crystalGardenManager = new CrystalGardenManager();
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        const savedGarden = window.localStorage.getItem('ELEMENTAL_MAYHEM_GARDEN_STATE');
+        if (savedGarden) {
+          this.crystalGardenManager.loadState(JSON.parse(savedGarden));
+        }
+      } catch (e) {
+        console.warn('Failed to load garden state from localStorage:', e);
+      }
+    }
+
     this.hero = this.createHero(this.selectedElement);
     this.enemies = this.escalationManager.generateRoundEnemies(1);
 
@@ -503,21 +515,6 @@ export class GameApp {
       this.updateHUD();
       this.updateReachableTiles();
     };
-
-    this.crystalGardenManager = new CrystalGardenManager();
-    if (typeof window !== 'undefined' && window.localStorage) {
-      try {
-        const savedGarden = window.localStorage.getItem('ELEMENTAL_MAYHEM_GARDEN_STATE');
-        if (savedGarden) {
-          this.crystalGardenManager.loadState(JSON.parse(savedGarden));
-        }
-      } catch (e) {
-        console.warn('Failed to load garden state from localStorage:', e);
-      }
-    }
-    if (this.hero) {
-      this.crystalGardenManager.applyCraftedRelicsToHero(this.hero);
-    }
 
     this.crystalGardenUI = new CrystalGardenUI(
       this.crystalGardenManager,
@@ -4967,6 +4964,36 @@ export class GameApp {
       this.upgradeChoicesContainer.appendChild(card);
     });
 
+    // Offer a Relic to collect if available
+    const availableRelics = BATTLE_RELIC_POOL.filter(
+      (r) => !this.crystalGardenManager?.getCollectedRelicIds().includes(r.id)
+    );
+    if (availableRelics.length > 0) {
+      const relicTemplate = availableRelics[Math.floor(Math.random() * availableRelics.length)];
+      const relicCard = document.createElement('div');
+      relicCard.className = 'upgrade-card relic-upgrade-card';
+      relicCard.style.borderColor = '#f59e0b';
+      relicCard.style.background = 'linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(168, 85, 247, 0.15))';
+      const moveCount = this.hero?.abilities ? this.hero.abilities.length : 3;
+      const unlockText = moveCount < 10 ? 'UNLOCKS NEW ELEMENTAL POWER' : '10/10 POWERS MAX';
+      relicCard.innerHTML = `
+        <div class="upgrade-header">
+          <span class="upgrade-icon">${relicTemplate.icon}</span>
+          <div>
+            <div class="upgrade-name" style="color: #fde68a;">Collect Relic: ${relicTemplate.name}</div>
+            <div class="upgrade-type" style="color: #fbbf24;">ANCIENT RELIC • ${unlockText}</div>
+          </div>
+        </div>
+        <div class="upgrade-desc">${relicTemplate.description}. Collect this relic to awaken a new power in your element kit!</div>
+      `;
+      relicCard.onclick = () => {
+        const relic = { ...relicTemplate, applied: false };
+        this.combatEngine.collectRelic(this.hero, relic);
+        this.advanceToNextRound();
+      };
+      this.upgradeChoicesContainer.appendChild(relicCard);
+    }
+
     this.upgradeModal.classList.remove('hidden');
   }
 
@@ -5000,6 +5027,27 @@ export class GameApp {
     };
     engine.onTitanLastBlow = (boss: Unit, colossusDmg: number, leviathanDmg: number) => {
       void this.executeTitansLastBlowOnRound1000(boss, colossusDmg, leviathanDmg);
+    };
+    engine.onRelicCollected = (relic, hero, newlyUnlockedAbility) => {
+      this.soundEngine.playLevelUp();
+      if (this.crystalGardenManager) {
+        this.crystalGardenManager.addCollectedRelic(relic.id, hero);
+      }
+      if (this.renderer) {
+        const pos = this.renderer.gridToScreen(hero.coord);
+        this.renderer.particleEngine.addFloatingText(
+          newlyUnlockedAbility
+            ? `✨ ${relic.name}: [${newlyUnlockedAbility.name}] UNLOCKED!`
+            : `✨ RELIC: ${relic.name}!`,
+          pos.x,
+          pos.y - 45,
+          '#fbbf24',
+          24
+        );
+        this.renderer.particleEngine.addShockwave(pos.x, pos.y, '#fbbf24', 60, 4.0);
+      }
+      this.updateHUD();
+      this.autoSaveGame();
     };
   }
 
@@ -6218,6 +6266,14 @@ export class GameApp {
         this.combatEngine.addLog(
           'system',
           `🌱 [CRYSTAL GARDEN] ${matured.maturedPlotIds.length} crop(s) fully matured! Open the Garden to harvest rare gems.`
+        );
+      } else if (matured.unwateredPlotIds.length > 0 || matured.unfedPlotIds.length > 0) {
+        const issues: string[] = [];
+        if (matured.unwateredPlotIds.length > 0) issues.push('water');
+        if (matured.unfedPlotIds.length > 0) issues.push('elemental plant food');
+        this.combatEngine.addLog(
+          'system',
+          `💧 [CRYSTAL GARDEN] Some crops could not grow because they need ${issues.join(' and ')}! Tend to your garden plots.`
         );
       }
       this.crystalGardenUI?.render();

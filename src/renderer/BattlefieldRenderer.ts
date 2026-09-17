@@ -3,7 +3,7 @@ import { CombatEngine } from '../engine/CombatEngine';
 import { ParticleEngine } from './ParticleEngine';
 import { AnimationManager, WalkCycleState } from './AnimationManager';
 import { ProjectileManager } from './ProjectileManager';
-import { GridCoord, TileHazardType, ElementType, Unit } from '../types';
+import { GridCoord, TileHazardType, ElementType, Unit, PassiveRelic } from '../types';
 import { CORE_ELEMENTS } from '../constants/elements';
 
 export class BattlefieldRenderer {
@@ -195,6 +195,11 @@ export class BattlefieldRenderer {
         // Draw 3D-Shaded Realistic Obstacles
         if (tile.isObstacle) {
           this.renderObstacle(ctx, px, py, tileSize, tile.obstacleIcon || '🪨', x, y);
+        }
+
+        // Draw Collectible Ancient Relics
+        if (tile.relic) {
+          this.renderRelicDrop(ctx, px, py, tileSize, tile.relic, x, y);
         }
       }
     }
@@ -780,6 +785,60 @@ export class BattlefieldRenderer {
     } else {
       ctx.arc(x, y, Math.max(0.1, (rx + ry) / 2), 0, Math.PI * 2);
     }
+  }
+
+  /**
+   * Renders collectible ancient relics dropped on the battlefield.
+   */
+  private renderRelicDrop(
+    ctx: CanvasRenderingContext2D,
+    px: number,
+    py: number,
+    tileSize: number,
+    relic: PassiveRelic,
+    x: number,
+    y: number
+  ): void {
+    const time = this.elapsedTotalTimeMs * 0.003;
+    const cx = px + tileSize / 2;
+    const cy = py + tileSize / 2;
+    const bob = Math.sin(time * 3 + (x + y) * 1.5) * 4;
+    const pulse = 0.6 + 0.4 * Math.sin(time * 4);
+
+    ctx.save();
+    // 1. Glowing golden/amber aura on floor dais
+    const grad = ctx.createRadialGradient(cx, cy, 4, cx, cy, tileSize * 0.44);
+    grad.addColorStop(0, `rgba(251, 191, 36, ${0.5 * pulse})`);
+    grad.addColorStop(0.6, `rgba(245, 158, 11, ${0.25 * pulse})`);
+    grad.addColorStop(1, 'rgba(245, 158, 11, 0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, tileSize * 0.44, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 2. Rotating sparkle ring
+    ctx.strokeStyle = `rgba(253, 224, 71, ${0.75 * pulse})`;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.arc(cx, cy, tileSize * 0.32, time, time + Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // 3. Floating Relic Icon
+    ctx.font = `${Math.floor(tileSize * 0.42)}px "Segoe UI Emoji", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = '#f59e0b';
+    ctx.shadowBlur = 14 * pulse;
+    ctx.fillText(relic.icon || '💎', cx, cy + bob - 3);
+
+    // 4. "RELIC" tag label
+    ctx.shadowBlur = 0;
+    ctx.font = `bold ${Math.max(8, Math.floor(tileSize * 0.12))}px sans-serif`;
+    ctx.fillStyle = '#fef08a';
+    ctx.fillText('RELIC', cx, cy + tileSize * 0.36);
+    ctx.restore();
   }
 
   /**

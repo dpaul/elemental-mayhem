@@ -128,6 +128,7 @@ export class CrystalGardenManager {
   private plots: GardenPlot[] = [];
   private inventory: CrystalInventory;
   private craftedRelicIds: Set<string> = new Set();
+  private collectedRelicIds: Set<string> = new Set();
   private growthElixirCount: number = 0;
   private recipes: RelicCraftingRecipe[] = [];
 
@@ -153,6 +154,7 @@ export class CrystalGardenManager {
         Nature: 0,
         Prismatic: 0,
       },
+      plantFood: 3,
     };
 
     this.initDefaultPlots();
@@ -161,12 +163,12 @@ export class CrystalGardenManager {
 
   private initDefaultPlots(): void {
     this.plots = [
-      { id: 1, unlocked: true, stage: 'Empty', growthProgress: 0, roundsRemaining: 0, yieldCount: 0 },
-      { id: 2, unlocked: true, stage: 'Empty', growthProgress: 0, roundsRemaining: 0, yieldCount: 0 },
-      { id: 3, unlocked: true, stage: 'Empty', growthProgress: 0, roundsRemaining: 0, yieldCount: 0 },
-      { id: 4, unlocked: false, stage: 'Empty', growthProgress: 0, roundsRemaining: 0, yieldCount: 0 },
-      { id: 5, unlocked: false, stage: 'Empty', growthProgress: 0, roundsRemaining: 0, yieldCount: 0 },
-      { id: 6, unlocked: false, stage: 'Empty', growthProgress: 0, roundsRemaining: 0, yieldCount: 0 },
+      { id: 1, unlocked: true, stage: 'Empty', growthProgress: 0, roundsRemaining: 0, yieldCount: 0, isWatered: false, hasPlantFood: false },
+      { id: 2, unlocked: true, stage: 'Empty', growthProgress: 0, roundsRemaining: 0, yieldCount: 0, isWatered: false, hasPlantFood: false },
+      { id: 3, unlocked: true, stage: 'Empty', growthProgress: 0, roundsRemaining: 0, yieldCount: 0, isWatered: false, hasPlantFood: false },
+      { id: 4, unlocked: false, stage: 'Empty', growthProgress: 0, roundsRemaining: 0, yieldCount: 0, isWatered: false, hasPlantFood: false },
+      { id: 5, unlocked: false, stage: 'Empty', growthProgress: 0, roundsRemaining: 0, yieldCount: 0, isWatered: false, hasPlantFood: false },
+      { id: 6, unlocked: false, stage: 'Empty', growthProgress: 0, roundsRemaining: 0, yieldCount: 0, isWatered: false, hasPlantFood: false },
     ];
   }
 
@@ -326,18 +328,87 @@ export class CrystalGardenManager {
     plot.growthProgress = 0;
     plot.roundsRemaining = config.growthRounds;
     plot.yieldCount = Math.floor(Math.random() * 2) + 2; // Yields 2-3 crystals
+    plot.isWatered = false;
+    plot.hasPlantFood = false;
 
     return {
       success: true,
-      message: `Planted ${config.name} seed in Plot #${plotId}. Growth underway!`,
+      message: `Planted ${config.name} seed in Plot #${plotId}. Remember to water it and provide Elemental Plant Food!`,
     };
   }
 
-  public advanceGrowth(roundsCount: number = 1): { maturedPlotIds: number[] } {
+  public waterPlot(plotId: number): { success: boolean; message: string } {
+    const plot = this.getPlot(plotId);
+    if (!plot) return { success: false, message: 'Invalid garden plot.' };
+    if (!plot.unlocked) return { success: false, message: 'This garden plot is locked. Unlock it in the shop!' };
+    if (plot.stage === 'Empty' || !plot.seedType) {
+      return { success: false, message: 'Plot is empty. Sow a seed before watering.' };
+    }
+    if (plot.stage === 'Mature') {
+      return { success: false, message: 'Crop is already fully mature and ready to harvest!' };
+    }
+    if (plot.isWatered) {
+      return { success: false, message: `Plot #${plotId} is already well-watered for this round.` };
+    }
+
+    plot.isWatered = true;
+    return {
+      success: true,
+      message: `💧 Watered Plot #${plotId}! The soil is soaked and ready for the next growth cycle.`,
+    };
+  }
+
+  public feedPlantFood(plotId: number): { success: boolean; message: string } {
+    const plot = this.getPlot(plotId);
+    if (!plot) return { success: false, message: 'Invalid garden plot.' };
+    if (!plot.unlocked) return { success: false, message: 'This garden plot is locked. Unlock it in the shop!' };
+    if (plot.stage === 'Empty' || !plot.seedType) {
+      return { success: false, message: 'Plot is empty. Sow a seed before applying plant food.' };
+    }
+    if (plot.stage === 'Mature') {
+      return { success: false, message: 'Crop is already fully mature and ready to harvest!' };
+    }
+    if (plot.hasPlantFood) {
+      return { success: false, message: `Plot #${plotId} is already energized with Elemental Plant Food.` };
+    }
+    if ((this.inventory.plantFood || 0) <= 0) {
+      return { success: false, message: 'No Elemental Plant Food in inventory. Purchase some in the Crystal Shop!' };
+    }
+
+    this.inventory.plantFood -= 1;
+    plot.hasPlantFood = true;
+    plot.yieldCount = (plot.yieldCount || 2) + 2; // Extra yield bonus
+    return {
+      success: true,
+      message: `🧪 Nourished Plot #${plotId} with Elemental Plant Food! Crop energized (+2 crystal harvest yield)!`,
+    };
+  }
+
+  public advanceGrowth(roundsCount: number = 1): {
+    maturedPlotIds: number[];
+    unwateredPlotIds: number[];
+    unfedPlotIds: number[];
+  } {
     const maturedPlotIds: number[] = [];
+    const unwateredPlotIds: number[] = [];
+    const unfedPlotIds: number[] = [];
 
     for (const plot of this.plots) {
       if (!plot.unlocked || plot.stage === 'Empty' || plot.stage === 'Mature' || !plot.seedType) {
+        continue;
+      }
+
+      let canGrow = true;
+      if (!plot.isWatered) {
+        unwateredPlotIds.push(plot.id);
+        canGrow = false;
+      }
+      if (!plot.hasPlantFood) {
+        unfedPlotIds.push(plot.id);
+        canGrow = false;
+      }
+
+      if (!canGrow) {
         continue;
       }
 
@@ -348,6 +419,9 @@ export class CrystalGardenManager {
       const completedRounds = totalRounds - plot.roundsRemaining;
       plot.growthProgress = Math.min(100, Math.round((completedRounds / totalRounds) * 100));
 
+      // Moisture is consumed this round, requiring re-watering for the next cycle
+      plot.isWatered = false;
+
       if (plot.roundsRemaining === 0) {
         plot.stage = 'Mature';
         maturedPlotIds.push(plot.id);
@@ -356,7 +430,7 @@ export class CrystalGardenManager {
       }
     }
 
-    return { maturedPlotIds };
+    return { maturedPlotIds, unwateredPlotIds, unfedPlotIds };
   }
 
   public harvestPlot(plotId: number): {
@@ -384,6 +458,8 @@ export class CrystalGardenManager {
     plot.growthProgress = 0;
     plot.roundsRemaining = 0;
     plot.yieldCount = 0;
+    plot.isWatered = false;
+    plot.hasPlantFood = false;
 
     return {
       success: true,
@@ -407,6 +483,8 @@ export class CrystalGardenManager {
     plot.stage = 'Mature';
     plot.growthProgress = 100;
     plot.roundsRemaining = 0;
+    plot.isWatered = true;
+    plot.hasPlantFood = true;
 
     return {
       success: true,
@@ -541,6 +619,36 @@ export class CrystalGardenManager {
     };
   }
 
+  public getPlantFoodCount(): number {
+    return this.inventory.plantFood || 0;
+  }
+
+  public addPlantFood(count: number): void {
+    this.inventory.plantFood = (this.inventory.plantFood || 0) + count;
+  }
+
+  public buyPlantFood(
+    count: number,
+    currentEssence: number
+  ): { success: boolean; totalCost: number; message: string } {
+    const costPerItem = 10;
+    const totalCost = costPerItem * count;
+    if (currentEssence < totalCost) {
+      return {
+        success: false,
+        totalCost,
+        message: `Elemental Plant Food costs ${totalCost} Essence for ${count}x (you have ${currentEssence}).`,
+      };
+    }
+
+    this.addPlantFood(count);
+    return {
+      success: true,
+      totalCost,
+      message: `Purchased ${count}x Elemental Plant Food for ${totalCost} Essence!`,
+    };
+  }
+
   // ==========================================================================
   // RELIC CRAFTING ALTAR
   // ==========================================================================
@@ -553,9 +661,26 @@ export class CrystalGardenManager {
     return Array.from(this.craftedRelicIds);
   }
 
+  public getCollectedRelicIds(): string[] {
+    const all = new Set([...this.craftedRelicIds, ...this.collectedRelicIds]);
+    return Array.from(all);
+  }
+
   public getUnlockedMoveCount(): number {
-    // Players start with 3 of the weakest moves + 1 move per crafted relic (up to 10)
-    return Math.min(10, 3 + this.craftedRelicIds.size);
+    // Players start with 3 of the weakest moves + 1 move per collected/crafted relic (up to 10)
+    const totalRelics = new Set([...this.craftedRelicIds, ...this.collectedRelicIds]).size;
+    return Math.min(10, 3 + totalRelics);
+  }
+
+  public addCollectedRelic(relicId: string, hero?: Unit): { newlyUnlockedAbility?: Ability } {
+    const prevMoveCount = hero?.abilities ? hero.abilities.length : this.getUnlockedMoveCount();
+    this.collectedRelicIds.add(relicId);
+    if (hero) {
+      this.applyCraftedRelicsToHero(hero);
+    }
+    const newMoveCount = hero?.abilities ? hero.abilities.length : this.getUnlockedMoveCount();
+    const newlyUnlockedAbility = hero?.abilities && newMoveCount > prevMoveCount ? hero.abilities[newMoveCount - 1] : undefined;
+    return { newlyUnlockedAbility };
   }
 
   public getHeroAbilities(element: ElementType): Ability[] {
@@ -681,6 +806,7 @@ export class CrystalGardenManager {
       plots: JSON.parse(JSON.stringify(this.plots)),
       inventory: JSON.parse(JSON.stringify(this.inventory)),
       craftedRelicIds: Array.from(this.craftedRelicIds),
+      collectedRelicIds: Array.from(this.collectedRelicIds),
     };
   }
 
@@ -688,12 +814,17 @@ export class CrystalGardenManager {
     if (!data) return;
 
     if (Array.isArray(data.plots)) {
-      this.plots = data.plots;
+      this.plots = data.plots.map((p) => ({
+        ...p,
+        isWatered: typeof p.isWatered === 'boolean' ? p.isWatered : false,
+        hasPlantFood: typeof p.hasPlantFood === 'boolean' ? p.hasPlantFood : false,
+      }));
     }
     if (data.inventory) {
       this.inventory = {
         seeds: { ...this.inventory.seeds, ...data.inventory.seeds },
         crystals: { ...this.inventory.crystals, ...data.inventory.crystals },
+        plantFood: typeof data.inventory.plantFood === 'number' ? data.inventory.plantFood : 3,
       };
     }
     if (Array.isArray(data.craftedRelicIds)) {
@@ -703,6 +834,9 @@ export class CrystalGardenManager {
           recipe.crafted = true;
         }
       }
+    }
+    if (Array.isArray(data.collectedRelicIds)) {
+      this.collectedRelicIds = new Set(data.collectedRelicIds);
     }
   }
 }

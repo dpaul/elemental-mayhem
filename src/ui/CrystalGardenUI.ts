@@ -117,12 +117,15 @@ export class CrystalGardenUI {
   public render(): void {
     if (typeof document === 'undefined') return;
 
-    // 1. Update Essence and Elixir counters
+    // 1. Update Essence, Elixir, and Plant Food counters
     const essenceEl = document.getElementById('garden-essence-counter');
     if (essenceEl) essenceEl.textContent = this.context.getEssence().toString();
 
     const elixirEl = document.getElementById('garden-elixir-counter');
     if (elixirEl) elixirEl.textContent = this.manager.getGrowthElixirCount().toString();
+
+    const plantFoodEl = document.getElementById('garden-plant-food-counter');
+    if (plantFoodEl) plantFoodEl.textContent = this.manager.getPlantFoodCount().toString();
 
     // 2. Render active tab
     if (this.activeTab === 'plots') {
@@ -168,6 +171,17 @@ export class CrystalGardenUI {
       }
     });
 
+    // Plant Food
+    const plantFood = this.manager.getPlantFoodCount();
+    if (plantFood > 0) {
+      chips.push(`
+        <div class="garden-chip chip-plant-food" style="border-color: #a855f7;">
+          <span>🌱🧪</span>
+          <span style="color: #c084fc; font-weight: 700;">Plant Food: <strong>x${plantFood}</strong></span>
+        </div>
+      `);
+    }
+
     // Elixirs
     const elixirs = this.manager.getGrowthElixirCount();
     if (elixirs > 0) {
@@ -194,6 +208,7 @@ export class CrystalGardenUI {
     const plots = this.manager.getPlots();
     const essence = this.context.getEssence();
     const elixirs = this.manager.getGrowthElixirCount();
+    const plantFoodCount = this.manager.getPlantFoodCount();
 
     plots.forEach((plot) => {
       const card = document.createElement('div');
@@ -279,6 +294,25 @@ export class CrystalGardenUI {
               <span class="crystal-stage-name" style="color: ${cfg.color};">${cfg.name}</span>
             </div>
 
+            ${
+              !isMature
+                ? `
+                <div class="plot-care-status-row">
+                  <span class="plot-care-badge ${plot.isWatered ? 'care-watered' : 'care-parched'}">
+                    ${plot.isWatered ? '💧 Watered' : '⚠️ Needs Water'}
+                  </span>
+                  <span class="plot-care-badge ${plot.hasPlantFood ? 'care-nourished' : 'care-hungry'}">
+                    ${plot.hasPlantFood ? '✨ Nourished (+2)' : '🌱🧪 Needs Food'}
+                  </span>
+                </div>
+                `
+                : `
+                <div class="plot-care-status-row">
+                  <span class="plot-care-badge care-nourished">💎 Yield: ${plot.yieldCount} crystals</span>
+                </div>
+                `
+            }
+
             <div class="growth-progress-box">
               <div class="growth-progress-labels">
                 <span>Rounds Remaining: ${plot.roundsRemaining}</span>
@@ -295,9 +329,17 @@ export class CrystalGardenUI {
                   ? `<button class="btn-primary plot-action-btn btn-harvest" style="background: linear-gradient(135deg, ${cfg.color}, #f59e0b); font-weight: 800;">
                       Harvest 💎
                     </button>`
-                  : `<button class="btn-secondary plot-action-btn btn-use-elixir" ${elixirs <= 0 ? 'disabled' : ''} title="${elixirs > 0 ? 'Instantly mature with Growth Elixir' : 'No Elixirs in bag (Buy in Shop)'}">
-                      🧪 Elixir (${elixirs})
-                    </button>`
+                  : `
+                    <button class="btn-secondary plot-action-btn btn-water-plot" ${plot.isWatered ? 'disabled' : ''} style="${plot.isWatered ? 'opacity: 0.6;' : 'background: rgba(56, 189, 248, 0.2); border-color: #38bdf8; color: #38bdf8; font-weight: 700;'}" title="${plot.isWatered ? 'Plot is already watered for this round' : 'Water this plot to allow growth next round'}">
+                      💧 ${plot.isWatered ? 'Watered' : 'Water'}
+                    </button>
+                    <button class="btn-secondary plot-action-btn btn-feed-food" ${plot.hasPlantFood || plantFoodCount <= 0 ? 'disabled' : ''} style="${plot.hasPlantFood ? 'opacity: 0.6;' : 'background: rgba(168, 85, 247, 0.2); border-color: #a855f7; color: #c084fc; font-weight: 700;'}" title="${plot.hasPlantFood ? 'Plot is nourished (+2 harvest crystals)' : (plantFoodCount > 0 ? 'Nourish with Elemental Plant Food (+2 harvest yield)' : 'No plant food in satchel (Buy in Shop)')}">
+                      🌱🧪 ${plot.hasPlantFood ? 'Fed' : `Feed (${plantFoodCount})`}
+                    </button>
+                    <button class="btn-secondary plot-action-btn btn-use-elixir" ${elixirs <= 0 ? 'disabled' : ''} title="${elixirs > 0 ? 'Instantly mature with Growth Elixir' : 'No Elixirs in bag (Buy in Shop)'}">
+                      🧪 (${elixirs})
+                    </button>
+                  `
               }
             </div>
           </div>
@@ -312,6 +354,22 @@ export class CrystalGardenUI {
             }
           });
         } else {
+          card.querySelector('.btn-water-plot')?.addEventListener('click', () => {
+            const res = this.manager.waterPlot(plot.id);
+            if (res.success) {
+              this.soundEngine.playSpellCast('Water');
+              this.notifyStateChanged();
+            }
+          });
+
+          card.querySelector('.btn-feed-food')?.addEventListener('click', () => {
+            const res = this.manager.feedPlantFood(plot.id);
+            if (res.success) {
+              this.soundEngine.playMagicSurge();
+              this.notifyStateChanged();
+            }
+          });
+
           card.querySelector('.btn-use-elixir')?.addEventListener('click', () => {
             const res = this.manager.applyGrowthElixir(plot.id);
             if (res.success) {
@@ -559,6 +617,38 @@ export class CrystalGardenUI {
     const suppliesContainer = document.getElementById('shop-supplies-grid');
     if (suppliesContainer) {
       suppliesContainer.innerHTML = '';
+
+      // Elemental Plant Food Card
+      const foodCost = 10;
+      const canAffordFood = essence >= foodCost;
+      const foodCard = document.createElement('div');
+      foodCard.className = 'shop-item-card glass-card';
+      foodCard.style.borderColor = '#a855f7';
+      foodCard.innerHTML = `
+        <div class="shop-card-top">
+          <span class="shop-item-icon">🌱🧪</span>
+          <div class="shop-item-title-group">
+            <h5 class="shop-item-title" style="color: #c084fc;">Elemental Plant Food</h5>
+            <span class="shop-item-rounds">Vital Nutrient</span>
+          </div>
+        </div>
+        <p class="shop-item-desc">Vital elemental nutrient blend. Feed to a growing crop to enable growth progression and grant +2 bonus crystal harvest yield!</p>
+        <div class="shop-card-bottom">
+          <div class="shop-price-tag">🔮 <strong>${foodCost}</strong> Essence</div>
+          <button class="btn-primary shop-buy-btn btn-buy-food" ${!canAffordFood ? 'disabled' : ''}>
+            ${canAffordFood ? 'Buy Food 🌱' : 'Need Essence'}
+          </button>
+        </div>
+      `;
+      foodCard.querySelector('.btn-buy-food')?.addEventListener('click', () => {
+        const res = this.manager.buyPlantFood(1, this.context.getEssence());
+        if (res.success) {
+          this.context.deductEssence(res.totalCost);
+          this.soundEngine.playMagicSurge();
+          this.notifyStateChanged();
+        }
+      });
+      suppliesContainer.appendChild(foodCard);
 
       // Growth Elixir Card
       const elixirCost = 35;

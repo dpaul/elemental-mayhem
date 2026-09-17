@@ -1,9 +1,10 @@
-// Elemental Mayhem - Combat Resolution, Necromancy & Life Entity Engine
 import { Grid } from './Grid';
 import { TileHazardManager } from './TileHazardManager';
 import { ElementalMatrix } from './ElementalMatrix';
 import { ReactionEngine } from './ReactionEngine';
 import { StatusEffectManager } from './StatusEffectManager';
+import { HERO_CLASSES } from '../constants/classes';
+import { getOrderedWeakestAbilities } from './CrystalManager';
 import {
   Unit,
   Ability,
@@ -15,6 +16,7 @@ import {
   ZombieClass,
   ElementType,
   TileHazardType,
+  PassiveRelic,
 } from '../types';
 
 export const ZOMBIE_CLASS_FLOOR_REQUIREMENTS: Record<ZombieClass, TileHazardType[]> = {
@@ -45,6 +47,178 @@ export const HAZARD_TO_ZOMBIE_CLASS: Partial<Record<TileHazardType, ZombieClass>
   CrystalSpikes: 'Screamer',
 };
 
+export const BATTLE_RELIC_POOL: Omit<PassiveRelic, 'applied'>[] = [
+  {
+    id: 'relic_arcane_battery',
+    name: 'Arcane Battery',
+    icon: '🔋',
+    description: '+2 Max Action Points per turn',
+    costEssence: 40,
+    costXp: 50,
+    effect: (hero: Unit) => {
+      hero.stats.maxAp += 2;
+      hero.stats.currentAp += 2;
+    },
+  },
+  {
+    id: 'relic_vitality_crystal',
+    name: 'Vitality Crystal',
+    icon: '💎',
+    description: '+40 Max HP and restores full health',
+    costEssence: 35,
+    costXp: 40,
+    effect: (hero: Unit) => {
+      hero.stats.maxHp += 40;
+      hero.stats.currentHp = hero.stats.maxHp;
+    },
+  },
+  {
+    id: 'relic_elemental_prism',
+    name: 'Elemental Prism',
+    icon: '🔮',
+    description: 'Reduces AP cost of all spells by 1 (min 1)',
+    costEssence: 60,
+    costXp: 75,
+    effect: (hero: Unit) => {
+      hero.abilities.forEach((a) => {
+        a.apCost = Math.max(1, a.apCost - 1);
+      });
+    },
+  },
+  {
+    id: 'relic_phoenix_feather',
+    name: 'Phoenix Feather',
+    icon: '🪶',
+    description: '+50 Max HP and +1 Max AP',
+    costEssence: 55,
+    costXp: 60,
+    effect: (hero: Unit) => {
+      hero.stats.maxHp += 50;
+      hero.stats.currentHp = hero.stats.maxHp;
+      hero.stats.maxAp += 1;
+      hero.stats.currentAp += 1;
+    },
+  },
+  {
+    id: 'relic_elemental_catalyst',
+    name: 'Elemental Catalyst',
+    icon: '⚡',
+    description: 'Empowers all abilities with +8 Base Damage',
+    costEssence: 50,
+    costXp: 65,
+    effect: (hero: Unit) => {
+      hero.abilities.forEach((a) => {
+        a.baseDamage += 8;
+      });
+    },
+  },
+  {
+    id: 'relic_fire_heart',
+    name: 'Heart of the Fire Ruby',
+    icon: '❤️‍🔥',
+    description: '+1 Max AP, +35 Max HP, +8 Fire Spell Damage',
+    costEssence: 50,
+    costXp: 50,
+    effect: (hero: Unit) => {
+      hero.stats.maxAp += 1;
+      hero.stats.currentAp += 1;
+      hero.stats.maxHp += 35;
+      hero.stats.currentHp += 35;
+      hero.abilities.forEach((a) => {
+        if (a.element === 'Fire') a.baseDamage += 8;
+      });
+    },
+  },
+  {
+    id: 'relic_frostborn_aegis',
+    name: 'Aegis of the Frostborn',
+    icon: '🛡️❄️',
+    description: '+1 Max AP, +45 Max HP',
+    costEssence: 50,
+    costXp: 50,
+    effect: (hero: Unit) => {
+      hero.stats.maxAp += 1;
+      hero.stats.currentAp += 1;
+      hero.stats.maxHp += 45;
+      hero.stats.currentHp += 45;
+    },
+  },
+  {
+    id: 'relic_storm_conduit',
+    name: 'Storm Conduit Signet',
+    icon: '⚡💍',
+    description: '+2 Max AP per turn, +6 Lightning Damage',
+    costEssence: 55,
+    costXp: 55,
+    effect: (hero: Unit) => {
+      hero.stats.maxAp += 2;
+      hero.stats.currentAp += 2;
+      hero.abilities.forEach((a) => {
+        if (a.element === 'Lightning') a.baseDamage += 6;
+      });
+    },
+  },
+  {
+    id: 'relic_verdant_brooch',
+    name: 'Verdant Rejuvenation Brooch',
+    icon: '🌿✨',
+    description: '+1 Max AP, +30 Max HP',
+    costEssence: 45,
+    costXp: 45,
+    effect: (hero: Unit) => {
+      hero.stats.maxAp += 1;
+      hero.stats.currentAp += 1;
+      hero.stats.maxHp += 30;
+      hero.stats.currentHp += 30;
+    },
+  },
+  {
+    id: 'relic_void_chalice',
+    name: 'Void Singularity Chalice',
+    icon: '🌌🏆',
+    description: '+2 Max AP, +25 Max HP',
+    costEssence: 60,
+    costXp: 60,
+    effect: (hero: Unit) => {
+      hero.stats.maxAp += 2;
+      hero.stats.currentAp += 2;
+      hero.stats.maxHp += 25;
+      hero.stats.currentHp += 25;
+    },
+  },
+  {
+    id: 'relic_granite_colossus',
+    name: 'Granite Colossus Core',
+    icon: '🪨🗿',
+    description: '+1 Max AP, +75 Max HP',
+    costEssence: 50,
+    costXp: 50,
+    effect: (hero: Unit) => {
+      hero.stats.maxAp += 1;
+      hero.stats.currentAp += 1;
+      hero.stats.maxHp += 75;
+      hero.stats.currentHp += 75;
+    },
+  },
+  {
+    id: 'relic_archon_crown',
+    name: 'Prismatic Archon Crown',
+    icon: '👑💎',
+    description: '+3 Max AP, +60 Max HP, -1 AP ability cost',
+    costEssence: 80,
+    costXp: 80,
+    effect: (hero: Unit) => {
+      hero.stats.maxAp += 3;
+      hero.stats.currentAp += 3;
+      hero.stats.maxHp += 60;
+      hero.stats.currentHp += 60;
+      hero.abilities.forEach((a) => {
+        a.apCost = Math.max(1, a.apCost - 1);
+      });
+    },
+  },
+];
+
 export class CombatEngine {
   public grid: Grid;
   public hazardManager: TileHazardManager;
@@ -66,6 +240,8 @@ export class CombatEngine {
   public onElementalEssenceEarned?: (element: ElementType, amount: number, coord: GridCoord) => void;
   public getEssenceResonanceMultiplier?: (caster: Unit) => number;
   public onTitanLastBlow?: (boss: Unit, colossusDmg: number, leviathanDmg: number) => void;
+  public onRelicCollected?: (relic: PassiveRelic, hero: Unit, newlyUnlockedAbility?: Ability) => void;
+  public onRelicSpawned?: (relic: PassiveRelic, coord: GridCoord) => void;
 
   constructor(grid: Grid, hazardManager: TileHazardManager, hero: Unit, enemies: Unit[], coopHero?: Unit) {
     this.grid = grid;
@@ -1018,6 +1194,11 @@ export class CombatEngine {
                 this.onElementalEssenceEarned(elemAffinity, elemDrop, unit.coord);
               }
             }
+            if (unit.isBoss || Math.random() < 0.35) {
+              const relic = this.getRandomRelic();
+              this.spawnRelicDrop(unit.coord, relic);
+              this.addLog('system', `✨ ${unit.name} dropped an ancient relic: [${relic.name}]!`);
+            }
           }
         }
       } else if (unit.isZombie && unit.zombieClass && ZOMBIE_CLASS_FLOOR_REQUIREMENTS[unit.zombieClass]?.includes(tile.hazard.type)) {
@@ -1026,6 +1207,13 @@ export class CombatEngine {
           `🧟 ${unit.name} is immune to native floor condition ${tile.hazard.type}!`
         );
       }
+    }
+
+    // Check if player stepped onto a relic drop
+    if (unit.faction === 'Player' && tile && tile.relic) {
+      const relic = tile.relic;
+      tile.relic = undefined;
+      this.collectRelic(unit, relic);
     }
 
     return true;
@@ -1404,6 +1592,11 @@ export class CombatEngine {
                 this.onElementalEssenceEarned(elemAffinity, elemDrop, targetUnit.coord);
               }
             }
+            if (targetUnit.isBoss || Math.random() < 0.35) {
+              const relic = this.getRandomRelic();
+              this.spawnRelicDrop(targetUnit.coord, relic);
+              this.addLog('system', `✨ ${targetUnit.name} dropped an ancient relic: [${relic.name}]!`);
+            }
           }
 
           // --- NECROMANCER REANIMATION MECHANIC ---
@@ -1498,6 +1691,9 @@ export class CombatEngine {
   }
 
   public resetRoundState(): void {
+    // Collect any remaining relics on the battlefield before advancing
+    this.vacuumAllBoardRelics();
+
     // 1. Restore hero health and AP (mana) to full
     if (this.hero) {
       this.hero.isDead = false;
@@ -1536,5 +1732,93 @@ export class CombatEngine {
         ? '✨ Round completed! Heroes restored to full Health & AP, cooldowns reset, and hazards cleared.'
         : '✨ Round completed! Hero restored to full Health & AP, cooldowns reset, and hazards cleared.'
     );
+  }
+
+  public getRandomRelic(): PassiveRelic {
+    const template = BATTLE_RELIC_POOL[Math.floor(Math.random() * BATTLE_RELIC_POOL.length)];
+    return {
+      ...template,
+      applied: false,
+    };
+  }
+
+  public spawnRelicDrop(coord: GridCoord, relic?: PassiveRelic): boolean {
+    const tile = this.grid.getTile(coord);
+    const dropRelic = relic || this.getRandomRelic();
+
+    if (!tile || tile.isObstacle) {
+      const neighbors = this.grid.getNeighbors(coord);
+      for (const n of neighbors) {
+        const neighborTile = this.grid.getTile(n);
+        if (neighborTile && !neighborTile.isObstacle && !neighborTile.relic) {
+          neighborTile.relic = dropRelic;
+          if (this.onRelicSpawned) this.onRelicSpawned(dropRelic, n);
+          return true;
+        }
+      }
+      return false;
+    }
+
+    tile.relic = dropRelic;
+    if (this.onRelicSpawned) this.onRelicSpawned(dropRelic, coord);
+    return true;
+  }
+
+  public collectRelic(hero: Unit, relic: PassiveRelic): Ability | null {
+    if (!hero || hero.isDead) return null;
+
+    relic.applied = true;
+    if (typeof relic.effect === 'function') {
+      relic.effect(hero);
+    }
+
+    // Unlock next elemental power
+    let newlyUnlockedAbility: Ability | null = null;
+    if (hero.stats.elementalAffinity !== 'Admin' && hero.abilities && hero.abilities.length < 10) {
+      const config = HERO_CLASSES[hero.stats.elementalAffinity] || HERO_CLASSES.Fire;
+      const fullAbilities = config.abilities.slice(0, 10);
+      const ordered = getOrderedWeakestAbilities(fullAbilities);
+      const nextAb = ordered.find((candidate) => !hero.abilities.some((a) => a.id === candidate.id));
+      if (nextAb) {
+        newlyUnlockedAbility = { ...nextAb, currentCooldown: 0 };
+        hero.abilities.push(newlyUnlockedAbility);
+      }
+    }
+
+    // Strictly enforce 10 powers maximum cap
+    if (hero.stats.elementalAffinity !== 'Admin' && hero.abilities && hero.abilities.length > 10) {
+      hero.abilities = hero.abilities.slice(0, 10);
+    }
+
+    const moveCount = hero.abilities ? hero.abilities.length : 0;
+    const unlockMsg = newlyUnlockedAbility
+      ? ` & Unlocked new ${hero.stats.elementalAffinity} power: [${newlyUnlockedAbility.name}]!`
+      : '';
+    this.addLog(
+      'system',
+      `✨ [RELIC COLLECTED] ${hero.name} gathered ${relic.name}! ${relic.description}${unlockMsg} (${Math.min(10, moveCount)}/10 Powers Active)`
+    );
+
+    if (this.onRelicCollected) {
+      this.onRelicCollected(relic, hero, newlyUnlockedAbility || undefined);
+    }
+
+    return newlyUnlockedAbility;
+  }
+
+  public vacuumAllBoardRelics(hero?: Unit): void {
+    const targetHero = hero || this.hero;
+    if (!targetHero) return;
+
+    for (let y = 0; y < this.grid.size; y++) {
+      for (let x = 0; x < this.grid.size; x++) {
+        const tile = this.grid.getTile({ x, y });
+        if (tile && tile.relic) {
+          const relic = tile.relic;
+          tile.relic = undefined;
+          this.collectRelic(targetHero, relic);
+        }
+      }
+    }
   }
 }
